@@ -1,4 +1,4 @@
-# slowok 프로젝트 초기화 가이드
+# slowgoes 프로젝트 초기화 가이드
 
 ## 🚀 Claude Code에서 실행할 순서
 
@@ -8,11 +8,11 @@
 
 ### Step 1: CLAUDE.md 복사
 
-먼저 이 가이드와 함께 제공된 `CLAUDE.md` 파일을 `slowok/` 폴더 루트에 넣으세요.
+먼저 이 가이드와 함께 제공된 `CLAUDE.md` 파일을 `slowgoes/` 폴더 루트에 넣으세요.
 Claude Code가 이 파일을 자동으로 읽고 프로젝트 컨텍스트로 활용합니다.
 
 ```
-cp CLAUDE.md ~/slowok/CLAUDE.md
+cp CLAUDE.md ~/slowgoes/CLAUDE.md
 ```
 
 ---
@@ -22,7 +22,7 @@ cp CLAUDE.md ~/slowok/CLAUDE.md
 Claude Code에서 아래 프롬프트를 입력하세요:
 
 ```
-CLAUDE.md를 읽고 slowok 프로젝트를 초기화해줘.
+CLAUDE.md를 읽고 slowgoes 프로젝트를 초기화해줘.
 
 1. pnpm create next-app으로 Next.js 15 프로젝트 생성
    - TypeScript, Tailwind CSS, App Router, src/ 디렉토리 사용

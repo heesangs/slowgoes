@@ -6,7 +6,7 @@ export default function LandingPage() {
       <main className="flex max-w-2xl flex-col items-center gap-8 text-center">
         {/* 로고 및 타이틀 */}
         <h1 className="text-5xl font-bold tracking-tight">
-          slow<span className="text-emerald-500">ok</span>
+          slow<span className="text-emerald-500">goes</span>
         </h1>
 
         {/* 슬로건 */}

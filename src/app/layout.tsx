@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "slowok - 나의 속도로, 천천히",
+  title: "slowgoes - 나의 속도로, 천천히",
   description:
     "AI가 난이도를 분석하고 시간을 제안합니다. 최종 결정은 당신의 몫.",
 };

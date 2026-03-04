@@ -195,7 +195,7 @@ export function OnboardingForm() {
       {step === 2 && (
         <div className="flex flex-col gap-6">
           <div>
-            <h2 className="text-lg font-semibold mb-1">어떤 일에 slowok을 쓸 예정인가요?</h2>
+            <h2 className="text-lg font-semibold mb-1">어떤 일에 slowgoes를 쓸 예정인가요?</h2>
             <p className="text-sm text-foreground/60">복수 선택 가능해요</p>
           </div>
           <div className="flex flex-col gap-2">

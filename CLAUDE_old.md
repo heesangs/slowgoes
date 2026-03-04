@@ -1,4 +1,4 @@
-# slowok
+# slowgoes
 
 ## Philosophy
 
@@ -32,7 +32,7 @@ Task input → AI decomposes into subtasks + suggests difficulty & time
 ## Project Structure
 
 ```
-slowok/
+slowgoes/
 ├── src/
 │   ├── app/
 │   │   ├── (auth)/           # Login / Signup route group

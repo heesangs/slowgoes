@@ -14,7 +14,7 @@ export default function MainLayout({
       <header className="border-b border-foreground/10 px-4 py-3">
         <div className="mx-auto max-w-2xl flex items-center justify-between">
           <Link href="/dashboard" className="text-lg font-bold">
-            slowok
+            slowgoes
           </Link>
           <div className="flex items-center gap-2">
             <Link

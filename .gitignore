@@ -36,6 +36,9 @@ yarn-error.log*
 # mcp config (contains secrets)
 .mcp.json
 
+# supabase 임시 파일
+supabase/.temp/
+
 # vercel
 .vercel
 

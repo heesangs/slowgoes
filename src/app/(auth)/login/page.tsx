@@ -33,7 +33,7 @@ export default function LoginPage() {
     <div className="flex min-h-dvh items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold mb-2">slowok</h1>
+          <h1 className="text-2xl font-bold mb-2">slowgoes</h1>
           <p className="text-sm text-foreground/60">
             나의 속도로, 천천히 확실하게
           </p>

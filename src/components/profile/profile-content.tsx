@@ -175,7 +175,7 @@ export function ProfileContent({ profile, email, stats }: ProfileContentProps) {
                 {grade}
               </span>
             )}
-            <span>slowok과 함께한 지 {daysSinceJoined}일째</span>
+            <span>slowgoes과 함께한 지 {daysSinceJoined}일째</span>
           </div>
         </div>
       </div>
@@ -198,7 +198,7 @@ export function ProfileContent({ profile, email, stats }: ProfileContentProps) {
 
           {/* 사용 목적 */}
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-foreground/70">slowok 사용 목적</label>
+            <label className="text-sm font-medium text-foreground/70">slowgoes 사용 목적</label>
             <div className="flex flex-col gap-2">
               {USER_CONTEXTS.map((ctx) => (
                 <button
