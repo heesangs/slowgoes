@@ -26,16 +26,13 @@ export default function LandingPage() {
         {/* 난이도 시각화 미리보기 */}
         <div className="flex gap-4 text-sm">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded-full bg-emerald-400" />
-            쉬움
+            🌱 쉬움
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded-full bg-amber-400" />
-            보통
+            🌿 보통
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded-full bg-rose-400" />
-            어려움
+            🌳 어려움
           </span>
         </div>
 

@@ -6,15 +6,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signInAction } from "@/app/(auth)/actions";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const SAVED_EMAIL_KEY = "slowgoes_saved_email";
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  async function handleSubmit(formData: FormData) {
+  // 마운트 시 저장된 이메일 불러오기
+  useEffect(() => {
+    const saved = localStorage.getItem(SAVED_EMAIL_KEY);
+    if (saved) setEmail(saved);
+  }, []);
+
+  // 이메일 변경 시 localStorage에 저장
+  useEffect(() => {
+    if (email) {
+      localStorage.setItem(SAVED_EMAIL_KEY, email);
+    }
+  }, [email]);
+
+  async function handleSubmit() {
     setError(null);
     setIsLoading(true);
+
+    // controlled 상태값으로 FormData 생성
+    const formData = new FormData();
+    formData.append("email", email);
+    formData.append("password", password);
 
     try {
       const result = await signInAction(formData);
@@ -39,7 +61,13 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form action={handleSubmit} className="flex flex-col gap-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+          className="flex flex-col gap-4"
+        >
           <Input
             id="email"
             name="email"
@@ -48,6 +76,12 @@ export default function LoginPage() {
             placeholder="example@email.com"
             required
             autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onClear={() => {
+              setEmail("");
+              localStorage.removeItem(SAVED_EMAIL_KEY);
+            }}
           />
 
           <Input
@@ -58,6 +92,9 @@ export default function LoginPage() {
             placeholder="비밀번호를 입력하세요"
             required
             autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onClear={() => setPassword("")}
           />
 
           {error && (
