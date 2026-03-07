@@ -5,7 +5,9 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { TaskInputData, UserContext } from "@/types";
+import { useToast } from "@/components/ui/toast";
+import { saveMemoTemplateAction, deleteMemoTemplateAction } from "@/app/(main)/tasks/actions";
+import type { MemoTemplate, TaskInputData, UserContext } from "@/types";
 
 // userContext별 placeholder 맵
 const PLACEHOLDERS: Record<UserContext | "default", string> = {
@@ -38,15 +40,29 @@ interface TaskInputFormProps {
   onSubmit: (data: TaskInputData) => void;
   isLoading: boolean;
   userContext?: UserContext[];
+  memoTemplates?: MemoTemplate[];
+  onTemplatesChange?: (templates: MemoTemplate[]) => void;
 }
 
-export function TaskInputForm({ onSubmit, isLoading, userContext }: TaskInputFormProps) {
+export function TaskInputForm({
+  onSubmit,
+  isLoading,
+  userContext,
+  memoTemplates = [],
+  onTemplatesChange,
+}: TaskInputFormProps) {
   const [title, setTitle] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [memo, setMemo] = useState("");
   const [subtaskCount, setSubtaskCount] = useState<number | undefined>(undefined);
   const [duration, setDuration] = useState<number | undefined>(undefined);
   const [dueDate, setDueDate] = useState("");
+
+  // 메모 템플릿 저장 관련 상태
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [showLabelInput, setShowLabelInput] = useState(false);
+  const [templateLabel, setTemplateLabel] = useState("");
+  const { toast } = useToast();
 
   // userContext 첫 번째 값으로 placeholder 결정
   const firstContext = userContext?.[0];
@@ -136,6 +152,148 @@ export function TaskInputForm({ onSubmit, isLoading, userContext }: TaskInputFor
             <span className="absolute bottom-2 right-3 text-xs text-foreground/40">
               {memo.length}/500
             </span>
+          </div>
+
+          {/* 메모 템플릿 태그 목록 + 저장 버튼 */}
+          <div className="flex flex-col gap-2">
+            {/* 저장된 템플릿 태그 */}
+            {memoTemplates.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {memoTemplates.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => setMemo(tpl.content)}
+                    className="group flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border border-border bg-background text-foreground/70 hover:border-primary/60 hover:text-primary transition-colors"
+                  >
+                    <span>{tpl.label}</span>
+                    {/* 삭제 x 버튼 */}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${tpl.label} 템플릿 삭제`}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const result = await deleteMemoTemplateAction(tpl.id);
+                        if (result.success) {
+                          onTemplatesChange?.(
+                            memoTemplates.filter((t) => t.id !== tpl.id)
+                          );
+                          toast("템플릿을 삭제했습니다.", "success");
+                        } else {
+                          toast(result.error ?? "삭제에 실패했습니다.", "error");
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          (e.target as HTMLElement).click();
+                        }
+                      }}
+                      className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-foreground/40 hover:text-red-500"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* 템플릿 저장 영역 */}
+            {memo.trim() && (
+              <div className="flex items-center gap-2">
+                {showLabelInput ? (
+                  <>
+                    <input
+                      type="text"
+                      maxLength={20}
+                      placeholder="템플릿 이름 (예: 디자인 가이드)"
+                      value={templateLabel}
+                      onChange={(e) => setTemplateLabel(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (!templateLabel.trim()) return;
+                          setIsSavingTemplate(true);
+                          const result = await saveMemoTemplateAction(
+                            templateLabel.trim(),
+                            memo.trim()
+                          );
+                          setIsSavingTemplate(false);
+                          if (result.success && result.data) {
+                            onTemplatesChange?.([...memoTemplates, result.data]);
+                            toast("템플릿이 저장되었습니다.", "success");
+                            setShowLabelInput(false);
+                            setTemplateLabel("");
+                          } else {
+                            toast(result.error ?? "저장에 실패했습니다.", "error");
+                          }
+                        }
+                        if (e.key === "Escape") {
+                          setShowLabelInput(false);
+                          setTemplateLabel("");
+                        }
+                      }}
+                      disabled={isSavingTemplate}
+                      autoFocus
+                      className="flex-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
+                    />
+                    <button
+                      type="button"
+                      disabled={!templateLabel.trim() || isSavingTemplate}
+                      onClick={async () => {
+                        if (!templateLabel.trim()) return;
+                        setIsSavingTemplate(true);
+                        const result = await saveMemoTemplateAction(
+                          templateLabel.trim(),
+                          memo.trim()
+                        );
+                        setIsSavingTemplate(false);
+                        if (result.success && result.data) {
+                          onTemplatesChange?.([...memoTemplates, result.data]);
+                          toast("템플릿이 저장되었습니다.", "success");
+                          setShowLabelInput(false);
+                          setTemplateLabel("");
+                        } else {
+                          toast(result.error ?? "저장에 실패했습니다.", "error");
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {isSavingTemplate ? "저장 중..." : "저장"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowLabelInput(false);
+                        setTemplateLabel("");
+                      }}
+                      className="text-xs text-foreground/40 hover:text-foreground/60 transition-colors"
+                    >
+                      취소
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => setShowLabelInput(true)}
+                    className="flex items-center gap-1 text-xs text-foreground/50 hover:text-primary transition-colors"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                      <polyline points="17 21 17 13 7 13 7 21" />
+                      <polyline points="7 3 7 8 15 8" />
+                    </svg>
+                    <span>템플릿으로 저장</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

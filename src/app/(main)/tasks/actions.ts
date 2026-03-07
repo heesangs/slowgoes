@@ -5,7 +5,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { analyzeTask, decomposeSubtask } from "@/lib/ai/analyze";
-import type { AISubtaskSuggestion, EditableSubtask, Profile, TaskInputData } from "@/types";
+import type { AISubtaskSuggestion, EditableSubtask, MemoTemplate, Profile, TaskInputData } from "@/types";
 
 // 인증된 사용자 ID 반환 (미인증 시 에러)
 async function getAuthUserId() {
@@ -334,6 +334,115 @@ export async function saveTaskAction(data: {
     return {
       success: false,
       error: error instanceof Error ? error.message : "저장 중 오류가 발생했습니다.",
+    };
+  }
+}
+
+// ─── 메모 템플릿 관련 액션 ──────────────────────────────────
+
+/**
+ * 메모 템플릿 목록 조회 — 현재 사용자의 모든 템플릿 반환
+ */
+export async function getMemoTemplatesAction(): Promise<{
+  success: boolean;
+  data?: MemoTemplate[];
+  error?: string;
+}> {
+  try {
+    const { supabase, userId } = await getAuthUserId();
+
+    const { data, error } = await supabase
+      .from("memo_templates")
+      .select("*")
+      .eq("user_id", userId)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (error) throw new Error(error.message);
+
+    return { success: true, data: (data ?? []) as MemoTemplate[] };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "템플릿 조회 중 오류가 발생했습니다.",
+    };
+  }
+}
+
+/**
+ * 메모 템플릿 저장 — label과 content로 새 템플릿 생성
+ */
+export async function saveMemoTemplateAction(
+  label: string,
+  content: string
+): Promise<{
+  success: boolean;
+  data?: MemoTemplate;
+  error?: string;
+}> {
+  try {
+    const { supabase, userId } = await getAuthUserId();
+
+    const trimmedLabel = label.trim();
+    const trimmedContent = content.trim();
+
+    if (!trimmedLabel) throw new Error("템플릿 이름을 입력해주세요.");
+    if (!trimmedContent) throw new Error("메모 내용이 비어있습니다.");
+
+    // 현재 최대 sort_order 조회
+    const { data: existing } = await supabase
+      .from("memo_templates")
+      .select("sort_order")
+      .eq("user_id", userId)
+      .order("sort_order", { ascending: false })
+      .limit(1);
+
+    const nextSortOrder = (existing?.[0]?.sort_order ?? -1) + 1;
+
+    const { data, error } = await supabase
+      .from("memo_templates")
+      .insert({
+        user_id: userId,
+        label: trimmedLabel,
+        content: trimmedContent,
+        sort_order: nextSortOrder,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    return { success: true, data: data as MemoTemplate };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "템플릿 저장 중 오류가 발생했습니다.",
+    };
+  }
+}
+
+/**
+ * 메모 템플릿 삭제 — 소유권 확인 후 삭제
+ */
+export async function deleteMemoTemplateAction(
+  templateId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthUserId();
+
+    const { error } = await supabase
+      .from("memo_templates")
+      .delete()
+      .eq("id", templateId)
+      .eq("user_id", userId);
+
+    if (error) throw new Error(error.message);
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "템플릿 삭제 중 오류가 발생했습니다.",
     };
   }
 }

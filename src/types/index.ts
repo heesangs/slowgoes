@@ -96,3 +96,13 @@ export interface EditableSubtask {
   sort_order: number;
   is_decomposing: boolean;
 }
+
+// 메모 템플릿 타입
+export interface MemoTemplate {
+  id: string;
+  user_id: string;
+  label: string;
+  content: string;
+  sort_order: number;
+  created_at: string;
+}

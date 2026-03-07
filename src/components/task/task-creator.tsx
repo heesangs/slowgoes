@@ -2,14 +2,14 @@
 
 // 과제 생성 오케스트레이터 — useReducer로 phase 및 하위 과제 상태 관리
 
-import { useReducer } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { TaskInputForm } from "./task-input-form";
 import { SubtaskList } from "./subtask-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
-import { analyzeTaskAction, decomposeSubtaskAction, saveTaskAction } from "@/app/(main)/tasks/actions";
-import type { Difficulty, EditableSubtask, AISubtaskSuggestion, TaskInputData, UserContext } from "@/types";
+import { analyzeTaskAction, decomposeSubtaskAction, getMemoTemplatesAction, saveTaskAction } from "@/app/(main)/tasks/actions";
+import type { Difficulty, EditableSubtask, AISubtaskSuggestion, MemoTemplate, TaskInputData, UserContext } from "@/types";
 
 // 상태 타입
 type Phase = "input" | "analyzing" | "editing" | "saving";
@@ -188,6 +188,20 @@ export function TaskCreator({ userContext }: TaskCreatorProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { toast } = useToast();
 
+  // 메모 템플릿 상태 관리
+  const [memoTemplates, setMemoTemplates] = useState<MemoTemplate[]>([]);
+
+  // 마운트 시 메모 템플릿 목록 로드
+  useEffect(() => {
+    async function loadTemplates() {
+      const result = await getMemoTemplatesAction();
+      if (result.success && result.data) {
+        setMemoTemplates(result.data);
+      }
+    }
+    loadTemplates();
+  }, []);
+
   // 과제 분석 요청
   const handleAnalyze = async (data: TaskInputData) => {
     dispatch({ type: "START_ANALYZE", data });
@@ -263,6 +277,8 @@ export function TaskCreator({ userContext }: TaskCreatorProps) {
               onSubmit={handleAnalyze}
               isLoading={state.phase === "analyzing"}
               userContext={userContext}
+              memoTemplates={memoTemplates}
+              onTemplatesChange={setMemoTemplates}
             />
           </CardContent>
         </Card>
