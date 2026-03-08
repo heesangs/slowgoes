@@ -11,6 +11,83 @@ type SelfLevel = (typeof VALID_SELF_LEVELS)[number];
 const VALID_USER_CONTEXTS = ["student", "university", "work", "personal"] as const;
 type UserContext = (typeof VALID_USER_CONTEXTS)[number];
 
+function mapSignInError(error: unknown): string {
+  if (!error || typeof error !== "object") {
+    return "로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+  }
+
+  const candidate = error as {
+    message?: unknown;
+    status?: unknown;
+    code?: unknown;
+    name?: unknown;
+  };
+
+  const message =
+    typeof candidate.message === "string" ? candidate.message.toLowerCase() : "";
+  const code =
+    typeof candidate.code === "string" ? candidate.code.toLowerCase() : "";
+  const name =
+    typeof candidate.name === "string" ? candidate.name.toLowerCase() : "";
+  const status = typeof candidate.status === "number" ? candidate.status : undefined;
+
+  const hasToken = (...tokens: string[]) =>
+    tokens.some(
+      (token) =>
+        message.includes(token) ||
+        code.includes(token) ||
+        name.includes(token)
+    );
+
+  if (
+    status === 429 ||
+    hasToken("too many requests", "rate limit", "over_request_rate_limit")
+  ) {
+    return "요청이 많아 잠시 제한되었어요. 잠시 후 다시 시도해주세요.";
+  }
+
+  if (
+    hasToken(
+      "email not confirmed",
+      "email_not_confirmed",
+      "not confirmed"
+    )
+  ) {
+    return "이메일 인증이 완료되지 않았어요. 메일함에서 인증 후 다시 로그인해주세요.";
+  }
+
+  if (
+    hasToken("fetch failed", "failed to fetch", "network", "timeout")
+  ) {
+    return "네트워크 연결이 불안정해 로그인에 실패했습니다. 연결 상태를 확인해주세요.";
+  }
+
+  if (
+    status === 400 &&
+    hasToken(
+      "invalid login credentials",
+      "invalid_credentials",
+      "invalid grant"
+    )
+  ) {
+    return "이메일 또는 비밀번호가 올바르지 않습니다.";
+  }
+
+  if (
+    status === 401 ||
+    status === 403 ||
+    hasToken("unauthorized", "forbidden")
+  ) {
+    return "로그인 권한을 확인할 수 없습니다. 다시 로그인해주세요.";
+  }
+
+  if (typeof status === "number" && status >= 500) {
+    return "서버 오류로 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.";
+  }
+
+  return "로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+}
+
 export async function signUpAction(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -46,7 +123,7 @@ export async function signInAction(formData: FormData) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
+    return { error: mapSignInError(error) };
   }
 
   const userId = data.user?.id;
