@@ -148,10 +148,20 @@
 | 2026-03-11 | SG-403 | `difficulty_adjustments` 테이블 + RLS/인덱스 추가, `saveTaskAction` 조정 이력 적재, `analyzeTask`/`decomposeSubtask` 학습 힌트 반영, `pnpm lint`/`pnpm build` 통과 확인 | 완료 | SG-404 `/review` 구현 진행 |
 | 2026-03-11 | SG-404 | `/review` 페이지 구현, `stats` 기반 회고 집계/인사이트 공급, 대시보드 회고 카드 상세 이동 연결 구현 | 완료 | Phase 5(SG-501~503) 진행 |
 | 2026-03-11 | SG-501~503 | 카피 톤 정리, 44px 터치 타겟/`/review` 로딩 상태 반영, 사용자 단위 flag 롤아웃(퍼센트) 및 auth/dashboard/onboarding 분기 연결, 스모크(`/dashboard`, `/review`, `/tasks/new`) + lint/build 검증 | 완료 | 운영 환경 rollout 퍼센트 단계 적용 |
+| 2026-03-11 | 운영 후속(플래그 기본값) | 개편 후 기존 계정에서 v1 화면 노출 이슈 재현/점검, `src/lib/flags.ts` 기본값을 v2 기준(true)으로 전환 | 완료 | 운영 환경에서 `FF_*`/`NEXT_PUBLIC_FF_*` 값 충돌 여부 점검 |
 
 ---
 
-## 6) 문서 운영 규칙
+## 6) 운영 체크포인트
+
+1. 기본 동작은 v2(`onboarding_v2=true`, `dashboard_v2=true`)로 동작한다.
+2. 롤백이 필요하면 환경변수 `FF_ONBOARDING_V2=false`, `FF_DASHBOARD_V2=false`로 즉시 차단한다.
+3. 점진 공개가 필요하면 `FF_*_ROLLOUT`를 사용하고, bool 플래그(`FF_*`)가 우선순위가 더 높다.
+4. 런타임 분기 확인 순서: 환경변수 로드 여부 -> 유저 단위 rollout 해시 -> 기본값.
+
+---
+
+## 7) 문서 운영 규칙
 
 1. 티켓 시작 시 상태를 `진행중`으로 바꾼다.
 2. 구현 + 검증(lint/build/핵심 플로우 확인) 후에만 `완료`로 바꾼다.

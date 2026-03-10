@@ -1,5 +1,5 @@
 // Feature flags
-// - 기본값은 안전하게 false
+// - 기본값은 출시 상태(true)
 // - 서버에서는 FF_* 우선, 없으면 NEXT_PUBLIC_FF_* 사용
 // - <FLAG>_ROLLOUT (0~100) 값을 주면 사용자 ID 해시 기반 점진 공개 가능
 // - bool 플래그(FF_*)를 명시하면 rollout 값보다 우선 적용됨
@@ -10,8 +10,8 @@ const TRUE_VALUES = new Set(["1", "true", "t", "yes", "y", "on"]);
 const FALSE_VALUES = new Set(["0", "false", "f", "no", "n", "off"]);
 
 const FEATURE_FLAG_DEFAULTS: Record<FeatureFlag, boolean> = {
-  onboarding_v2: false,
-  dashboard_v2: false,
+  onboarding_v2: true,
+  dashboard_v2: true,
 };
 
 const FEATURE_FLAG_ENV_KEYS: Record<FeatureFlag, readonly string[]> = {
