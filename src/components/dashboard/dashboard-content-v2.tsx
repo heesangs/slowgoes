@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { AllTasksView } from "@/components/dashboard/all-tasks-view";
 import { useToast } from "@/components/ui/toast";
 import { cn, formatMinutes, getDifficultyConfig } from "@/lib/utils";
 import type { DashboardV2Data, Difficulty, Subtask, TaskWithSubtasks } from "@/types";
 
 interface DashboardContentV2Props {
   data: DashboardV2Data;
+  allTasks: TaskWithSubtasks[];
   fetchError?: string;
 }
 
@@ -74,7 +76,7 @@ function buildStartPointSuggestion(bucketTitle: string) {
   return `${text} 관련 첫 행동 1개 정하기`;
 }
 
-export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props) {
+export function DashboardContentV2({ data, allTasks, fetchError }: DashboardContentV2Props) {
   const { toast } = useToast();
   const searchParams = useSearchParams();
 
@@ -244,6 +246,15 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           )}
         </section>
       )}
+
+      <section className="rounded-xl border border-foreground/10 px-4 py-4">
+        <p className="text-sm text-foreground/60 mb-2">전체 할 일</p>
+        <AllTasksView
+          tasks={allTasks}
+          displayName={data.profile.display_name ?? null}
+          showHeader={false}
+        />
+      </section>
     </div>
   );
 }

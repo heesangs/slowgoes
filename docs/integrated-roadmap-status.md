@@ -1,6 +1,6 @@
 # slowgoes 통합 실행 로드맵 진행 문서
 
-- 마지막 갱신: 2026-03-10
+- 마지막 갱신: 2026-03-11
 - 기준 문서:
   - `/Users/heesangs/Desktop/slowgoes/slowgoes_개편계획_v2.md`
   - `/Users/heesangs/Desktop/slowgoes/slowgoes_온보딩_대시보드_UI기획_v2.md`
@@ -16,7 +16,7 @@
 |---|---|---|---|---|
 | Phase 0 — DB/타입/쿼리 기반 | S0 | 완료 | 5/5 (100%) | 마이그레이션/RLS/RPC 반영 완료 |
 | Phase 1 — 온보딩 v2 | S1 | 완료 | 8/8 (100%) | Step1~4 + AI + 저장 + 리다이렉트 완료 |
-| Phase 2 — 대시보드 v2 | S2 | 부분 완료 | 2/7 | 기능 구현 완료, 구조 분리 미완료 |
+| Phase 2 — 대시보드 v2 | S2 | 부분 완료 | 3/7 | 기능 구현 완료, 구조 분리 진행 중 |
 | Phase 3 — 버킷/챕터 관리 | S3 | 미착수 | 0/4 (0%) | 라우트/CRUD/연결 미구현 |
 | Phase 4 — AI 고도화 | S4 | 미착수 | 0/4 (0%) | 매트릭스/학습/리뷰 미구현 |
 | Phase 5 — 톤/디자인 마감 | S5 | 부분 완료 | 2.5/3 | 카피/모바일 개선 일부 반영, 최종 QA 미완 |
@@ -58,7 +58,7 @@
 | SG-204 LifeBalanceCard | 미완료(인라인 구현) | `dashboard-content-v2.tsx` 내부 구현, 파일 분리 없음 |
 | SG-205 BucketSuggestionCard | 미완료(인라인 구현) | `dashboard-content-v2.tsx` 내부 구현, 파일 분리 없음 |
 | SG-206 ReviewInsightCard | 미완료(인라인 구현) | `dashboard-content-v2.tsx` 내부 구현, 파일 분리 없음 |
-| SG-207 AllTasksView 분리 | 미완료 | `all-tasks-view.tsx` 없음 |
+| SG-207 AllTasksView 분리 | 완료 | `src/components/dashboard/all-tasks-view.tsx`, `dashboard-content-v2.tsx`, `dashboard-content.tsx` |
 
 ### Phase 3 (S3) — 미착수
 
@@ -92,13 +92,12 @@
 
 ### A. Phase 2 마무리 (S2)
 
-1. SG-207: `AllTasksView` 분리
-2. SG-203: `DailyStepCard` 분리
-3. SG-202: `LifeClockHeader` 분리
-4. SG-204: `LifeBalanceCard` 분리
-5. SG-205: `BucketSuggestionCard` 분리
-6. SG-206: `ReviewInsightCard` 분리
-7. SG-005 보완: `onboarding_v2` 실제 분기 연결
+1. SG-203: `DailyStepCard` 분리
+2. SG-202: `LifeClockHeader` 분리
+3. SG-204: `LifeBalanceCard` 분리
+4. SG-205: `BucketSuggestionCard` 분리
+5. SG-206: `ReviewInsightCard` 분리
+6. SG-005 보완: `onboarding_v2` 실제 분기 연결
 
 완료 기준:
 - `dashboard-content-v2.tsx`는 오케스트레이션만 담당
@@ -126,7 +125,7 @@
 
 ## 4) 즉시 착수 체크리스트 (이번 주)
 
-- [ ] SG-207 `all-tasks-view.tsx` 파일 생성 및 분리
+- [x] SG-207 `all-tasks-view.tsx` 파일 생성 및 분리
 - [ ] SG-203 `daily-step-card.tsx` 파일 생성 및 분리
 - [ ] SG-202 `life-clock-header.tsx` 파일 생성 및 분리
 - [ ] SG-204 `life-balance-card.tsx` 파일 생성 및 분리
@@ -142,6 +141,7 @@
 | 날짜 | 티켓 | 작업 내용 | 결과 | 다음 액션 |
 |---|---|---|---|---|
 | 2026-03-10 | 문서화 | 통합 실행 로드맵 현황/계획 문서 생성 | 완료 | SG-207부터 구현 시작 |
+| 2026-03-11 | SG-207 | `AllTasksView` 신규 생성 및 v1/v2 대시보드 연결 | 완료 | SG-203 카드 분리 시작 |
 
 ---
 

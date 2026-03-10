@@ -41,13 +41,33 @@ export default async function DashboardPage() {
     }
 
     const errors: string[] = [];
-    const [activeChaptersResult, dailyStepResult, balanceResult, suggestedBucketResult, reviewResult] =
+    const [
+      activeChaptersResult,
+      dailyStepResult,
+      balanceResult,
+      suggestedBucketResult,
+      reviewResult,
+      allTasksResult,
+    ] =
       await Promise.allSettled([
         getActiveChapters(supabase, user.id),
         getDailyStep(supabase, user.id),
         getLifeBalance(supabase, user.id),
         getUnstartedBucket(supabase, user.id),
         getReviewData(supabase, user.id),
+        (async () => {
+          const { data, error } = await supabase
+            .from("tasks")
+            .select("*, subtasks(*), bucket:buckets(id, title)")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false });
+
+          if (error) {
+            throw error;
+          }
+
+          return (data as TaskWithSubtasks[] | null) ?? [];
+        })(),
       ]);
 
     const activeChapters =
@@ -75,6 +95,11 @@ export default async function DashboardPage() {
         ? reviewResult.value
         : (errors.push(toErrorMessage(reviewResult.reason, "회고 데이터를 불러오지 못했습니다.")), null);
 
+    const allTasks =
+      allTasksResult.status === "fulfilled"
+        ? allTasksResult.value
+        : (errors.push(toErrorMessage(allTasksResult.reason, "전체 과제를 불러오지 못했습니다.")), []);
+
     const v2Data: DashboardV2Data = {
       profile,
       activeChapters,
@@ -87,6 +112,7 @@ export default async function DashboardPage() {
     return (
       <DashboardContentV2
         data={v2Data}
+        allTasks={allTasks}
         fetchError={errors.length > 0 ? errors[0] : undefined}
       />
     );
