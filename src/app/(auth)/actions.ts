@@ -2,10 +2,12 @@
 
 // 인증 관련 서버 액션
 
+import { resolveMx } from "node:dns/promises";
 import { createClient } from "@/lib/supabase/server";
 import { featureFlags } from "@/lib/flags";
 import { analyzeLifeScene } from "@/lib/ai/analyze";
 import { redirect } from "next/navigation";
+import { getCurrentWeekStartDate } from "@/lib/utils";
 import type {
   LifeSceneAnalysisResult,
   OnboardingV2SavePayload,
@@ -26,6 +28,21 @@ const VALID_PACE_TYPES = ["slow", "balanced", "focused", "recovery"] as const;
 type ProfileGender = (typeof VALID_GENDERS)[number];
 type ProfilePersonality = (typeof VALID_PERSONALITY_TYPES)[number];
 type ProfilePaceType = (typeof VALID_PACE_TYPES)[number];
+
+/**
+ * 이메일 도메인의 MX 레코드를 확인하여 메일 수신 가능 여부 검증
+ */
+async function validateEmailDomain(email: string): Promise<boolean> {
+  const domain = email.split("@")[1];
+  if (!domain) return false;
+
+  try {
+    const records = await resolveMx(domain);
+    return records.length > 0;
+  } catch {
+    return false;
+  }
+}
 
 function mapSignInError(error: unknown): string {
   if (!error || typeof error !== "object") {
@@ -112,6 +129,12 @@ export async function signUpAction(formData: FormData) {
     return { error: "이메일과 비밀번호를 입력해주세요." };
   }
 
+  // MX 레코드 기반 이메일 도메인 검증
+  const isDomainValid = await validateEmailDomain(email);
+  if (!isDomainValid) {
+    return { error: "이메일 도메인이 유효하지 않아요. 주소를 다시 확인해주세요." };
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({ email, password });
 
@@ -126,16 +149,10 @@ export async function signUpAction(formData: FormData) {
       Array.isArray(identities) && identities.length === 0;
 
     if (isLikelyExistingUser) {
-      return {
-        message:
-          "이미 가입된 이메일일 수 있어요. 로그인하거나 비밀번호 재설정을 이용해주세요.",
-      };
+      redirect("/login?verify=existing");
     }
 
-    return {
-      message:
-        "인증 메일을 보냈어요. 메일함(스팸함 포함)을 확인해주세요. 이미 가입된 이메일이라면 메일이 오지 않을 수 있어요.",
-    };
+    redirect("/login?verify=pending");
   }
 
   const shouldUseOnboardingV2 = data.user?.id
@@ -477,6 +494,143 @@ export async function analyzeLifeSceneAction(data: {
       error instanceof Error && error.message.trim().length > 0
         ? error.message
         : "삶의 장면 분석 중 오류가 발생했습니다.";
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * 기존 버킷에 데일리투두/루틴 추가 — 바텀시트 탐색 플로우에서 사용
+ */
+export async function addItemsToExistingBucketAction(data: {
+  bucketId: string;
+  selectedDailyTodos: Array<{ title: string; source?: string }>;
+  selectedRoutines: Array<{
+    title: string;
+    repeatUnit: string;
+    repeatValue: number;
+    source?: string;
+  }>;
+  horizonAnalysis: LifeSceneAnalysisResult;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    // 버킷 소유권 검증
+    const { data: bucket, error: bucketError } = await supabase
+      .from("buckets")
+      .select("id, user_id")
+      .eq("id", data.bucketId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (bucketError || !bucket) {
+      return { success: false, error: "버킷을 찾을 수 없거나 접근 권한이 없습니다." };
+    }
+
+    const weekStart = getCurrentWeekStartDate();
+
+    // 기존 daily_todos의 max sort_order 조회
+    const { data: existingTodos } = await supabase
+      .from("daily_todos")
+      .select("sort_order")
+      .eq("bucket_id", data.bucketId)
+      .eq("user_id", user.id)
+      .order("sort_order", { ascending: false })
+      .limit(1);
+
+    const todoStartOrder = (existingTodos?.[0]?.sort_order ?? -1) + 1;
+
+    // 기존 routines의 max sort_order 조회
+    const { data: existingRoutines } = await supabase
+      .from("routines")
+      .select("sort_order")
+      .eq("bucket_id", data.bucketId)
+      .eq("user_id", user.id)
+      .order("sort_order", { ascending: false })
+      .limit(1);
+
+    const routineStartOrder = (existingRoutines?.[0]?.sort_order ?? -1) + 1;
+
+    // daily_todos INSERT
+    const todosToInsert = data.selectedDailyTodos
+      .filter((item) => item.title.trim().length > 0)
+      .map((item, index) => ({
+        user_id: user.id,
+        bucket_id: data.bucketId,
+        title: item.title.trim(),
+        status: "pending" as const,
+        source: item.source ?? "onboarding",
+        week_start: weekStart,
+        sort_order: todoStartOrder + index,
+      }));
+
+    if (todosToInsert.length > 0) {
+      const { error: todoError } = await supabase
+        .from("daily_todos")
+        .insert(todosToInsert);
+
+      if (todoError) {
+        return { success: false, error: "데일리투두 추가에 실패했습니다." };
+      }
+    }
+
+    // routines INSERT
+    const routinesToInsert = data.selectedRoutines
+      .filter((item) => item.title.trim().length > 0)
+      .map((item, index) => ({
+        user_id: user.id,
+        bucket_id: data.bucketId,
+        title: item.title.trim(),
+        source: item.source ?? "onboarding",
+        repeat_unit: item.repeatUnit === "daily" ? "daily" : "weekly",
+        repeat_value: Math.max(1, Math.min(31, Math.round(item.repeatValue || 1))),
+        is_active: true,
+        sort_order: routineStartOrder + index,
+      }));
+
+    if (routinesToInsert.length > 0) {
+      const { error: routineError } = await supabase
+        .from("routines")
+        .insert(routinesToInsert);
+
+      if (routineError) {
+        return { success: false, error: "루틴 추가에 실패했습니다." };
+      }
+    }
+
+    // horizon_analyses UPSERT (기존 분석 갱신)
+    const horizonPayload = {
+      user_id: user.id,
+      bucket_id: data.bucketId,
+      life_area: data.horizonAnalysis.lifeArea,
+      empathy_message: data.horizonAnalysis.empathyMessage || "",
+      horizons: data.horizonAnalysis.horizons,
+      suggested_routines: data.horizonAnalysis.suggestedRoutines,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: analysisError } = await supabase
+      .from("horizon_analyses")
+      .upsert(horizonPayload, { onConflict: "bucket_id" });
+
+    if (analysisError) {
+      // horizon_analyses 업데이트 실패는 비치명적 — 아이템은 이미 추가됨
+      console.error("horizon_analyses upsert 실패:", analysisError);
+    }
+
+    return { success: true };
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message.trim().length > 0
+        ? error.message
+        : "기존 버킷에 아이템 추가 중 오류가 발생했습니다.";
     return { success: false, error: message };
   }
 }

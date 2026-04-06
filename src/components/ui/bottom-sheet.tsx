@@ -9,9 +9,10 @@ interface BottomSheetProps {
   title?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  size?: "default" | "large"; // default=60vh, large=85vh
 }
 
-export function BottomSheet({ open, onClose, title, children, footer }: BottomSheetProps) {
+export function BottomSheet({ open, onClose, title, children, footer, size = "default" }: BottomSheetProps) {
   useEffect(() => {
     if (!open) return;
 
@@ -55,7 +56,7 @@ export function BottomSheet({ open, onClose, title, children, footer }: BottomSh
           </button>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto pb-2">{children}</div>
+        <div className={cn("overflow-y-auto pb-2", size === "large" ? "max-h-[85vh]" : "max-h-[60vh]")}>{children}</div>
         {footer ? <div className="mt-3">{footer}</div> : null}
       </section>
     </div>

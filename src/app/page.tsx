@@ -16,11 +16,11 @@ export default function LandingPage() {
 
         {/* 설명 */}
         <p className="max-w-md text-base leading-relaxed text-zinc-500 dark:text-zinc-500">
-          어려운 건 넉넉하게, 쉬운 건 빠르게.
+          우린 멀리보고 소중하게 한걸음을 내딛자고요.
           <br />
-          AI가 난이도를 분석하고 시간을 제안하지만,
+          내 속도에 맞게, 내 리듬에 맞게, 
           <br />
-          최종 결정은 당신의 몫입니다.
+          실행가능한 목표를 하나씩.
         </p>
 
         {/* 난이도 시각화 미리보기 */}

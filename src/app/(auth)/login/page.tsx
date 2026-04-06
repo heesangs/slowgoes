@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signInAction } from "@/app/(auth)/actions";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 
 const SAVED_EMAIL_KEY = "slowgoes_saved_email";
 
@@ -15,6 +16,51 @@ function isNextRedirectError(error: unknown): error is Error & { digest: string 
   if (!("digest" in error)) return false;
   const digest = (error as { digest?: unknown }).digest;
   return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
+const VERIFY_BANNERS: Record<string, { message: string; tone: "info" | "warn" | "error" }> = {
+  pending: {
+    message: "인증 메일을 보냈어요. 메일함(스팸함 포함)을 확인한 후 로그인해주세요.",
+    tone: "info",
+  },
+  existing: {
+    message: "이미 가입된 이메일이에요. 로그인하거나 비밀번호 재설정을 이용해주세요.",
+    tone: "warn",
+  },
+  error: {
+    message: "이메일 인증에 실패했어요. 다시 시도해주세요.",
+    tone: "error",
+  },
+  complete: {
+    message: "이메일 인증이 완료되었어요! 로그인해주세요.",
+    tone: "info",
+  },
+};
+
+function VerifyBanner() {
+  const searchParams = useSearchParams();
+  const verifyStatus = searchParams.get("verify");
+
+  const banner = useMemo(() => {
+    if (!verifyStatus) return null;
+    return VERIFY_BANNERS[verifyStatus] ?? null;
+  }, [verifyStatus]);
+
+  if (!banner) return null;
+
+  return (
+    <div
+      className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+        banner.tone === "error"
+          ? "border-red-500/30 bg-red-500/5 text-red-600"
+          : banner.tone === "warn"
+            ? "border-amber-500/30 bg-amber-500/5 text-amber-700"
+            : "border-green-500/30 bg-green-500/5 text-green-700"
+      }`}
+    >
+      {banner.message}
+    </div>
+  );
 }
 
 export default function LoginPage() {
@@ -64,11 +110,15 @@ export default function LoginPage() {
     <div className="flex min-h-dvh items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold mb-2">slowgoes</h1>
+          <Link href="/" className="text-2xl font-bold mb-2 inline-block hover:opacity-70 transition-opacity">slowgoes</Link>
           <p className="text-sm text-foreground/60">
             나의 속도로, 천천히 확실하게
           </p>
         </div>
+
+        <Suspense>
+          <VerifyBanner />
+        </Suspense>
 
         <form
           onSubmit={(e) => {

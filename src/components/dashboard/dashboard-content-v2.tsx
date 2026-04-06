@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { LifeClockHeader } from "@/components/dashboard/life-clock-header";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
+import { OnboardingForm } from "@/components/auth/onboarding-form";
 import { useToast } from "@/components/ui/toast";
 import {
   generateActionTipAction,
@@ -18,6 +19,8 @@ import type {
   ActionLogItemType,
   DailyTodo,
   DashboardV2Data,
+  Gender,
+  PersonalityType,
   RoutineWithCompletion,
   SuggestedRoutine,
 } from "@/types";
@@ -58,6 +61,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
 
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
   const [horizonSheetOpen, setHorizonSheetOpen] = useState(false);
+  const [explorationSheetOpen, setExplorationSheetOpen] = useState(false);
   const [selectedActionItem, setSelectedActionItem] = useState<ActionSheetItem | null>(null);
   const [actionTip, setActionTip] = useState<string | null>(null);
   const [isTipLoading, setIsTipLoading] = useState(false);
@@ -69,6 +73,24 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const totalItemsCount = data.dailyTodos.length + data.routines.length;
   const extraMergedCount = data.extraDailyTodoCount + data.extraRoutineCount;
 
+  // 탐색 바텀시트용 프로필 데이터 구성
+  const prefillProfile = useMemo(() => {
+    const { life_clock_age, gender, personality_type } = data.profile;
+    if (
+      life_clock_age != null &&
+      (gender === "male" || gender === "female") &&
+      (personality_type === "IT" || personality_type === "IF" ||
+        personality_type === "ET" || personality_type === "EF")
+    ) {
+      return {
+        age: life_clock_age,
+        gender: gender as Gender,
+        personalityType: personality_type as PersonalityType,
+      };
+    }
+    return null;
+  }, [data.profile]);
+
   const detailHref = useMemo(() => {
     if (!data.selectedBucket?.id) return "/actions";
     return `/actions?bucket=${data.selectedBucket.id}`;
@@ -77,9 +99,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   useEffect(() => {
     if (searchParams.get("onboarding_saved") === "1") {
       toast("첫 한 걸음이 준비되었어요 ✨", "success");
-      window.history.replaceState(null, "", "/dashboard");
+      router.replace("/dashboard");
     }
-  }, [searchParams, toast]);
+  }, [searchParams, toast, router]);
 
   useEffect(() => {
     if (fetchError) {
@@ -210,12 +232,13 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             <p className="text-xs text-foreground/60">현재 버킷</p>
             <p className="text-base font-semibold">{data.selectedBucket?.title ?? "선택된 버킷이 없어요"}</p>
           </div>
-          <Link
-            href="/onboarding?step=2"
+          <button
+            type="button"
+            onClick={() => setExplorationSheetOpen(true)}
             className="inline-flex min-h-[44px] items-center rounded-lg border border-foreground/20 px-3 text-xs font-medium transition-colors hover:bg-foreground/5"
           >
             버킷 추가
-          </Link>
+          </button>
         </div>
 
         {data.buckets.length > 1 && (
@@ -330,13 +353,14 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         )}
       </section>
 
-      <Link
-        href="/onboarding?step=2"
+      <button
+        type="button"
+        onClick={() => setExplorationSheetOpen(true)}
         className="fixed bottom-6 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-2xl text-background shadow-lg transition-opacity hover:opacity-90"
         aria-label="버킷 추가"
       >
         +
-      </Link>
+      </button>
 
       <BottomSheet
         open={actionSheetOpen}
@@ -446,6 +470,25 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         ) : (
           <p className="text-sm text-foreground/60">표시할 AI 추천 정보가 없어요.</p>
         )}
+      </BottomSheet>
+
+      {/* 탐색 바텀시트 — 버킷 추가 전체 플로우 */}
+      <BottomSheet
+        open={explorationSheetOpen}
+        onClose={() => setExplorationSheetOpen(false)}
+        title="탐색 시작"
+        size="large"
+      >
+        <OnboardingForm
+          startStep={2}
+          prefillProfile={prefillProfile}
+          existingBuckets={data.buckets}
+          onComplete={() => {
+            setExplorationSheetOpen(false);
+            router.refresh();
+            toast("새로운 행동이 추가되었어요 ✨", "success");
+          }}
+        />
       </BottomSheet>
     </div>
   );

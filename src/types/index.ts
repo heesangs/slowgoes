@@ -263,6 +263,12 @@ export interface ActionLog {
   created_at: string;
 }
 
+// 기존 버킷에 아이템 추가 시 사용하는 컨텍스트
+export interface ExistingBucketContext {
+  bucketId: string;
+  bucketTitle: string; // = sceneText (bucket.title이 장면 텍스트)
+}
+
 // 온보딩 v2 타입
 export interface OnboardingV2Step1Input {
   age: number;

@@ -9,14 +9,15 @@ import Link from "next/link";
 import { useState } from "react";
 
 export default function SignUpPage() {
+  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setError(null);
-    setMessage(null);
 
+    const formData = new FormData(e.currentTarget);
     const password = formData.get("password") as string;
     const confirmPassword = formData.get("confirm_password") as string;
 
@@ -37,9 +38,8 @@ export default function SignUpPage() {
       const result = await signUpAction(formData);
       if (result?.error) {
         setError(result.error);
-      } else if (result?.message) {
-        setMessage(result.message);
       }
+      // 성공 시 signUpAction이 redirect를 throw하므로 여기에 도달하지 않음
     } catch {
       // redirect는 에러로 throw되므로 무시
     } finally {
@@ -51,13 +51,14 @@ export default function SignUpPage() {
     <div className="flex min-h-dvh items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold mb-2">회원가입</h1>
+          <Link href="/" className="text-2xl font-bold mb-2 inline-block hover:opacity-70 transition-opacity">slowgoes</Link>
+          <h2 className="text-lg font-semibold mb-2">회원가입</h2>
           <p className="text-sm text-foreground/60">
             나만의 속도로 공부를 시작해보세요
           </p>
         </div>
 
-        <form action={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input
             id="email"
             name="email"
@@ -66,6 +67,8 @@ export default function SignUpPage() {
             placeholder="example@email.com"
             required
             autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
 
           <Input
@@ -91,9 +94,6 @@ export default function SignUpPage() {
 
           {error && (
             <p className="text-sm text-red-500 text-center">{error}</p>
-          )}
-          {message && (
-            <p className="text-sm text-green-600 text-center">{message}</p>
           )}
 
           <Button type="submit" isLoading={isLoading} className="w-full mt-2">

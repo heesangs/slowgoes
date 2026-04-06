@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "slowgoes - 나의 속도로, 천천히",
   description:
-    "AI가 난이도를 분석하고 시간을 제안합니다. 최종 결정은 당신의 몫.",
+    "내 속도에 맞게 삶의 목표를 실행가능한 리듬으로 바꾼다",
 };
 
 export default function RootLayout({

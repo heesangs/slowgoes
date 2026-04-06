@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { featureFlags } from "@/lib/flags";
 import { redirect } from "next/navigation";
 import { OnboardingForm } from "@/components/auth/onboarding-form";
+import { DemoDataMigrator } from "@/components/auth/demo-data-migrator";
 import type { Gender, PersonalityType } from "@/types";
 
 interface OnboardingPageProps {
@@ -68,7 +69,9 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
           </p>
         </div>
 
-        <OnboardingForm startStep={effectiveStartStep} prefillProfile={prefillProfile} />
+        <DemoDataMigrator>
+          <OnboardingForm startStep={effectiveStartStep} prefillProfile={prefillProfile} />
+        </DemoDataMigrator>
       </div>
     </div>
   );

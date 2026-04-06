@@ -1,7 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { analyzeLifeSceneAction, saveOnboardingV2Action } from "@/app/(auth)/actions";
+import {
+  addItemsToExistingBucketAction,
+  analyzeLifeSceneAction,
+  saveOnboardingV2Action,
+} from "@/app/(auth)/actions";
 import { demoAnalyzeLifeSceneAction } from "@/app/demo/actions";
 import { saveDemoOnboardingData } from "@/lib/demo/storage";
 import { cn } from "@/lib/utils";
@@ -9,7 +13,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDemoScenes, getSceneCategoryOptions } from "@/lib/onboarding/demo-scenes";
 import { useRouter } from "next/navigation";
 import type {
+  Bucket,
   DemoSceneItem,
+  ExistingBucketContext,
   Gender,
   HorizonAction,
   LifeSceneAnalysisResult,
@@ -58,6 +64,9 @@ interface OnboardingFormProps {
     gender: Gender;
     personalityType: PersonalityType;
   } | null;
+  // 바텀시트 모드: 기존 버킷 목록 + 완료 콜백
+  existingBuckets?: Array<Pick<Bucket, "id" | "title" | "horizon" | "status" | "created_at">>;
+  onComplete?: () => void; // redirect 대신 호출
 }
 
 function formatRoutineRepeat(routine: SuggestedRoutine) {
@@ -83,14 +92,21 @@ export function OnboardingForm({
   mode = "default",
   startStep,
   prefillProfile,
+  existingBuckets,
+  onComplete,
 }: OnboardingFormProps) {
   const isDemo = mode === "demo";
   const router = useRouter();
   const initialStep = startStep === 2 ? 2 : 1;
+  const hasBuckets = (existingBuckets?.length ?? 0) > 0;
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(initialStep);
+
+  // 버킷 선택 관련 state
+  const [showBucketSelect, setShowBucketSelect] = useState(hasBuckets);
+  const [selectedExistingBucket, setSelectedExistingBucket] = useState<ExistingBucketContext | null>(null);
 
   const [age, setAge] = useState<number | null>(prefillProfile?.age ?? null);
   const [gender, setGender] = useState<Gender | null>(prefillProfile?.gender ?? null);
@@ -355,6 +371,22 @@ export function OnboardingForm({
 
   function handleBack() {
     setError(null);
+
+    // 바텀시트 모드: Step 2 또는 Step 3에서 뒤로가면 버킷 선택 화면으로
+    if (hasBuckets) {
+      if (step === 3 && selectedExistingBucket) {
+        // 기존 버킷 → Step 3에서 뒤로: 버킷 선택 화면으로
+        setSelectedExistingBucket(null);
+        setShowBucketSelect(true);
+        return;
+      }
+      if (step === 2) {
+        // Step 2에서 뒤로: 버킷 선택 화면으로
+        setShowBucketSelect(true);
+        return;
+      }
+    }
+
     setStep((prev) => Math.max(1, prev - 1));
   }
 
@@ -408,6 +440,29 @@ export function OnboardingForm({
         return;
       }
 
+      // 기존 버킷에 아이템 추가 (바텀시트 모드)
+      if (selectedExistingBucket) {
+        const result = await addItemsToExistingBucketAction({
+          bucketId: selectedExistingBucket.bucketId,
+          selectedDailyTodos,
+          selectedRoutines,
+          horizonAnalysis: lifeSceneAnalysis,
+        });
+
+        if (!result.success) {
+          setError(result.error ?? "아이템 추가에 실패했습니다.");
+          return;
+        }
+
+        if (onComplete) {
+          onComplete();
+          return;
+        }
+        router.push("/dashboard?onboarding_saved=1");
+        return;
+      }
+
+      // 새 버킷 생성 (기존 플로우)
       const result = await saveOnboardingV2Action({
         displayName: displayName.trim(),
         selfLevel: "medium",
@@ -429,6 +484,13 @@ export function OnboardingForm({
 
       if (result?.error) {
         setError(result.error);
+        return;
+      }
+
+      // 바텀시트 모드: redirect 대신 콜백
+      if (onComplete) {
+        onComplete();
+        return;
       }
     } catch {
       // redirect는 throw 에러이므로 무시
@@ -451,11 +513,73 @@ export function OnboardingForm({
     </div>
   );
 
+  // 버킷 선택 화면에서 기존 버킷 클릭
+  function handleSelectExistingBucket(bucket: Pick<Bucket, "id" | "title">) {
+    setError(null);
+    const context: ExistingBucketContext = {
+      bucketId: bucket.id,
+      bucketTitle: bucket.title,
+    };
+    setSelectedExistingBucket(context);
+    setShowBucketSelect(false);
+
+    // bucket.title이 sceneText 역할 → Step 3으로 바로 이동
+    // selectedSceneText를 설정하기 위해 customSceneInput 사용
+    setCustomSceneInput(bucket.title);
+    setSelectedDemoScene(null);
+    resetStep3State();
+    setStep(3);
+  }
+
+  // 버킷 선택 화면에서 "새 장면 탐색하기" 클릭
+  function handleNewBucketFromSelect() {
+    setError(null);
+    setSelectedExistingBucket(null);
+    setShowBucketSelect(false);
+    setCustomSceneInput("");
+    setSelectedDemoScene(null);
+    setStep(2);
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      {stepIndicator}
+      {!showBucketSelect && stepIndicator}
 
-      {step === 1 && (
+      {/* 버킷 선택 화면 — 기존 버킷이 있는 경우에만 표시 */}
+      {showBucketSelect && existingBuckets && (
+        <div className="flex flex-col gap-6">
+          <div>
+            <h2 className="mb-1 text-lg font-semibold">어떤 버킷에 추가할까요?</h2>
+            <p className="text-sm text-foreground/60">기존 버킷에 행동을 추가하거나, 새로운 장면을 탐색해보세요</p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {existingBuckets.map((bucket) => (
+              <button
+                key={bucket.id}
+                type="button"
+                onClick={() => handleSelectExistingBucket(bucket)}
+                className="w-full rounded-xl border border-foreground/15 bg-foreground/[0.02] px-4 py-4 text-left transition-colors hover:bg-foreground/[0.06]"
+              >
+                <p className="text-sm font-medium">{bucket.title}</p>
+                <p className="mt-1 text-xs text-foreground/55">
+                  {bucket.status === "in_progress" ? "진행 중" : bucket.status === "completed" ? "완료" : "시작 전"}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleNewBucketFromSelect}
+            className="w-full rounded-xl border border-dashed border-foreground/25 px-4 py-4 text-center text-sm font-medium text-foreground/70 transition-colors hover:bg-foreground/[0.04]"
+          >
+            ✨ 새로운 장면 탐색하기
+          </button>
+        </div>
+      )}
+
+      {!showBucketSelect && step === 1 && (
         <div className="flex flex-col gap-6">
           <div className="rounded-2xl border border-foreground/15 bg-foreground/[0.03] p-5">
             <p className="mb-4 text-sm text-foreground/60">당신의 시간을 알려주세요</p>
@@ -599,7 +723,7 @@ export function OnboardingForm({
         </div>
       )}
 
-      {step === 2 && (
+      {!showBucketSelect && step === 2 && (
         <div className="flex flex-col gap-6">
           <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
             <p className="text-sm text-foreground/60">인생시계</p>
@@ -698,7 +822,7 @@ export function OnboardingForm({
         </div>
       )}
 
-      {step === 3 && (
+      {!showBucketSelect && step === 3 && (
         <div className="flex flex-col gap-6">
           <div>
             <h2 className="mb-1 text-lg font-semibold">삶의 장면을 시간으로 정리하고 있어요</h2>
@@ -842,7 +966,7 @@ export function OnboardingForm({
         </div>
       )}
 
-      {step === 4 && (
+      {!showBucketSelect && step === 4 && (
         <div className="flex flex-col gap-6">
           <div>
             <h2 className="mb-1 text-lg font-semibold">선택한 한 걸음</h2>
