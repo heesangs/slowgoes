@@ -10,7 +10,11 @@ export type UserContext = "student" | "university" | "work" | "personal";
 
 // v2 온보딩/개편 도메인 타입
 export type Gender = "male" | "female";
-export type PersonalityType = "IT" | "IF" | "ET" | "EF";
+export type PersonalityType =
+  | "ISTJ" | "ISFJ" | "INFJ" | "INTJ"
+  | "ISTP" | "ISFP" | "INFP" | "INTP"
+  | "ESTP" | "ESFP" | "ENFP" | "ENTP"
+  | "ESTJ" | "ESFJ" | "ENFJ" | "ENTJ";
 export type PaceType = "slow" | "balanced" | "focused" | "recovery";
 export type OnboardingVersion = 1 | 2;
 

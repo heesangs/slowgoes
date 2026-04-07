@@ -17,7 +17,7 @@ AI가 제안하고, 유저가 결정하고 실행한다.
 
 ```
 Landing → Login/Signup (또는 체험판 /demo)
-  → 온보딩 Step 1: Life Clock (나이, 성별, 성격유형 IT|IF|ET|EF)
+  → 온보딩 Step 1: Life Clock (나이, 성별, MBTI 4축 — E/I·S/N·T/F·J/P)
   → 온보딩 Step 2: 삶의 장면 선택/입력
   → 온보딩 Step 3: AI 분석 → 시간의 지평 + 루틴 + 데일리 투두 생성
   → Dashboard (데일리 투두, 루틴, 라이프 클락)
@@ -108,7 +108,7 @@ profiles (
   user_context text[] DEFAULT '{}',        -- student | university | work | personal
   life_clock_age integer,
   gender text,                             -- male | female
-  personality_type text,                   -- IT | IF | ET | EF
+  personality_type text,                   -- MBTI 4글자 (ISTJ | INFP | ENFJ | ... 16가지)
   pace_type text,                          -- slow | balanced | focused | recovery
   onboarding_version integer DEFAULT 1,    -- 1 | 2
   created_at timestamptz DEFAULT now()

@@ -22,7 +22,12 @@ type SelfLevel = (typeof VALID_SELF_LEVELS)[number];
 const VALID_USER_CONTEXTS = ["student", "university", "work", "personal"] as const;
 type UserContext = (typeof VALID_USER_CONTEXTS)[number];
 const VALID_GENDERS = ["male", "female"] as const;
-const VALID_PERSONALITY_TYPES = ["IT", "IF", "ET", "EF"] as const;
+const VALID_PERSONALITY_TYPES = [
+  "ISTJ", "ISFJ", "INFJ", "INTJ",
+  "ISTP", "ISFP", "INFP", "INTP",
+  "ESTP", "ESFP", "ENFP", "ENTP",
+  "ESTJ", "ESFJ", "ENFJ", "ENTJ",
+] as const;
 const VALID_PACE_TYPES = ["slow", "balanced", "focused", "recovery"] as const;
 
 type ProfileGender = (typeof VALID_GENDERS)[number];

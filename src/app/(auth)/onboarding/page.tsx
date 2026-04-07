@@ -44,10 +44,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
     startStep2 &&
     profile?.life_clock_age != null &&
     (profile.gender === "male" || profile.gender === "female") &&
-    (profile.personality_type === "IT" ||
-      profile.personality_type === "IF" ||
-      profile.personality_type === "ET" ||
-      profile.personality_type === "EF")
+    /^[EI][SN][TF][JP]$/.test(profile.personality_type ?? "")
       ? {
           age: profile.life_clock_age,
           gender: profile.gender as Gender,

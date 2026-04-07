@@ -113,8 +113,14 @@ export function OnboardingForm({
   const [energyType, setEnergyType] = useState<"I" | "E" | null>(
     prefillProfile?.personalityType?.[0] as "I" | "E" | undefined ?? null
   );
+  const [senseType, setSenseType] = useState<"S" | "N" | null>(
+    prefillProfile?.personalityType?.[1] as "S" | "N" | undefined ?? null
+  );
   const [judgmentType, setJudgmentType] = useState<"T" | "F" | null>(
-    prefillProfile?.personalityType?.[1] as "T" | "F" | undefined ?? null
+    prefillProfile?.personalityType?.[2] as "T" | "F" | undefined ?? null
+  );
+  const [lifestyleType, setLifestyleType] = useState<"J" | "P" | null>(
+    prefillProfile?.personalityType?.[3] as "J" | "P" | undefined ?? null
   );
   const [personalityType, setPersonalityType] = useState<PersonalityType | null>(
     prefillProfile?.personalityType ?? null
@@ -188,7 +194,9 @@ export function OnboardingForm({
     setGender(prefillProfile.gender);
     setPersonalityType(prefillProfile.personalityType);
     setEnergyType(prefillProfile.personalityType[0] as "I" | "E");
-    setJudgmentType(prefillProfile.personalityType[1] as "T" | "F");
+    setSenseType(prefillProfile.personalityType[1] as "S" | "N");
+    setJudgmentType(prefillProfile.personalityType[2] as "T" | "F");
+    setLifestyleType(prefillProfile.personalityType[3] as "J" | "P");
   }, [prefillProfile]);
 
   function resetStep3State() {
@@ -214,18 +222,40 @@ export function OnboardingForm({
   }
 
   function handleEnergySelect(value: "I" | "E") {
+    setError(null);
     setEnergyType(value);
-    if (judgmentType) {
-      setPersonalityType(`${value}${judgmentType}` as PersonalityType);
+    if (senseType && judgmentType && lifestyleType) {
+      setPersonalityType(`${value}${senseType}${judgmentType}${lifestyleType}` as PersonalityType);
+    } else {
+      setPersonalityType(null);
+    }
+  }
+
+  function handleSenseSelect(value: "S" | "N") {
+    setError(null);
+    setSenseType(value);
+    if (energyType && judgmentType && lifestyleType) {
+      setPersonalityType(`${energyType}${value}${judgmentType}${lifestyleType}` as PersonalityType);
     } else {
       setPersonalityType(null);
     }
   }
 
   function handleJudgmentSelect(value: "T" | "F") {
+    setError(null);
     setJudgmentType(value);
-    if (energyType) {
-      setPersonalityType(`${energyType}${value}` as PersonalityType);
+    if (energyType && senseType && lifestyleType) {
+      setPersonalityType(`${energyType}${senseType}${value}${lifestyleType}` as PersonalityType);
+    } else {
+      setPersonalityType(null);
+    }
+  }
+
+  function handleLifestyleSelect(value: "J" | "P") {
+    setError(null);
+    setLifestyleType(value);
+    if (energyType && senseType && judgmentType) {
+      setPersonalityType(`${energyType}${senseType}${judgmentType}${value}` as PersonalityType);
     } else {
       setPersonalityType(null);
     }
@@ -634,7 +664,7 @@ export function OnboardingForm({
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setGender(option.value)}
+                    onClick={() => { setError(null); setGender(option.value); }}
                     className={cn(
                       "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
                       gender === option.value
@@ -679,6 +709,36 @@ export function OnboardingForm({
             </div>
 
             <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium text-foreground/70">정보 수집 방식</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSenseSelect("S")}
+                  className={cn(
+                    "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
+                    senseType === "S"
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-foreground/20 hover:bg-foreground/5"
+                  )}
+                >
+                  현실과 경험 중심 (S)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSenseSelect("N")}
+                  className={cn(
+                    "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
+                    senseType === "N"
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-foreground/20 hover:bg-foreground/5"
+                  )}
+                >
+                  직관과 가능성 중심 (N)
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
               <p className="text-sm font-medium text-foreground/70">판단 방식</p>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -704,6 +764,36 @@ export function OnboardingForm({
                   )}
                 >
                   감정과 공감 중심 (F)
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium text-foreground/70">생활 방식</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleLifestyleSelect("J")}
+                  className={cn(
+                    "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
+                    lifestyleType === "J"
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-foreground/20 hover:bg-foreground/5"
+                  )}
+                >
+                  계획적으로 정리하는 (J)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLifestyleSelect("P")}
+                  className={cn(
+                    "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
+                    lifestyleType === "P"
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-foreground/20 hover:bg-foreground/5"
+                  )}
+                >
+                  유연하게 흐르는 (P)
                 </button>
               </div>
             </div>

@@ -24,14 +24,28 @@ const HORIZON_LABELS: Record<HorizonAction["level"], string> = {
   this_season: "이번 시즌",
   this_week: "이번 주",
 };
-const PERSONALITY_OPTIONS = ["IT", "IF", "ET", "EF"] as const;
+const PERSONALITY_OPTIONS = [
+  "ISTJ", "ISFJ", "INFJ", "INTJ",
+  "ISTP", "ISFP", "INFP", "INTP",
+  "ESTP", "ESFP", "ENFP", "ENTP",
+  "ESTJ", "ESFJ", "ENFJ", "ENTJ",
+] as const;
 const PACE_OPTIONS = ["slow", "balanced", "focused", "recovery"] as const;
 
 type PersonalityOption = (typeof PERSONALITY_OPTIONS)[number];
 type PaceOption = (typeof PACE_OPTIONS)[number];
-type PersonalityPaceKey = `${PersonalityOption}|${PaceOption}`;
+// 규칙 매트릭스는 E/I × T/F 2축 기준으로 유지 (4가지 조합)
+type PersonalityRuleKey = "IT" | "IF" | "ET" | "EF";
+type PersonalityPaceKey = `${PersonalityRuleKey}|${PaceOption}`;
 
-const PERSONALITY_BASE_RULES: Record<PersonalityOption, string> = {
+// 4글자 MBTI에서 규칙 키(E/I + T/F) 추출
+function getMbtiRuleKey(mbti: PersonalityOption): PersonalityRuleKey {
+  const ei = mbti[0] as "I" | "E";
+  const tf = mbti[2] as "T" | "F";
+  return `${ei}${tf}` as PersonalityRuleKey;
+}
+
+const PERSONALITY_BASE_RULES: Record<PersonalityRuleKey, string> = {
   IT: "논리적 순서와 명확한 기준으로 단계를 구성한다.",
   IF: "의미와 몰입을 느낄 수 있도록 감정 부담을 낮춘다.",
   ET: "행동-피드백-개선 순환이 빠르게 돌아가도록 구성한다.",
@@ -539,7 +553,8 @@ function buildPersonalityPaceHints(profile: Profile | null): {
   let hasMatrixRule = false;
 
   if (personality && pace) {
-    const matrixRule = PERSONALITY_PACE_MATRIX_RULES[`${personality}|${pace}`];
+    const ruleKey = getMbtiRuleKey(personality);
+    const matrixRule = PERSONALITY_PACE_MATRIX_RULES[`${ruleKey}|${pace}`];
     if (matrixRule) {
       rules.push(matrixRule);
       hasMatrixRule = true;
@@ -547,7 +562,7 @@ function buildPersonalityPaceHints(profile: Profile | null): {
   }
 
   if (!hasMatrixRule && personality) {
-    rules.push(PERSONALITY_BASE_RULES[personality]);
+    rules.push(PERSONALITY_BASE_RULES[getMbtiRuleKey(personality)]);
   }
   if (!hasMatrixRule && pace) {
     rules.push(PACE_BASE_RULES[pace]);

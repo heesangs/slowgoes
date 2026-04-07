@@ -55,7 +55,7 @@ export async function demoAnalyzeLifeSceneAction(data: {
     if (!["male", "female"].includes(data.gender)) {
       throw new Error("성별 값이 올바르지 않습니다.");
     }
-    if (!["IT", "IF", "ET", "EF"].includes(data.personalityType)) {
+    if (!["ISTJ","ISFJ","INFJ","INTJ","ISTP","ISFP","INFP","INTP","ESTP","ESFP","ENFP","ENTP","ESTJ","ESFJ","ENFJ","ENTJ"].includes(data.personalityType)) {
       throw new Error("성향 값이 올바르지 않습니다.");
     }
 
@@ -107,7 +107,7 @@ export async function demoGenerateFirstStepAction(data: {
     if (!["male", "female"].includes(data.gender)) {
       throw new Error("성별 값이 올바르지 않습니다.");
     }
-    if (!["IT", "IF", "ET", "EF"].includes(data.personalityType)) {
+    if (!["ISTJ","ISFJ","INFJ","INTJ","ISTP","ISFP","INFP","INTP","ESTP","ESFP","ENFP","ENTP","ESTJ","ESFJ","ENFJ","ENTJ"].includes(data.personalityType)) {
       throw new Error("성향 값이 올바르지 않습니다.");
     }
 
@@ -167,7 +167,7 @@ export async function demoAdjustPaceAction(data: {
     if (!["male", "female"].includes(data.gender)) {
       throw new Error("성별 값이 올바르지 않습니다.");
     }
-    if (!["IT", "IF", "ET", "EF"].includes(data.personalityType)) {
+    if (!["ISTJ","ISFJ","INFJ","INTJ","ISTP","ISFP","INFP","INTP","ESTP","ESFP","ENFP","ENTP","ESTJ","ESFJ","ENFJ","ENTJ"].includes(data.personalityType)) {
       throw new Error("성향 값이 올바르지 않습니다.");
     }
     if (!data.currentPlan || !Array.isArray(data.currentPlan.subtasks)) {
