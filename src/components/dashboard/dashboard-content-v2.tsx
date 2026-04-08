@@ -79,8 +79,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     if (
       life_clock_age != null &&
       (gender === "male" || gender === "female") &&
-      (personality_type === "IT" || personality_type === "IF" ||
-        personality_type === "ET" || personality_type === "EF")
+      personality_type != null
     ) {
       return {
         age: life_clock_age,

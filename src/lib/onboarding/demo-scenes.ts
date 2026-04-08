@@ -1,11 +1,19 @@
 import type { DemoSceneItem, Gender, OnboardingSceneCategory, PersonalityType } from "@/types";
 
 type AgeGroup = "teen" | "young_adult" | "adult";
+type PersonalityGroup = "ET" | "IT" | "EF" | "IF";
 
 interface DemoSeed {
   must_do: string[];
   life_scene: string[];
   dont_miss: string[];
+}
+
+// MBTI 16가지 → 4그룹 (E/I + T/F 축) 매핑
+function toPersonalityGroup(mbti: PersonalityType): PersonalityGroup {
+  const ei = mbti[0] as "E" | "I";
+  const tf = mbti[2] as "T" | "F";
+  return `${ei}${tf}` as PersonalityGroup;
 }
 
 const CATEGORY_LABELS: Record<OnboardingSceneCategory["key"], string> = {
@@ -39,7 +47,7 @@ const DEFAULT_SEED: DemoSeed = {
 };
 
 const SEED_BY_PERSONA: Partial<
-  Record<AgeGroup, Partial<Record<Gender, Partial<Record<PersonalityType, DemoSeed>>>>>
+  Record<AgeGroup, Partial<Record<Gender, Partial<Record<PersonalityGroup, DemoSeed>>>>>
 > = {
   teen: {
     male: {
@@ -278,8 +286,9 @@ export function getDemoScenes(params: {
   const ageGroup = getAgeGroup(params.age);
   const category = params.category;
 
+  const group = toPersonalityGroup(params.personalityType);
   const seedFromPersona =
-    SEED_BY_PERSONA[ageGroup]?.[params.gender]?.[params.personalityType]?.[category] ?? [];
+    SEED_BY_PERSONA[ageGroup]?.[params.gender]?.[group]?.[category] ?? [];
   const seedDefault = DEFAULT_SEED[category];
 
   const merged = dedupeAndLimit([...seedFromPersona, ...seedDefault], 7);
