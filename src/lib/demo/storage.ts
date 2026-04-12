@@ -16,7 +16,7 @@ export interface DemoOnboardingData {
   gender: Gender;
   personalityType: PersonalityType;
   chapterTitle: string;
-  horizonAnalysis: LifeSceneAnalysisResult;
+  stridePlan: LifeSceneAnalysisResult;
   selectedDailyTodos: Array<{ title: string; source?: ItemSource }>;
   selectedRoutines: Array<{
     title: string;
@@ -43,7 +43,24 @@ export function getDemoOnboardingData(): DemoOnboardingData | null {
   if (!raw) return null;
 
   try {
-    return JSON.parse(raw) as DemoOnboardingData;
+    const parsed = JSON.parse(raw) as DemoOnboardingData & {
+      // 레거시 키 호환
+      horizonAnalysis?: LifeSceneAnalysisResult & {
+        horizons?: LifeSceneAnalysisResult["strides"];
+      };
+    };
+
+    // 레거시 horizonAnalysis 키를 stridePlan으로 흡수
+    if (!parsed.stridePlan && parsed.horizonAnalysis) {
+      const legacy = parsed.horizonAnalysis;
+      parsed.stridePlan = {
+        ...legacy,
+        strides: legacy.strides ?? legacy.horizons ?? [],
+      };
+      delete parsed.horizonAnalysis;
+    }
+
+    return parsed;
   } catch {
     return null;
   }

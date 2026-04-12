@@ -387,12 +387,12 @@ export async function saveOnboardingV2Action(
     return { error: "데일리투두 또는 루틴을 최소 1개 선택해주세요." };
   }
 
-  const normalizedHorizons = (data.horizonAnalysis?.horizons ?? []).map((item) => ({
+  const normalizedStrides = (data.stridePlan?.strides ?? []).map((item) => ({
     level: item.level,
     label: item.label,
     action: item.action,
   }));
-  const normalizedSuggestedRoutines = (data.horizonAnalysis?.suggestedRoutines ?? [])
+  const normalizedSuggestedRoutines = (data.stridePlan?.suggestedRoutines ?? [])
     .map((item) => ({
       title: item.title?.trim() ?? "",
       repeatUnit: item.repeatUnit === "daily" ? "daily" : "weekly",
@@ -400,12 +400,12 @@ export async function saveOnboardingV2Action(
     }))
     .filter((item) => item.title.length > 0);
 
-  const horizonAnalysisPayload = {
+  const stridePlanPayload = {
     lifeArea,
     empathyMessage:
-      data.horizonAnalysis?.empathyMessage?.trim() ||
+      data.stridePlan?.empathyMessage?.trim() ||
       `${lifeArea}에 대한 장면이네요, 멋져요.`,
-    horizons: normalizedHorizons,
+    strides: normalizedStrides,
     suggestedRoutines: normalizedSuggestedRoutines,
   };
 
@@ -436,8 +436,8 @@ export async function saveOnboardingV2Action(
     p_scene_text: sceneText,
     p_life_area_name: lifeArea,
     p_chapter_title: chapterTitle,
-    p_bucket_horizon: "someday",
-    p_horizon_analysis: horizonAnalysisPayload,
+    p_bucket_stride_scope: "someday",
+    p_stride_plan: stridePlanPayload,
     p_daily_todos: normalizedDailyTodos,
     p_routines: normalizedRoutines,
   });
@@ -515,7 +515,7 @@ export async function addItemsToExistingBucketAction(data: {
     repeatValue: number;
     source?: string;
   }>;
-  horizonAnalysis: LifeSceneAnalysisResult;
+  stridePlan: LifeSceneAnalysisResult;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
@@ -610,24 +610,24 @@ export async function addItemsToExistingBucketAction(data: {
       }
     }
 
-    // horizon_analyses UPSERT (기존 분석 갱신)
-    const horizonPayload = {
+    // stride_plans UPSERT (기존 분석 갱신)
+    const stridePlanPayload = {
       user_id: user.id,
       bucket_id: data.bucketId,
-      life_area: data.horizonAnalysis.lifeArea,
-      empathy_message: data.horizonAnalysis.empathyMessage || "",
-      horizons: data.horizonAnalysis.horizons,
-      suggested_routines: data.horizonAnalysis.suggestedRoutines,
+      life_area: data.stridePlan.lifeArea,
+      empathy_message: data.stridePlan.empathyMessage || "",
+      strides: data.stridePlan.strides,
+      suggested_routines: data.stridePlan.suggestedRoutines,
       updated_at: new Date().toISOString(),
     };
 
     const { error: analysisError } = await supabase
-      .from("horizon_analyses")
-      .upsert(horizonPayload, { onConflict: "bucket_id" });
+      .from("stride_plans")
+      .upsert(stridePlanPayload, { onConflict: "bucket_id" });
 
     if (analysisError) {
-      // horizon_analyses 업데이트 실패는 비치명적 — 아이템은 이미 추가됨
-      console.error("horizon_analyses upsert 실패:", analysisError);
+      // stride_plans 업데이트 실패는 비치명적 — 아이템은 이미 추가됨
+      console.error("stride_plans upsert 실패:", analysisError);
     }
 
     return { success: true };

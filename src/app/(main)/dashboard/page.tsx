@@ -6,7 +6,7 @@ import { DashboardEmpty } from "@/components/dashboard/dashboard-empty";
 import { featureFlags } from "@/lib/flags";
 import {
   getDailyTodos,
-  getHorizonAnalysis,
+  getStridePlan,
   getProfile,
   getRoutinesWithCompletions,
   getSelectedBucket,
@@ -73,12 +73,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         ? selectedBucketQuery
         : defaultBucketId;
 
-    const [selectedBucketResult, dailyTodosResult, routinesResult, horizonResult] =
+    const [selectedBucketResult, dailyTodosResult, routinesResult, stridePlanResult] =
       await Promise.allSettled([
         getSelectedBucket(supabase, user.id, selectedBucketId),
         getDailyTodos(supabase, user.id, selectedBucketId),
         getRoutinesWithCompletions(supabase, user.id, selectedBucketId),
-        getHorizonAnalysis(supabase, user.id, selectedBucketId),
+        getStridePlan(supabase, user.id, selectedBucketId),
       ]);
 
     const selectedBucket =
@@ -96,10 +96,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         ? routinesResult.value
         : (errors.push(toErrorMessage(routinesResult.reason, "루틴 정보를 불러오지 못했습니다.")), []);
 
-    const horizonAnalysis =
-      horizonResult.status === "fulfilled"
-        ? horizonResult.value
-        : (errors.push(toErrorMessage(horizonResult.reason, "AI 추천 정보를 불러오지 못했습니다.")), null);
+    const stridePlan =
+      stridePlanResult.status === "fulfilled"
+        ? stridePlanResult.value
+        : (errors.push(toErrorMessage(stridePlanResult.reason, "AI 추천 정보를 불러오지 못했습니다.")), null);
 
     const v2Data: DashboardV2Data = {
       profile,
@@ -108,7 +108,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       activeChapters: [],
       dailyTodos,
       routines,
-      horizonAnalysis,
+      stridePlan,
       extraDailyTodoCount: Math.max(0, dailyTodos.length - 1),
       extraRoutineCount: Math.max(0, routines.length - 1),
     };

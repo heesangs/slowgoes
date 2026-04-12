@@ -23,6 +23,8 @@ export default function DemoCompletePage() {
   const [result, setResult] = useState<DemoOnboardingData | null>(null);
 
   useEffect(() => {
+    // localStorage는 마운트 이후에만 접근 가능 — hydration mismatch 방지용으로 의도적으로 effect 사용
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setResult(getDemoOnboardingData());
   }, []);
 
@@ -57,7 +59,7 @@ export default function DemoCompletePage() {
             삶의 영역: {result.lifeArea}
           </p>
           <p className="mt-1 text-sm text-foreground/70">
-            공감 메시지: {result.horizonAnalysis.empathyMessage}
+            공감 메시지: {result.stridePlan.empathyMessage}
           </p>
         </div>
 
@@ -101,15 +103,16 @@ export default function DemoCompletePage() {
         </div>
 
         <div className="rounded-xl border border-foreground/10 p-5">
-          <p className="text-sm font-medium">시간 지평</p>
+          <p className="text-sm font-medium">나의 보폭</p>
           <div className="mt-3 space-y-2">
-            {result.horizonAnalysis.horizons.map((item, index) => (
+            {result.stridePlan.strides.map((item, index) => (
               <div
                 key={`${item.level}-${index}-${item.action}`}
                 className={cn(
                   "rounded-lg border px-3 py-3",
-                  item.level === "this_week"
-                    ? "border-foreground/20 bg-foreground/[0.05]"
+                  // 첫 항목(AI가 정렬한 가장 짧은 단계)을 강조
+                  index === 0
+                    ? "border-foreground/25 bg-foreground/[0.08]"
                     : "border-foreground/10 bg-foreground/[0.02]"
                 )}
               >

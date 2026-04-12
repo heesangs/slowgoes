@@ -1,6 +1,6 @@
 export {
   getDailyTodos,
-  getHorizonAnalysis,
+  getStridePlan,
   getLifeBalance,
   getProfile,
   getRoutinesWithCompletions,

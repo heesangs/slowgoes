@@ -3,7 +3,7 @@ import { getCurrentWeekStartDate } from "@/lib/utils";
 import type {
   Bucket,
   DailyTodo,
-  HorizonAnalysis,
+  StridePlan,
   LifeBalanceInsight,
   LifeArea,
   Profile,
@@ -69,11 +69,11 @@ export async function getProfile(
 export async function getUserBuckets(
   supabase: DashboardSupabase,
   userId: string
-): Promise<Array<Pick<Bucket, "id" | "title" | "horizon" | "status" | "created_at">>> {
+): Promise<Array<Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at">>> {
   try {
     const { data, error } = await supabase
       .from("buckets")
-      .select("id, title, horizon, status, created_at")
+      .select("id, title, stride_scope, status, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -82,7 +82,7 @@ export async function getUserBuckets(
     }
 
     return (
-      (data as Array<Pick<Bucket, "id" | "title" | "horizon" | "status" | "created_at">> | null) ??
+      (data as Array<Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at">> | null) ??
       []
     );
   } catch (error) {
@@ -194,16 +194,16 @@ export async function getRoutinesWithCompletions(
   }
 }
 
-export async function getHorizonAnalysis(
+export async function getStridePlan(
   supabase: DashboardSupabase,
   userId: string,
   bucketId: string | null
-): Promise<HorizonAnalysis | null> {
+): Promise<StridePlan | null> {
   if (!bucketId) return null;
 
   try {
     const { data, error } = await supabase
-      .from("horizon_analyses")
+      .from("stride_plans")
       .select("*")
       .eq("user_id", userId)
       .eq("bucket_id", bucketId)
@@ -213,7 +213,7 @@ export async function getHorizonAnalysis(
       throw error;
     }
 
-    return (data as HorizonAnalysis | null) ?? null;
+    return (data as StridePlan | null) ?? null;
   } catch (error) {
     throw toClientError(error, "AI 추천 정보를 불러오지 못했습니다.");
   }
