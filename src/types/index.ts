@@ -27,7 +27,7 @@ export type LifeAreaName =
   | "내면"
   | "돈";
 
-// 나의 보폭(stride) — 유저 목표의 시간 스케일. 짧은 → 긴 순서로 나열.
+// 나의 발걸음(stride) — 유저 목표의 시간 스케일. 짧은 → 긴 순서로 나열.
 export type StrideLevel =
   | "today"
   | "this_week"
@@ -37,7 +37,7 @@ export type StrideLevel =
   | "five_years"
   | "decade"
   | "someday";
-// 버킷의 중심 보폭 스코프 — 드롭다운에서 선택하는 값 (StrideLevel 풀과 동일)
+// 버킷의 중심 발걸음 스코프 — 드롭다운에서 선택하는 값 (StrideLevel 풀과 동일)
 export type StrideScope = StrideLevel;
 export type BucketStatus = "not_started" | "in_progress" | "completed" | "paused";
 export type ChapterStatus = "active" | "completed" | "paused";

@@ -7,6 +7,8 @@ import {
   generateActionTip,
   generateWeeklyItems,
   regenerateSingleStride,
+  STRIDE_ORDER,
+  STRIDE_LABELS,
 } from "@/lib/ai/analyze";
 import { getCurrentWeekStartDate } from "@/lib/utils";
 import type {
@@ -645,40 +647,18 @@ export async function addRoutineAction(
 }
 
 // ============================================================================
-// 나의 보폭(stride) 편집 / 재생성 액션
+// 나의 발걸음(stride) 편집 / 재생성 액션
 // ============================================================================
-
-const STRIDE_LEVEL_POOL: StrideLevel[] = [
-  "today",
-  "this_week",
-  "this_month",
-  "this_season",
-  "this_year",
-  "five_years",
-  "decade",
-  "someday",
-];
-
-const STRIDE_LABEL_BY_LEVEL: Record<StrideLevel, string> = {
-  today: "오늘",
-  this_week: "이번 주",
-  this_month: "이번 달",
-  this_season: "이번 시즌",
-  this_year: "1년 안",
-  five_years: "5년 안",
-  decade: "10년 안",
-  someday: "언젠가",
-};
 
 function normalizeDraftStrides(raw: unknown): StrideItem[] {
   if (!Array.isArray(raw)) {
-    throw new Error("보폭 데이터 형식이 올바르지 않습니다.");
+    throw new Error("발걸음 데이터 형식이 올바르지 않습니다.");
   }
   const normalized: StrideItem[] = [];
   for (const row of raw) {
     const item = row as { level?: unknown; label?: unknown; action?: unknown };
-    if (typeof item.level !== "string" || !STRIDE_LEVEL_POOL.includes(item.level as StrideLevel)) {
-      throw new Error("보폭 레벨이 올바르지 않습니다.");
+    if (typeof item.level !== "string" || !STRIDE_ORDER.includes(item.level as StrideLevel)) {
+      throw new Error("발걸음 레벨이 올바르지 않습니다.");
     }
     if (typeof item.action !== "string" || item.action.trim().length === 0) {
       throw new Error("빈 action은 저장할 수 없습니다.");
@@ -686,16 +666,20 @@ function normalizeDraftStrides(raw: unknown): StrideItem[] {
     const level = item.level as StrideLevel;
     normalized.push({
       level,
-      label: STRIDE_LABEL_BY_LEVEL[level],
+      label: STRIDE_LABELS[level],
       action: item.action.trim(),
     });
   }
-  if (normalized.length < 3 || normalized.length > 5) {
-    throw new Error("보폭은 3~5개여야 합니다.");
+  if (normalized.length < 3 || normalized.length > 6) {
+    throw new Error("발걸음은 3~6개여야 합니다.");
+  }
+  // someday 필수
+  if (!normalized.some((s) => s.level === "someday")) {
+    throw new Error("'언젠가' 발걸음은 반드시 포함되어야 합니다.");
   }
   // 짧은 → 긴 순 정렬
   normalized.sort(
-    (a, b) => STRIDE_LEVEL_POOL.indexOf(a.level) - STRIDE_LEVEL_POOL.indexOf(b.level)
+    (a, b) => STRIDE_ORDER.indexOf(a.level) - STRIDE_ORDER.indexOf(b.level)
   );
   return normalized;
 }
@@ -784,7 +768,7 @@ export async function updateStridePlanAction(
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "보폭 저장에 실패했습니다."),
+      error: toClientErrorMessage(error, "발걸음 저장에 실패했습니다."),
     };
   }
 }
@@ -839,7 +823,7 @@ export async function regenerateStridePlanAction(
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "보폭 전체 재생성에 실패했습니다."),
+      error: toClientErrorMessage(error, "발걸음 전체 재생성에 실패했습니다."),
     };
   }
 }
@@ -854,8 +838,8 @@ export async function regenerateStrideItemAction(
   try {
     const { supabase, userId } = await getAuthContext();
 
-    if (!STRIDE_LEVEL_POOL.includes(targetLevel)) {
-      throw new Error("유효하지 않은 보폭 레벨입니다.");
+    if (!STRIDE_ORDER.includes(targetLevel)) {
+      throw new Error("유효하지 않은 발걸음 레벨입니다.");
     }
 
     const [bucket, plan] = await Promise.all([
@@ -865,7 +849,7 @@ export async function regenerateStrideItemAction(
 
     const existingStrides = Array.isArray(plan.strides) ? plan.strides : [];
     if (!existingStrides.some((item) => item.level === targetLevel)) {
-      throw new Error("해당 레벨이 현재 보폭 구성에 없습니다.");
+      throw new Error("해당 레벨이 현재 발걸음 구성에 없습니다.");
     }
 
     const newItem = await regenerateSingleStride({
@@ -895,7 +879,7 @@ export async function regenerateStrideItemAction(
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "보폭 재생성에 실패했습니다."),
+      error: toClientErrorMessage(error, "발걸음 재생성에 실패했습니다."),
     };
   }
 }

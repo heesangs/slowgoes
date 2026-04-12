@@ -18,6 +18,7 @@ import {
   updateStridePlanAction,
 } from "@/app/(main)/dashboard/actions";
 import { cn } from "@/lib/utils";
+import { partitionStrides } from "@/lib/ai/analyze";
 import type {
   ActionLogItemType,
   DailyTodo,
@@ -238,7 +239,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     router.refresh();
   }
 
-  // 개별 보폭 단계 재생성
+  // 개별 발걸음 단계 재생성
   async function handleRegenerateOne(level: StrideLevel) {
     if (!data.selectedBucket?.id) return;
     setRegeneratingLevel(level);
@@ -253,10 +254,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     setRegeneratingLevel(null);
   }
 
-  // 전체 보폭 재생성
+  // 전체 발걸음 재생성
   async function handleRegenerateAll() {
     if (!data.selectedBucket?.id) return;
-    if (typeof window !== "undefined" && !window.confirm("전체 보폭을 새로 추천받을까요?")) {
+    if (typeof window !== "undefined" && !window.confirm("전체 발걸음을 새로 추천받을까요?")) {
       return;
     }
     setIsRegenAll(true);
@@ -264,7 +265,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     if (result.success && result.plan) {
       setDraftStrides(result.plan.strides ?? []);
       setIsEditing(true);
-      toast("AI가 보폭을 새로 제안했어요.", "success");
+      toast("AI가 발걸음을 새로 제안했어요.", "success");
       router.refresh();
     } else if (!result.success) {
       toast(result.error ?? "전체 재추천에 실패했습니다.", "error");
@@ -279,7 +280,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     // 빈 action 검증
     const hasEmpty = draftStrides.some((s) => !s.action.trim());
     if (hasEmpty) {
-      toast("빈 보폭 행동이 있어요. 모두 채워주세요.", "error");
+      toast("빈 발걸음 행동이 있어요. 모두 채워주세요.", "error");
       return;
     }
 
@@ -419,21 +420,28 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         className="cursor-pointer rounded-xl border border-foreground/10 px-4 py-4 transition-colors hover:bg-foreground/[0.03]"
         onClick={openStrideSheet}
       >
-        <p className="text-sm text-foreground/60">나의 보폭 요약</p>
-        {data.stridePlan ? (
-          <>
-            <p className="mt-1 text-sm font-medium">{data.stridePlan.empathy_message}</p>
-            <p className="mt-2 text-xs text-foreground/60">
-              {Array.isArray(data.stridePlan.strides) && data.stridePlan.strides.length > 0
-                ? data.stridePlan.strides
-                    .slice(0, 2)
-                    .map((item: StrideItem) => item.action)
-                    .join(" · ")
-                : "추천 상세를 열어 이번 주 항목을 추가해보세요."}
-            </p>
-            <p className="mt-2 text-xs text-foreground/55">카드를 누르면 상세를 볼 수 있어요.</p>
-          </>
-        ) : (
+        <p className="text-sm text-foreground/60">나의 발걸음</p>
+        {data.stridePlan ? (() => {
+          const { displayStrides: ds } = partitionStrides(data.stridePlan.strides ?? []);
+          const somedayItem = ds.find((s) => s.level === "someday");
+          const midItem = ds.find((s) => s.level !== "someday");
+          return (
+            <>
+              <p className="mt-1 text-sm font-medium">{data.stridePlan.empathy_message}</p>
+              {somedayItem && (
+                <p className="mt-2 text-xs text-foreground/70">
+                  언젠가 · {somedayItem.action}
+                </p>
+              )}
+              {midItem && (
+                <p className="mt-1 text-xs text-foreground/55">
+                  {midItem.label} · {midItem.action}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-foreground/55">카드를 누르면 상세를 볼 수 있어요.</p>
+            </>
+          );
+        })() : (
           <p className="mt-1 text-sm text-foreground/60">아직 AI 추천이 없어요. 온보딩에서 버킷을 추가해보세요.</p>
         )}
       </section>
@@ -499,7 +507,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       <BottomSheet
         open={strideSheetOpen}
         onClose={() => setStrideSheetOpen(false)}
-        title="나의 보폭 상세"
+        title="나의 발걸음 상세"
         footer={
           isEditing ? null : (
             <Button
@@ -516,120 +524,173 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           )
         }
       >
-        {data.stridePlan ? (
-          <div className="flex flex-col gap-3">
-            {/* 편집 모드 헤더 액션 */}
-            <div className="flex items-center justify-end gap-2">
-              {isEditing ? (
-                <>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={handleCancelEdit}
-                    disabled={isSavingPlan}
-                  >
-                    취소
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => {
-                      void handleSaveDraft();
-                    }}
-                    isLoading={isSavingPlan}
-                  >
-                    저장
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setIsEditing(true)}
-                  >
-                    편집
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      void handleRegenerateAll();
-                    }}
-                    isLoading={isRegenAll}
-                  >
-                    전체 다시 추천
-                  </Button>
-                </>
-              )}
-            </div>
+        {data.stridePlan ? (() => {
+          const { displayStrides: sheetDisplayStrides, bucketTodos: sheetBucketTodos } =
+            partitionStrides(draftStrides);
+          return (
+            <div className="flex flex-col gap-3">
+              {/* 편집 모드 헤더 액션 */}
+              <div className="flex items-center justify-end gap-2">
+                {isEditing ? (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={handleCancelEdit}
+                      disabled={isSavingPlan}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        void handleSaveDraft();
+                      }}
+                      isLoading={isSavingPlan}
+                    >
+                      저장
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setIsEditing(true)}
+                    >
+                      편집
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        void handleRegenerateAll();
+                      }}
+                      isLoading={isRegenAll}
+                    >
+                      전체 다시 추천
+                    </Button>
+                  </>
+                )}
+              </div>
 
-            <div className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-3">
-              <p className="text-sm">{data.stridePlan.empathy_message}</p>
-            </div>
+              <div className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-3">
+                <p className="text-sm">{data.stridePlan.empathy_message}</p>
+              </div>
 
-            <div className="flex flex-col gap-2">
-              {draftStrides.map((item, index) => {
-                const isRegenThis = regeneratingLevel === item.level;
-                return (
-                  <div
-                    key={`${item.level}-${index}`}
-                    className="rounded-lg border border-foreground/10 bg-foreground/[0.02] px-3 py-3"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs font-medium text-foreground/60">{item.label}</p>
-                      {isEditing && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void handleRegenerateOne(item.level);
-                          }}
-                          disabled={isRegenThis || isSavingPlan || isRegenAll}
-                          className="inline-flex min-h-[32px] items-center rounded-md border border-foreground/20 px-2 text-xs transition-colors hover:bg-foreground/5 disabled:opacity-50"
-                          aria-label={`${item.label} 단계 다시 추천`}
-                        >
-                          {isRegenThis ? "추천 중..." : "🔄 이 단계만 다시"}
-                        </button>
-                      )}
-                    </div>
-                    {isEditing ? (
-                      <textarea
-                        value={item.action}
-                        onChange={(event) => handleDraftActionChange(item.level, event.target.value)}
-                        rows={2}
-                        className="mt-2 w-full resize-none rounded-md border border-foreground/15 bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
-                      />
-                    ) : (
-                      <p className="mt-0.5 text-sm">{item.action}</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {!isEditing && (
-              <div className="rounded-lg border border-foreground/10 px-3 py-3">
-                <p className="text-xs text-foreground/60">추천 루틴</p>
-                <div className="mt-2 flex flex-col gap-2">
-                  {(Array.isArray(data.stridePlan.suggested_routines)
-                    ? data.stridePlan.suggested_routines
-                    : []
-                  ).map((routine: SuggestedRoutine, index: number) => (
-                    <div key={`${routine.title}-${index}`} className="rounded-md border border-foreground/10 px-2.5 py-2">
-                      <p className="text-sm">{routine.title}</p>
-                      <p className="mt-0.5 text-xs text-foreground/60">
-                        반복: {formatRoutineRepeat(routine)}
-                      </p>
-                    </div>
-                  ))}
+              {/* 섹션 1: 나의 발걸음 (this_month 이상, 긴→짧은 순) */}
+              <div>
+                <p className="mb-2 text-xs font-semibold text-foreground/60">나의 발걸음</p>
+                <div className="flex flex-col gap-2">
+                  {sheetDisplayStrides.map((item, index) => {
+                    const isRegenThis = regeneratingLevel === item.level;
+                    return (
+                      <div
+                        key={`stride-${item.level}-${index}`}
+                        className="rounded-lg border border-foreground/10 bg-foreground/[0.02] px-3 py-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs font-medium text-foreground/60">{item.label}</p>
+                          {isEditing && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void handleRegenerateOne(item.level);
+                              }}
+                              disabled={isRegenThis || isSavingPlan || isRegenAll}
+                              className="inline-flex min-h-[32px] items-center rounded-md border border-foreground/20 px-2 text-xs transition-colors hover:bg-foreground/5 disabled:opacity-50"
+                              aria-label={`${item.label} 단계 다시 추천`}
+                            >
+                              {isRegenThis ? "추천 중..." : "🔄 다시"}
+                            </button>
+                          )}
+                        </div>
+                        {isEditing ? (
+                          <textarea
+                            value={item.action}
+                            onChange={(event) => handleDraftActionChange(item.level, event.target.value)}
+                            rows={2}
+                            className="mt-2 w-full resize-none rounded-md border border-foreground/15 bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                          />
+                        ) : (
+                          <p className="mt-0.5 text-sm">{item.action}</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            )}
-          </div>
-        ) : (
+
+              {/* 섹션 2: 버킷을 위한 투두 (today/this_week) */}
+              {sheetBucketTodos.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-foreground/60">버킷을 위한 투두</p>
+                  <div className="flex flex-col gap-2">
+                    {sheetBucketTodos.map((item, index) => {
+                      const isRegenThis = regeneratingLevel === item.level;
+                      return (
+                        <div
+                          key={`todo-${item.level}-${index}`}
+                          className="rounded-lg border border-foreground/10 bg-foreground/[0.02] px-3 py-3"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-xs font-medium text-foreground/60">{item.label}</p>
+                            {isEditing && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void handleRegenerateOne(item.level);
+                                }}
+                                disabled={isRegenThis || isSavingPlan || isRegenAll}
+                                className="inline-flex min-h-[32px] items-center rounded-md border border-foreground/20 px-2 text-xs transition-colors hover:bg-foreground/5 disabled:opacity-50"
+                                aria-label={`${item.label} 투두 다시 추천`}
+                              >
+                                {isRegenThis ? "추천 중..." : "🔄 다시"}
+                              </button>
+                            )}
+                          </div>
+                          {isEditing ? (
+                            <textarea
+                              value={item.action}
+                              onChange={(event) => handleDraftActionChange(item.level, event.target.value)}
+                              rows={2}
+                              className="mt-2 w-full resize-none rounded-md border border-foreground/15 bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                            />
+                          ) : (
+                            <p className="mt-0.5 text-sm">{item.action}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {!isEditing && (
+                <div className="rounded-lg border border-foreground/10 px-3 py-3">
+                  <p className="text-xs text-foreground/60">추천 루틴</p>
+                  <div className="mt-2 flex flex-col gap-2">
+                    {(Array.isArray(data.stridePlan.suggested_routines)
+                      ? data.stridePlan.suggested_routines
+                      : []
+                    ).map((routine: SuggestedRoutine, index: number) => (
+                      <div key={`${routine.title}-${index}`} className="rounded-md border border-foreground/10 px-2.5 py-2">
+                        <p className="text-sm">{routine.title}</p>
+                        <p className="mt-0.5 text-xs text-foreground/60">
+                          반복: {formatRoutineRepeat(routine)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })() : (
           <p className="text-sm text-foreground/60">표시할 AI 추천 정보가 없어요.</p>
         )}
       </BottomSheet>
