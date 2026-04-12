@@ -9,6 +9,7 @@ import {
 import { demoAnalyzeLifeSceneAction } from "@/app/demo/actions";
 import { saveDemoOnboardingData } from "@/lib/demo/storage";
 import { cn } from "@/lib/utils";
+import { partitionStrides, STRIDE_ORDER } from "@/lib/ai/analyze";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDemoScenes, getSceneCategoryOptions } from "@/lib/onboarding/demo-scenes";
 import { useRouter } from "next/navigation";
@@ -17,25 +18,12 @@ import type {
   DemoSceneItem,
   ExistingBucketContext,
   Gender,
-  StrideItem,
   StrideLevel,
   LifeSceneAnalysisResult,
   OnboardingSceneCategory,
   PersonalityType,
   SuggestedRoutine,
 } from "@/types";
-
-// 나의 보폭(stride) 레벨 순서 — 짧은 → 긴
-const STRIDE_ORDER: StrideLevel[] = [
-  "today",
-  "this_week",
-  "this_month",
-  "this_season",
-  "this_year",
-  "five_years",
-  "decade",
-  "someday",
-];
 
 const GENDER_OPTIONS = [
   { value: "male" as Gender, label: "남성" },
@@ -94,14 +82,14 @@ function formatRoutineRepeat(routine: SuggestedRoutine) {
     : `${routine.repeatValue}주마다`;
 }
 
-// 짧을수록 진하게 — STRIDE_ORDER index 기반
+// 길수록 진하게 — someday가 가장 진한 톤
 function getStrideTone(level: StrideLevel) {
   const idx = STRIDE_ORDER.indexOf(level);
-  // 0~7 index를 5개 tone에 매핑
-  if (idx <= 0) return "border-foreground/30 bg-foreground/[0.12]";
-  if (idx <= 1) return "border-foreground/25 bg-foreground/[0.1]";
-  if (idx <= 3) return "border-foreground/20 bg-foreground/[0.07]";
-  if (idx <= 5) return "border-foreground/15 bg-foreground/[0.04]";
+  // 0~7 index를 5개 tone에 매핑 (높은 index = 긴 단계 = 진하게)
+  if (idx >= 7) return "border-foreground/30 bg-foreground/[0.12]"; // someday
+  if (idx >= 5) return "border-foreground/25 bg-foreground/[0.1]";
+  if (idx >= 3) return "border-foreground/20 bg-foreground/[0.07]";
+  if (idx >= 1) return "border-foreground/15 bg-foreground/[0.04]";
   return "border-foreground/10 bg-foreground/[0.02]";
 }
 
@@ -166,16 +154,11 @@ export function OnboardingForm({
       ? `${selectedSceneText}|${age}|${gender}|${personalityType}`
       : null;
 
-  // 짧은 → 긴 순으로 정렬 (AI도 정렬해주지만 안전상 재정렬)
-  const orderedStrides: StrideItem[] = useMemo(() => {
-    if (!lifeSceneAnalysis) return [];
-    return [...lifeSceneAnalysis.strides].sort(
-      (a, b) => STRIDE_ORDER.indexOf(a.level) - STRIDE_ORDER.indexOf(b.level)
-    );
+  // 발걸음(this_month 이상)과 버킷 투두(today/this_week)를 분리
+  const { displayStrides, bucketTodos } = useMemo(() => {
+    if (!lifeSceneAnalysis) return { displayStrides: [], bucketTodos: [] };
+    return partitionStrides(lifeSceneAnalysis.strides);
   }, [lifeSceneAnalysis]);
-
-  // 가장 짧은 단계 — Daily todo 자동 선택 기준
-  const shortestStride = orderedStrides[0] ?? null;
 
   // 시즌 액션(있으면) — 챕터 제목 fallback 용
   const selectedSeasonAction =
@@ -289,10 +272,9 @@ export function OnboardingForm({
     setCustomSceneInput("");
   }
 
-  function toggleRoutineTitle(title: string) {
-    setSelectedRoutineTitles((prev) =>
-      prev.includes(title) ? prev.filter((item) => item !== title) : [...prev, title]
-    );
+  // 루틴 라디오 선택 (1개만)
+  function selectRoutineTitle(title: string) {
+    setSelectedRoutineTitles([title]);
   }
 
   const runLifeSceneAnalysis = useCallback(
@@ -333,17 +315,15 @@ export function OnboardingForm({
       }
 
       const analysis = result.data;
-      // 가장 짧은 stride의 action을 기본 데일리투두로 사용
-      const sortedStrides = [...analysis.strides].sort(
-        (a, b) => STRIDE_ORDER.indexOf(a.level) - STRIDE_ORDER.indexOf(b.level)
-      );
-      const shortestAction = sortedStrides[0]?.action ?? "";
+      // 버킷 투두(today/this_week) 중 첫 번째를 기본 데일리투두로 선택
+      const { bucketTodos: todos } = partitionStrides(analysis.strides);
+      const firstTodoAction = todos[0]?.action ?? "";
 
       setLifeSceneAnalysis(analysis);
       setStep3AnalysisKey(step3RequestKey);
       setSelectedDailyTodo((prev) => {
-        if (prev && prev === shortestAction) return prev;
-        return shortestAction;
+        if (prev && prev === firstTodoAction) return prev;
+        return firstTodoAction;
       });
       setSelectedRoutineTitles((prev) => {
         const available = analysis.suggestedRoutines.map((item) => item.title);
@@ -931,21 +911,22 @@ export function OnboardingForm({
         <div className="flex flex-col gap-6">
           <div>
             <h2 className="mb-1 text-lg font-semibold">삶의 장면을 시간으로 정리하고 있어요</h2>
-            <p className="text-sm text-foreground/60">이번 주 데일리투두와 루틴을 선택해볼게요</p>
+            <p className="text-sm text-foreground/60">나의 발걸음과 투두, 루틴을 확인해보세요</p>
           </div>
 
           {isAnalyzingLifeScene && (
             <div className="flex animate-pulse flex-col gap-3">
               <div className="h-8 w-24 rounded-full bg-foreground/10" />
               <div className="h-5 w-2/3 rounded bg-foreground/10" />
+              <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.12]" />
+              <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.07]" />
               <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.03]" />
-              <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.05]" />
-              <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.08]" />
             </div>
           )}
 
           {!isAnalyzingLifeScene && lifeSceneAnalysis && (
             <>
+              {/* 공감 메시지 */}
               <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-4">
                 <span className="inline-flex rounded-full border border-foreground/20 px-3 py-1 text-xs font-medium">
                   {lifeSceneAnalysis.lifeArea}
@@ -953,46 +934,83 @@ export function OnboardingForm({
                 <p className="mt-3 text-sm text-foreground/70">{lifeSceneAnalysis.empathyMessage}</p>
               </div>
 
-              <div className="flex flex-col gap-3">
-                {orderedStrides.map((item, index) => {
-                  // 가장 짧은 stride가 데일리투두 자동 선택 기준
-                  const isShortest = shortestStride?.level === item.level && index === 0;
-                  const isSelected = isShortest && selectedDailyTodo === item.action;
-                  return (
+              {/* 나의 발걸음 (this_month 이상, 긴→짧은 순 — someday 먼저) */}
+              <section className="flex flex-col gap-3">
+                <h3 className="text-sm font-semibold">나의 발걸음</h3>
+                <div className="flex flex-col gap-3">
+                  {displayStrides.map((item, index) => (
                     <div
-                      key={`${item.level}-${index}-${item.action}`}
+                      key={`stride-${item.level}-${index}`}
                       className={cn(
                         "w-full rounded-xl border px-4 py-4 text-left",
-                        getStrideTone(item.level),
-                        isSelected && "border-foreground bg-foreground text-background"
+                        getStrideTone(item.level)
                       )}
                     >
-                      <p
-                        className={cn(
-                          "mb-1 text-xs font-medium",
-                          isSelected ? "text-background/80" : "text-foreground/60"
-                        )}
-                      >
+                      <p className="mb-1 text-xs font-medium text-foreground/60">
                         {item.label}
                       </p>
                       <p className="text-sm font-medium">{item.action}</p>
                     </div>
-                  );
-                })}
-              </div>
-
-              {shortestStride && (
-                <div className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
-                  <p className="text-sm text-foreground/70">
-                    데일리투두는 가장 가까운 보폭인 &quot;{shortestStride.label}&quot; 단계의 행동으로 자동 선택됩니다.
-                  </p>
+                  ))}
                 </div>
+              </section>
+
+              {/* 버킷을 위한 투두 (today/this_week — 라디오 선택) */}
+              {bucketTodos.length > 0 && (
+                <section className="flex flex-col gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold">버킷을 위한 투두</h3>
+                    <p className="text-xs text-foreground/60">하나를 선택하면 이번 주 데일리투두가 됩니다.</p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {bucketTodos.map((item, index) => {
+                      const isSelected = selectedDailyTodo === item.action;
+                      return (
+                        <button
+                          key={`todo-${item.level}-${index}`}
+                          type="button"
+                          onClick={() => {
+                            setSelectedDailyTodo(item.action);
+                            setError(null);
+                          }}
+                          className={cn(
+                            "flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left transition-colors",
+                            isSelected
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-foreground/15 hover:bg-foreground/[0.04]"
+                          )}
+                        >
+                          <span className={cn(
+                            "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                            isSelected
+                              ? "border-background bg-background"
+                              : "border-foreground/30"
+                          )}>
+                            {isSelected && (
+                              <span className="h-2 w-2 rounded-full bg-foreground" />
+                            )}
+                          </span>
+                          <div className="flex-1">
+                            <p className={cn(
+                              "mb-0.5 text-xs",
+                              isSelected ? "text-background/70" : "text-foreground/50"
+                            )}>
+                              {item.label}
+                            </p>
+                            <p className="text-sm font-medium">{item.action}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
               )}
 
+              {/* 버킷을 위한 루틴 (라디오 선택) */}
               <section className="flex flex-col gap-3">
                 <div>
                   <h3 className="text-sm font-semibold">버킷을 위한 루틴</h3>
-                  <p className="text-xs text-foreground/60">AI가 제안한 루틴에서 필요한 항목을 선택하세요.</p>
+                  <p className="text-xs text-foreground/60">하나를 선택하면 반복 루틴으로 등록됩니다.</p>
                 </div>
                 <div className="flex flex-col gap-2">
                   {lifeSceneAnalysis.suggestedRoutines.map((routine) => {
@@ -1002,25 +1020,37 @@ export function OnboardingForm({
                         key={routine.title}
                         type="button"
                         onClick={() => {
-                          toggleRoutineTitle(routine.title);
+                          selectRoutineTitle(routine.title);
                           setError(null);
                         }}
                         className={cn(
-                          "w-full rounded-lg border px-4 py-3 text-left transition-colors",
+                          "flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left transition-colors",
                           selected
                             ? "border-foreground bg-foreground text-background"
                             : "border-foreground/15 hover:bg-foreground/[0.04]"
                         )}
                       >
-                        <p className="text-sm font-medium">{routine.title}</p>
-                        <p
-                          className={cn(
-                            "mt-1 text-xs",
-                            selected ? "text-background/80" : "text-foreground/60"
+                        <span className={cn(
+                          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                          selected
+                            ? "border-background bg-background"
+                            : "border-foreground/30"
+                        )}>
+                          {selected && (
+                            <span className="h-2 w-2 rounded-full bg-foreground" />
                           )}
-                        >
-                          반복: {formatRoutineRepeat(routine)}
-                        </p>
+                        </span>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{routine.title}</p>
+                          <p
+                            className={cn(
+                              "mt-1 text-xs",
+                              selected ? "text-background/80" : "text-foreground/60"
+                            )}
+                          >
+                            반복: {formatRoutineRepeat(routine)}
+                          </p>
+                        </div>
                       </button>
                     );
                   })}
