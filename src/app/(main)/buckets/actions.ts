@@ -6,7 +6,7 @@ import type {
   Bucket,
   BucketDecompositionSuggestion,
   BucketStatus,
-  BucketHorizon,
+  StrideScope,
   Chapter,
   ChapterStatus,
   LifeArea,
@@ -19,14 +19,23 @@ type BucketRow = Bucket & {
 
 type ChapterRow = Chapter;
 
-const VALID_HORIZONS: BucketHorizon[] = ["someday", "this_year", "this_season"];
+const VALID_STRIDE_SCOPES: StrideScope[] = [
+  "today",
+  "this_week",
+  "this_month",
+  "this_season",
+  "this_year",
+  "five_years",
+  "decade",
+  "someday",
+];
 const VALID_STATUSES: BucketStatus[] = ["not_started", "in_progress", "completed", "paused"];
 const VALID_CHAPTER_STATUSES: ChapterStatus[] = ["active", "completed", "paused"];
 
 interface SaveBucketInput {
   title: string;
   lifeAreaId?: string | null;
-  horizon: BucketHorizon;
+  strideScope: StrideScope;
   status: BucketStatus;
 }
 
@@ -93,8 +102,8 @@ function validateBucketInput(input: SaveBucketInput) {
   if (!title) {
     throw new Error("버킷 제목을 입력해주세요.");
   }
-  if (!VALID_HORIZONS.includes(input.horizon)) {
-    throw new Error("시간 지평 값이 올바르지 않습니다.");
+  if (!VALID_STRIDE_SCOPES.includes(input.strideScope)) {
+    throw new Error("나의 보폭 값이 올바르지 않습니다.");
   }
   if (!VALID_STATUSES.includes(input.status)) {
     throw new Error("상태 값이 올바르지 않습니다.");
@@ -167,7 +176,7 @@ export async function createBucketAction(
         user_id: userId,
         life_area_id: lifeAreaId,
         title,
-        horizon: input.horizon,
+        stride_scope: input.strideScope,
         status: input.status,
       })
       .select("*, life_area:life_areas(id, name)")
@@ -204,7 +213,7 @@ export async function updateBucketAction(
       .update({
         title,
         life_area_id: lifeAreaId,
-        horizon: input.horizon,
+        stride_scope: input.strideScope,
         status: input.status,
       })
       .eq("id", bucketId)
@@ -376,7 +385,7 @@ export async function decomposeBucketAction(
     const [bucketResult, profileResult, chaptersResult] = await Promise.all([
       supabase
         .from("buckets")
-        .select("id, title, horizon")
+        .select("id, title, stride_scope")
         .eq("id", bucketId)
         .eq("user_id", userId)
         .maybeSingle(),
@@ -398,7 +407,7 @@ export async function decomposeBucketAction(
 
     const suggestions = await decomposeBucket({
       bucketTitle: bucketResult.data.title as string,
-      horizon: bucketResult.data.horizon as BucketHorizon,
+      strideScope: bucketResult.data.stride_scope as StrideScope,
       profile: (profileResult.data as Profile | null) ?? null,
       existingChapterTitles:
         (chaptersResult.data as Array<{ title: string }> | null)?.map((chapter) => chapter.title) ?? [],

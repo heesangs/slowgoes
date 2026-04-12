@@ -13,8 +13,8 @@ import {
 import type {
   Bucket,
   BucketDecompositionSuggestion,
-  BucketHorizon,
   BucketStatus,
+  StrideScope,
   Chapter,
   ChapterStatus,
   LifeArea,
@@ -36,10 +36,18 @@ const CHAPTER_STATUS_OPTIONS: Array<{ value: ChapterStatus; label: string }> = [
   { value: "paused", label: "보류" },
 ];
 
-function horizonLabel(value: BucketHorizon) {
-  if (value === "this_season") return "이번 시즌";
-  if (value === "this_year") return "1년 안";
-  return "언젠가";
+function strideScopeLabel(value: StrideScope) {
+  switch (value) {
+    case "today": return "오늘";
+    case "this_week": return "이번 주";
+    case "this_month": return "이번 달";
+    case "this_season": return "이번 시즌";
+    case "this_year": return "1년 안";
+    case "five_years": return "5년 안";
+    case "decade": return "10년 안";
+    case "someday": return "언젠가";
+    default: return value;
+  }
 }
 
 function bucketStatusLabel(value: BucketStatus) {
@@ -277,7 +285,7 @@ export function BucketDetailContent({
 
         <div className="flex flex-wrap gap-2 text-xs">
           <span className="rounded-full border border-foreground/20 px-2 py-1">
-            {horizonLabel(bucket.horizon)}
+            {strideScopeLabel(bucket.stride_scope)}
           </span>
           <span className="rounded-full border border-foreground/20 px-2 py-1">
             {bucketStatusLabel(bucket.status)}

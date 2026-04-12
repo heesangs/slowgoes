@@ -2,17 +2,25 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import type { Bucket, BucketHorizon } from "@/types";
+import type { Bucket, StrideScope } from "@/types";
 
 interface BucketSuggestionCardProps {
   suggestedBucket: Bucket | null;
   shouldShow: boolean;
 }
 
-function getHorizonLabel(horizon: BucketHorizon) {
-  if (horizon === "this_year") return "1년 안";
-  if (horizon === "this_season") return "이번 시즌";
-  return "언젠가";
+function getStrideScopeLabel(scope: StrideScope) {
+  switch (scope) {
+    case "today": return "오늘";
+    case "this_week": return "이번 주";
+    case "this_month": return "이번 달";
+    case "this_season": return "이번 시즌";
+    case "this_year": return "1년 안";
+    case "five_years": return "5년 안";
+    case "decade": return "10년 안";
+    case "someday": return "언젠가";
+    default: return scope;
+  }
 }
 
 function buildStartPointSuggestion(bucketTitle: string) {
@@ -37,7 +45,7 @@ export function BucketSuggestionCard({
         <div className="rounded-lg border border-foreground/10 bg-foreground/[0.02] px-3 py-3">
           <p className="text-sm font-semibold">{suggestedBucket.title}</p>
           <p className="text-xs text-foreground/60 mt-1">
-            {getHorizonLabel(suggestedBucket.horizon)} · 시작 전
+            {getStrideScopeLabel(suggestedBucket.stride_scope)} · 시작 전
           </p>
           <p className="text-sm text-foreground/80 mt-3">
             오늘 시작점 제안: {buildStartPointSuggestion(suggestedBucket.title)}

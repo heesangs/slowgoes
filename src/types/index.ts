@@ -27,8 +27,18 @@ export type LifeAreaName =
   | "내면"
   | "돈";
 
-export type BucketHorizon = "someday" | "this_year" | "this_season";
-export type HorizonLevel = BucketHorizon | "this_week";
+// 나의 보폭(stride) — 유저 목표의 시간 스케일. 짧은 → 긴 순서로 나열.
+export type StrideLevel =
+  | "today"
+  | "this_week"
+  | "this_month"
+  | "this_season"
+  | "this_year"
+  | "five_years"
+  | "decade"
+  | "someday";
+// 버킷의 중심 보폭 스코프 — 드롭다운에서 선택하는 값 (StrideLevel 풀과 동일)
+export type StrideScope = StrideLevel;
 export type BucketStatus = "not_started" | "in_progress" | "completed" | "paused";
 export type ChapterStatus = "active" | "completed" | "paused";
 export type TaskCondition = "light" | "normal" | "focused" | "tired";
@@ -167,7 +177,7 @@ export interface Bucket {
   user_id: string;
   life_area_id: string | null;
   title: string;
-  horizon: BucketHorizon;
+  stride_scope: StrideScope;
   status: BucketStatus;
   created_at: string;
   completed_at: string | null;
@@ -243,13 +253,13 @@ export interface SuggestedRoutine {
   repeatValue: number;
 }
 
-export interface HorizonAnalysis {
+export interface StridePlan {
   id: string;
   user_id: string;
   bucket_id: string;
   life_area: string;
   empathy_message: string;
-  horizons: HorizonAction[];
+  strides: StrideItem[];
   suggested_routines: SuggestedRoutine[];
   created_at: string;
   updated_at: string;
@@ -291,8 +301,8 @@ export interface DemoSceneItem {
   category: OnboardingSceneCategory["key"];
 }
 
-export interface HorizonAction {
-  level: HorizonLevel;
+export interface StrideItem {
+  level: StrideLevel;
   label: string;
   action: string;
 }
@@ -300,7 +310,7 @@ export interface HorizonAction {
 export interface LifeSceneAnalysisResult {
   lifeArea: string;
   empathyMessage: string;
-  horizons: HorizonAction[];
+  strides: StrideItem[];
   suggestedRoutines: SuggestedRoutine[];
 }
 
@@ -323,7 +333,7 @@ export interface OnboardingV2SavePayload {
   gender: Gender;
   personalityType: PersonalityType;
   paceType: PaceType;
-  horizonAnalysis: LifeSceneAnalysisResult;
+  stridePlan: LifeSceneAnalysisResult;
   selectedDailyTodos: Array<{ title: string; source?: ItemSource }>;
   selectedRoutines: Array<{
     title: string;
@@ -399,12 +409,12 @@ export interface ReviewPageData {
 
 export interface DashboardV2Data {
   profile: Profile;
-  buckets: Array<Pick<Bucket, "id" | "title" | "horizon" | "status" | "created_at">>;
+  buckets: Array<Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at">>;
   selectedBucket: Bucket | null;
   activeChapters: Chapter[];
   dailyTodos: DailyTodo[];
   routines: RoutineWithCompletion[];
-  horizonAnalysis: HorizonAnalysis | null;
+  stridePlan: StridePlan | null;
   extraDailyTodoCount: number;
   extraRoutineCount: number;
   // legacy 필드 (점진 전환)

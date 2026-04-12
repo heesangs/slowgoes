@@ -2,13 +2,24 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { generateActionTip, generateWeeklyItems } from "@/lib/ai/analyze";
+import {
+  analyzeLifeScene,
+  generateActionTip,
+  generateWeeklyItems,
+  regenerateSingleStride,
+} from "@/lib/ai/analyze";
 import { getCurrentWeekStartDate } from "@/lib/utils";
 import type {
   ActionLogItemType,
+  Gender,
   ItemSource,
+  PersonalityType,
   Profile,
   RoutineRepeatUnit,
+  StrideItem,
+  StrideLevel,
+  StridePlan,
+  StrideScope,
 } from "@/types";
 
 function toClientErrorMessage(error: unknown, fallback: string): string {
@@ -396,8 +407,8 @@ export async function generateWeeklyItemsAction(bucketId: string): Promise<{
         .eq("user_id", userId)
         .maybeSingle(),
       supabase
-        .from("horizon_analyses")
-        .select("horizons, life_area")
+        .from("stride_plans")
+        .select("strides, life_area")
         .eq("bucket_id", bucketId)
         .eq("user_id", userId)
         .maybeSingle(),
@@ -443,18 +454,25 @@ export async function generateWeeklyItemsAction(bucketId: string): Promise<{
       ...routineRows.map((item) => item.title),
     ];
 
+    const VALID_STRIDE_LEVELS = [
+      "today",
+      "this_week",
+      "this_month",
+      "this_season",
+      "this_year",
+      "five_years",
+      "decade",
+      "someday",
+    ] as const;
+
     const weeklyItems = await generateWeeklyItems({
       bucketTitle: bucket.title,
       lifeArea: lifeArea ?? (analysisResult.data.life_area as string) ?? "성장",
-      horizons: Array.isArray(analysisResult.data.horizons)
-        ? (analysisResult.data.horizons as Array<{ level: string; label: string; action: string }>).map((item) => ({
-            level:
-              item.level === "this_week" ||
-              item.level === "this_year" ||
-              item.level === "this_season" ||
-              item.level === "someday"
-                ? item.level
-                : "this_week",
+      strides: Array.isArray(analysisResult.data.strides)
+        ? (analysisResult.data.strides as Array<{ level: string; label: string; action: string }>).map((item) => ({
+            level: (VALID_STRIDE_LEVELS as readonly string[]).includes(item.level)
+              ? (item.level as (typeof VALID_STRIDE_LEVELS)[number])
+              : "this_week",
             label: item.label,
             action: item.action,
           }))
@@ -622,6 +640,262 @@ export async function addRoutineAction(
     return {
       success: false,
       error: toClientErrorMessage(error, "루틴 추가에 실패했습니다."),
+    };
+  }
+}
+
+// ============================================================================
+// 나의 보폭(stride) 편집 / 재생성 액션
+// ============================================================================
+
+const STRIDE_LEVEL_POOL: StrideLevel[] = [
+  "today",
+  "this_week",
+  "this_month",
+  "this_season",
+  "this_year",
+  "five_years",
+  "decade",
+  "someday",
+];
+
+const STRIDE_LABEL_BY_LEVEL: Record<StrideLevel, string> = {
+  today: "오늘",
+  this_week: "이번 주",
+  this_month: "이번 달",
+  this_season: "이번 시즌",
+  this_year: "1년 안",
+  five_years: "5년 안",
+  decade: "10년 안",
+  someday: "언젠가",
+};
+
+function normalizeDraftStrides(raw: unknown): StrideItem[] {
+  if (!Array.isArray(raw)) {
+    throw new Error("보폭 데이터 형식이 올바르지 않습니다.");
+  }
+  const normalized: StrideItem[] = [];
+  for (const row of raw) {
+    const item = row as { level?: unknown; label?: unknown; action?: unknown };
+    if (typeof item.level !== "string" || !STRIDE_LEVEL_POOL.includes(item.level as StrideLevel)) {
+      throw new Error("보폭 레벨이 올바르지 않습니다.");
+    }
+    if (typeof item.action !== "string" || item.action.trim().length === 0) {
+      throw new Error("빈 action은 저장할 수 없습니다.");
+    }
+    const level = item.level as StrideLevel;
+    normalized.push({
+      level,
+      label: STRIDE_LABEL_BY_LEVEL[level],
+      action: item.action.trim(),
+    });
+  }
+  if (normalized.length < 3 || normalized.length > 5) {
+    throw new Error("보폭은 3~5개여야 합니다.");
+  }
+  // 짧은 → 긴 순 정렬
+  normalized.sort(
+    (a, b) => STRIDE_LEVEL_POOL.indexOf(a.level) - STRIDE_LEVEL_POOL.indexOf(b.level)
+  );
+  return normalized;
+}
+
+async function loadStridePlanForBucket(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  bucketId: string
+): Promise<StridePlan> {
+  const { data, error } = await supabase
+    .from("stride_plans")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("bucket_id", bucketId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error("AI 추천 정보를 먼저 생성해주세요.");
+  return data as StridePlan;
+}
+
+async function loadBucketContext(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  bucketId: string
+) {
+  const { data, error } = await supabase
+    .from("buckets")
+    .select("id, title, stride_scope, life_area:life_areas(name)")
+    .eq("id", bucketId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) {
+    throw new Error("해당 버킷에 접근할 수 없습니다.");
+  }
+
+  const row = data as {
+    id: string;
+    title: string;
+    stride_scope: StrideScope;
+    life_area?: { name?: string } | { name?: string }[] | null;
+  };
+  const lifeAreaRaw = row.life_area;
+  const lifeAreaName = Array.isArray(lifeAreaRaw)
+    ? lifeAreaRaw[0]?.name ?? null
+    : lifeAreaRaw?.name ?? null;
+
+  return {
+    id: row.id,
+    title: row.title,
+    strideScope: row.stride_scope,
+    lifeArea: lifeAreaName ?? "성장",
+  };
+}
+
+/**
+ * stride_plan 편집 저장 — 대시보드 바텀시트의 "저장" 버튼
+ */
+export async function updateStridePlanAction(
+  bucketId: string,
+  input: { empathyMessage?: string; strides: StrideItem[] }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+    const normalized = normalizeDraftStrides(input.strides);
+
+    const updatePayload: Record<string, unknown> = {
+      strides: normalized,
+      updated_at: new Date().toISOString(),
+    };
+    if (typeof input.empathyMessage === "string") {
+      updatePayload.empathy_message = input.empathyMessage.trim();
+    }
+
+    const { error } = await supabase
+      .from("stride_plans")
+      .update(updatePayload)
+      .eq("bucket_id", bucketId)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, "보폭 저장에 실패했습니다."),
+    };
+  }
+}
+
+/**
+ * stride_plan 전체 재생성 — "전체 다시 추천" 버튼
+ */
+export async function regenerateStridePlanAction(
+  bucketId: string
+): Promise<{ success: boolean; plan?: StridePlan; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const [bucket, profileResult] = await Promise.all([
+      loadBucketContext(supabase, userId, bucketId),
+      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+    ]);
+
+    const profile = (profileResult.data as Profile | null) ?? null;
+    if (!profile) {
+      throw new Error("프로필 정보가 없습니다.");
+    }
+
+    const analysis = await analyzeLifeScene({
+      sceneText: bucket.title,
+      age: profile.life_clock_age ?? 30,
+      gender: (profile.gender as Gender) ?? "male",
+      personalityType: (profile.personality_type as PersonalityType) ?? "INFP",
+      strideScope: bucket.strideScope,
+    });
+
+    const payload = {
+      user_id: userId,
+      bucket_id: bucketId,
+      life_area: analysis.lifeArea || bucket.lifeArea,
+      empathy_message: analysis.empathyMessage || "",
+      strides: analysis.strides,
+      suggested_routines: analysis.suggestedRoutines,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from("stride_plans")
+      .upsert(payload, { onConflict: "bucket_id" })
+      .select("*")
+      .single();
+
+    if (error) throw error;
+
+    revalidatePath("/dashboard");
+    return { success: true, plan: data as StridePlan };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, "보폭 전체 재생성에 실패했습니다."),
+    };
+  }
+}
+
+/**
+ * 특정 stride 항목만 재생성 — 각 행의 "🔄" 버튼
+ */
+export async function regenerateStrideItemAction(
+  bucketId: string,
+  targetLevel: StrideLevel
+): Promise<{ success: boolean; item?: StrideItem; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    if (!STRIDE_LEVEL_POOL.includes(targetLevel)) {
+      throw new Error("유효하지 않은 보폭 레벨입니다.");
+    }
+
+    const [bucket, plan] = await Promise.all([
+      loadBucketContext(supabase, userId, bucketId),
+      loadStridePlanForBucket(supabase, userId, bucketId),
+    ]);
+
+    const existingStrides = Array.isArray(plan.strides) ? plan.strides : [];
+    if (!existingStrides.some((item) => item.level === targetLevel)) {
+      throw new Error("해당 레벨이 현재 보폭 구성에 없습니다.");
+    }
+
+    const newItem = await regenerateSingleStride({
+      bucketTitle: bucket.title,
+      lifeArea: plan.life_area || bucket.lifeArea,
+      existingStrides,
+      targetLevel,
+    });
+
+    const updatedStrides = existingStrides.map((item) =>
+      item.level === targetLevel ? newItem : item
+    );
+
+    const { error } = await supabase
+      .from("stride_plans")
+      .update({
+        strides: updatedStrides,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("bucket_id", bucketId)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    revalidatePath("/dashboard");
+    return { success: true, item: newItem };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, "보폭 재생성에 실패했습니다."),
     };
   }
 }

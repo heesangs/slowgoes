@@ -17,12 +17,25 @@ import type {
   DemoSceneItem,
   ExistingBucketContext,
   Gender,
-  HorizonAction,
+  StrideItem,
+  StrideLevel,
   LifeSceneAnalysisResult,
   OnboardingSceneCategory,
   PersonalityType,
   SuggestedRoutine,
 } from "@/types";
+
+// 나의 보폭(stride) 레벨 순서 — 짧은 → 긴
+const STRIDE_ORDER: StrideLevel[] = [
+  "today",
+  "this_week",
+  "this_month",
+  "this_season",
+  "this_year",
+  "five_years",
+  "decade",
+  "someday",
+];
 
 const GENDER_OPTIONS = [
   { value: "male" as Gender, label: "남성" },
@@ -65,7 +78,7 @@ interface OnboardingFormProps {
     personalityType: PersonalityType;
   } | null;
   // 바텀시트 모드: 기존 버킷 목록 + 완료 콜백
-  existingBuckets?: Array<Pick<Bucket, "id" | "title" | "horizon" | "status" | "created_at">>;
+  existingBuckets?: Array<Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at">>;
   onComplete?: () => void; // redirect 대신 호출
 }
 
@@ -81,11 +94,15 @@ function formatRoutineRepeat(routine: SuggestedRoutine) {
     : `${routine.repeatValue}주마다`;
 }
 
-function getHorizonTone(level: HorizonAction["level"]) {
-  if (level === "someday") return "border-foreground/10 bg-foreground/[0.02]";
-  if (level === "this_year") return "border-foreground/15 bg-foreground/[0.04]";
-  if (level === "this_season") return "border-foreground/20 bg-foreground/[0.07]";
-  return "border-foreground/25 bg-foreground/[0.1]";
+// 짧을수록 진하게 — STRIDE_ORDER index 기반
+function getStrideTone(level: StrideLevel) {
+  const idx = STRIDE_ORDER.indexOf(level);
+  // 0~7 index를 5개 tone에 매핑
+  if (idx <= 0) return "border-foreground/30 bg-foreground/[0.12]";
+  if (idx <= 1) return "border-foreground/25 bg-foreground/[0.1]";
+  if (idx <= 3) return "border-foreground/20 bg-foreground/[0.07]";
+  if (idx <= 5) return "border-foreground/15 bg-foreground/[0.04]";
+  return "border-foreground/10 bg-foreground/[0.02]";
 }
 
 export function OnboardingForm({
@@ -149,24 +166,20 @@ export function OnboardingForm({
       ? `${selectedSceneText}|${age}|${gender}|${personalityType}`
       : null;
 
-  const orderedHorizons = useMemo(() => {
+  // 짧은 → 긴 순으로 정렬 (AI도 정렬해주지만 안전상 재정렬)
+  const orderedStrides: StrideItem[] = useMemo(() => {
     if (!lifeSceneAnalysis) return [];
-
-    return [
-      ...lifeSceneAnalysis.horizons.filter((item) => item.level === "someday").slice(0, 1),
-      ...lifeSceneAnalysis.horizons.filter((item) => item.level === "this_year").slice(0, 1),
-      ...lifeSceneAnalysis.horizons.filter((item) => item.level === "this_season").slice(0, 1),
-      ...lifeSceneAnalysis.horizons.filter((item) => item.level === "this_week"),
-    ];
+    return [...lifeSceneAnalysis.strides].sort(
+      (a, b) => STRIDE_ORDER.indexOf(a.level) - STRIDE_ORDER.indexOf(b.level)
+    );
   }, [lifeSceneAnalysis]);
 
-  const weeklyHorizons = useMemo(
-    () => orderedHorizons.filter((item) => item.level === "this_week"),
-    [orderedHorizons]
-  );
+  // 가장 짧은 단계 — Daily todo 자동 선택 기준
+  const shortestStride = orderedStrides[0] ?? null;
 
+  // 시즌 액션(있으면) — 챕터 제목 fallback 용
   const selectedSeasonAction =
-    lifeSceneAnalysis?.horizons.find((item) => item.level === "this_season")?.action ?? "";
+    lifeSceneAnalysis?.strides.find((item) => item.level === "this_season")?.action ?? "";
 
   const lifeClock = (() => {
     if (age === null || age < 0 || age > 100) return null;
@@ -320,15 +333,17 @@ export function OnboardingForm({
       }
 
       const analysis = result.data;
-      const weeklyActions = analysis.horizons
-        .filter((item) => item.level === "this_week")
-        .map((item) => item.action);
+      // 가장 짧은 stride의 action을 기본 데일리투두로 사용
+      const sortedStrides = [...analysis.strides].sort(
+        (a, b) => STRIDE_ORDER.indexOf(a.level) - STRIDE_ORDER.indexOf(b.level)
+      );
+      const shortestAction = sortedStrides[0]?.action ?? "";
 
       setLifeSceneAnalysis(analysis);
       setStep3AnalysisKey(step3RequestKey);
       setSelectedDailyTodo((prev) => {
-        if (prev && weeklyActions.includes(prev)) return prev;
-        return weeklyActions[0] ?? "";
+        if (prev && prev === shortestAction) return prev;
+        return shortestAction;
       });
       setSelectedRoutineTitles((prev) => {
         const available = analysis.suggestedRoutines.map((item) => item.title);
@@ -461,7 +476,7 @@ export function OnboardingForm({
           gender,
           personalityType,
           chapterTitle: selectedSeasonAction || `${selectedSceneText} 이번 시즌 실행`,
-          horizonAnalysis: lifeSceneAnalysis,
+          stridePlan: lifeSceneAnalysis,
           selectedDailyTodos,
           selectedRoutines,
           savedAt: new Date().toISOString(),
@@ -476,7 +491,7 @@ export function OnboardingForm({
           bucketId: selectedExistingBucket.bucketId,
           selectedDailyTodos,
           selectedRoutines,
-          horizonAnalysis: lifeSceneAnalysis,
+          stridePlan: lifeSceneAnalysis,
         });
 
         if (!result.success) {
@@ -507,7 +522,7 @@ export function OnboardingForm({
         personalityType,
         paceType: "balanced",
         chapterTitle: selectedSeasonAction || `${selectedSceneText} 이번 시즌 실행`,
-        horizonAnalysis: lifeSceneAnalysis,
+        stridePlan: lifeSceneAnalysis,
         selectedDailyTodos,
         selectedRoutines,
       });
@@ -939,24 +954,17 @@ export function OnboardingForm({
               </div>
 
               <div className="flex flex-col gap-3">
-                {orderedHorizons.map((item, index) => {
-                  const isWeekly = item.level === "this_week";
-                  const isSelected = selectedDailyTodo === item.action;
+                {orderedStrides.map((item, index) => {
+                  // 가장 짧은 stride가 데일리투두 자동 선택 기준
+                  const isShortest = shortestStride?.level === item.level && index === 0;
+                  const isSelected = isShortest && selectedDailyTodo === item.action;
                   return (
-                    <button
+                    <div
                       key={`${item.level}-${index}-${item.action}`}
-                      type="button"
-                      onClick={() => {
-                        if (!isWeekly) return;
-                        setSelectedDailyTodo(item.action);
-                        setError(null);
-                      }}
                       className={cn(
-                        "w-full rounded-xl border px-4 py-4 text-left transition-colors",
-                        getHorizonTone(item.level),
-                        isWeekly ? "cursor-pointer" : "cursor-default",
-                        isSelected && "border-foreground bg-foreground text-background",
-                        isWeekly && !isSelected && "hover:bg-foreground/[0.14]"
+                        "w-full rounded-xl border px-4 py-4 text-left",
+                        getStrideTone(item.level),
+                        isSelected && "border-foreground bg-foreground text-background"
                       )}
                     >
                       <p
@@ -968,14 +976,16 @@ export function OnboardingForm({
                         {item.label}
                       </p>
                       <p className="text-sm font-medium">{item.action}</p>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
 
-              {weeklyHorizons.length > 0 && (
+              {shortestStride && (
                 <div className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
-                  <p className="text-sm text-foreground/70">데일리투두는 이번 주 항목 중 1개를 선택하면 됩니다.</p>
+                  <p className="text-sm text-foreground/70">
+                    데일리투두는 가장 가까운 보폭인 &quot;{shortestStride.label}&quot; 단계의 행동으로 자동 선택됩니다.
+                  </p>
                 </div>
               )}
 

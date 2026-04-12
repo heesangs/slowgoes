@@ -36,7 +36,7 @@ export function DemoDataMigrator({ children }: DemoDataMigratorProps) {
           displayName: demoData.displayName || "slowgoes 사용자",
           selfLevel: "medium",
           chapterTitle: demoData.chapterTitle,
-          horizonAnalysis: demoData.horizonAnalysis,
+          stridePlan: demoData.stridePlan,
           selectedDailyTodos: demoData.selectedDailyTodos,
           selectedRoutines: demoData.selectedRoutines,
         });
