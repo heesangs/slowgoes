@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { signUpAction } from "@/app/(auth)/actions";
 import Link from "next/link";
 import { useState } from "react";
+import { DemoDataBanner } from "@/components/auth/demo-data-banner";
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
@@ -57,6 +58,8 @@ export default function SignUpPage() {
             나만의 속도로 공부를 시작해보세요
           </p>
         </div>
+
+        <DemoDataBanner />
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input
