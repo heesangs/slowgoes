@@ -149,7 +149,7 @@ export default function DemoCompletePage() {
 
         <div className="space-y-2">
           <Link
-            href="/signup"
+            href="/signup?from=demo"
             className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-foreground px-4 py-2 text-base font-medium text-background transition-opacity hover:opacity-90"
           >
             회원가입하고 계속하기
