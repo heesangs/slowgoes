@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { FEATURE_NAMES } from "@/lib/constants";
 import type { LifeSceneAnalysisResult, StrideItem } from "@/types";
 import { formatRoutineRepeat, getStrideTone } from "./utils";
 
@@ -37,8 +38,8 @@ export function StepAnalysis({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="mb-1 text-lg font-semibold">삶의 장면을 시간으로 정리하고 있어요</h2>
-        <p className="text-sm text-foreground/60">나의 발걸음과 투두, 루틴을 확인해보세요</p>
+        <h2 className="mb-1 text-lg font-semibold">{FEATURE_NAMES.LIFE_SCENE}을 시간으로 정리하고 있어요</h2>
+        <p className="text-sm text-foreground/60">{FEATURE_NAMES.MY_STRIDES}과 투두, 루틴을 확인해보세요</p>
       </div>
 
       {isAnalyzingLifeScene && (
@@ -63,7 +64,7 @@ export function StepAnalysis({
 
           {/* 나의 발걸음 (this_month 이상, 긴→짧은 순 — someday 먼저) */}
           <section className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold">나의 발걸음</h3>
+            <h3 className="text-sm font-semibold">{FEATURE_NAMES.MY_STRIDES}</h3>
             <div className="flex flex-col gap-3">
               {displayStrides.map((item, index) => (
                 <div

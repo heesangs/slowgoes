@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { FEATURE_NAMES } from "@/lib/constants";
 import type {
   Bucket,
   DemoSceneItem,
@@ -276,7 +277,7 @@ export function OnboardingForm({
     }
 
     if (step === 2) {
-      if (!selectedSceneText) { setError("삶의 장면을 하나 선택하거나 직접 입력해주세요."); return; }
+      if (!selectedSceneText) { setError(`${FEATURE_NAMES.LIFE_SCENE}을 하나 선택하거나 직접 입력해주세요.`); return; }
       resetAnalysisState();
       setStep(3);
       return;

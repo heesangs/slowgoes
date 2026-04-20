@@ -15,6 +15,7 @@ export const FEATURE_NAMES = {
   DAILY_TODO: "데일리 투두",
   ROUTINE: "루틴",
   LIFE_CLOCK: "라이프 클락",
+  FIND_MY_DREAM: "나의 꿈 찾기",
 } as const;
 
 // 챕터 기본 제목 생성 헬퍼

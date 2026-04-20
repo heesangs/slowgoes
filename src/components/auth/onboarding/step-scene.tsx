@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { FEATURE_NAMES } from "@/lib/constants";
 import { getDemoScenes } from "@/lib/onboarding/demo-scenes";
 import type { DemoSceneItem, Gender, OnboardingSceneCategory, PersonalityType } from "@/types";
 import { LIFE_CATEGORIES, type LifeCategory } from "./constants";
@@ -163,7 +164,7 @@ export function StepScene({
 
       {selectedSceneText && (
         <div className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
-          <p className="mb-1 text-xs text-foreground/50">선택한 삶의 장면</p>
+          <p className="mb-1 text-xs text-foreground/50">선택한 {FEATURE_NAMES.LIFE_SCENE}</p>
           <p className="text-sm font-medium">{selectedSceneText}</p>
         </div>
       )}

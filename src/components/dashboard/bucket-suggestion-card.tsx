@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { FEATURE_NAMES } from "@/lib/constants";
 import type { Bucket, StrideScope } from "@/types";
 
 interface BucketSuggestionCardProps {
@@ -58,7 +59,7 @@ export function BucketSuggestionCard({
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-foreground/20 px-3 py-4">
-          <p className="text-sm text-foreground/70">삶의 장면을 추가해보세요.</p>
+          <p className="text-sm text-foreground/70">{FEATURE_NAMES.LIFE_SCENE}을 추가해보세요.</p>
           <Link href="/tasks/new" className="inline-block mt-3">
             <Button size="sm" variant="secondary">
               한 걸음 추가하기

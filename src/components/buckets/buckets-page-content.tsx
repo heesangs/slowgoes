@@ -9,6 +9,7 @@ import {
   deleteBucketAction,
   updateBucketAction,
 } from "@/app/(main)/buckets/actions";
+import { FEATURE_NAMES } from "@/lib/constants";
 import type { Bucket, StrideScope, BucketStatus, LifeArea } from "@/types";
 
 type BucketRow = Bucket & {
@@ -216,7 +217,7 @@ export function BucketsPageContent({
       <div>
         <h1 className="text-2xl font-bold">버킷 관리</h1>
         <p className="text-sm text-foreground/60 mt-1">
-          나의 발걸음별로 삶의 장면을 정리하고, 상태를 관리하세요.
+          {FEATURE_NAMES.MY_STRIDES}별로 {FEATURE_NAMES.LIFE_SCENE}을 정리하고, 상태를 관리하세요.
         </p>
       </div>
 
@@ -236,7 +237,7 @@ export function BucketsPageContent({
             onChange={(event) => setLifeAreaId(event.target.value)}
             className="rounded-lg border border-foreground/20 bg-transparent px-3 py-2.5 text-sm min-h-[44px] focus:outline-none focus:ring-2 focus:ring-foreground/20"
           >
-            <option value="">삶의 영역 없음</option>
+            <option value="">{FEATURE_NAMES.LIFE_AREA} 없음</option>
             {lifeAreas.map((area) => (
               <option key={area.id} value={area.id}>
                 {area.name}
@@ -340,7 +341,7 @@ export function BucketsPageContent({
                           onChange={(event) => setEditLifeAreaId(event.target.value)}
                           className="rounded-lg border border-foreground/20 bg-transparent px-3 py-2.5 text-sm min-h-[44px] focus:outline-none focus:ring-2 focus:ring-foreground/20"
                         >
-                          <option value="">삶의 영역 없음</option>
+                          <option value="">{FEATURE_NAMES.LIFE_AREA} 없음</option>
                           {lifeAreas.map((area) => (
                             <option key={area.id} value={area.id}>
                               {area.name}
@@ -407,7 +408,7 @@ export function BucketsPageContent({
                           {statusLabel(bucket.status)}
                         </span>
                         <span className="rounded-full border border-foreground/20 px-2 py-1">
-                          {bucket.life_area?.name ?? "삶의 영역 없음"}
+                          {bucket.life_area?.name ?? `${FEATURE_NAMES.LIFE_AREA} 없음`}
                         </span>
                       </div>
 

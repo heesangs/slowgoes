@@ -10,6 +10,7 @@ import {
   type DemoOnboardingData,
 } from "@/lib/demo/storage";
 import { cn } from "@/lib/utils";
+import { FEATURE_NAMES } from "@/lib/constants";
 import { partitionStrides } from "@/lib/ai/analyze";
 
 function formatRoutineRepeat(unit: DemoOnboardingData["selectedRoutines"][number]["repeatUnit"], value: number) {
@@ -57,7 +58,7 @@ export default function DemoCompletePage() {
           <p className="text-xs font-medium text-foreground/60">체험 결과 요약</p>
           <h1 className="mt-1 text-xl font-semibold">{result.sceneText}</h1>
           <p className="mt-2 text-sm text-foreground/70">
-            삶의 영역: {result.lifeArea}
+            {FEATURE_NAMES.LIFE_AREA}: {result.lifeArea}
           </p>
           <p className="mt-1 text-sm text-foreground/70">
             공감 메시지: {result.stridePlan.empathyMessage}
@@ -108,7 +109,7 @@ export default function DemoCompletePage() {
           return (
             <>
               <div className="rounded-xl border border-foreground/10 p-5">
-                <p className="text-sm font-medium">나의 발걸음</p>
+                <p className="text-sm font-medium">{FEATURE_NAMES.MY_STRIDES}</p>
                 <div className="mt-3 space-y-2">
                   {displayStrides.map((item, index) => (
                     <div
