@@ -8,6 +8,19 @@ import { featureFlags } from "@/lib/flags";
 import { analyzeLifeScene } from "@/lib/ai/analyze";
 import { redirect } from "next/navigation";
 import { getCurrentWeekStartDate } from "@/lib/utils";
+import {
+  AUTH_ERRORS,
+  PROFILE_ERRORS,
+  VALIDATION_ERRORS,
+  AI_ERRORS,
+  BUCKET_ERRORS,
+  TODO_ERRORS,
+  ROUTINE_ERRORS,
+  STRIDE_ERRORS,
+  APP,
+  buildDefaultChapterTitle,
+  buildDefaultEmpathyMessage,
+} from "@/lib/constants";
 import type {
   LifeSceneAnalysisResult,
   OnboardingV2SavePayload,
@@ -51,7 +64,7 @@ async function validateEmailDomain(email: string): Promise<boolean> {
 
 function mapSignInError(error: unknown): string {
   if (!error || typeof error !== "object") {
-    return "로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+    return AUTH_ERRORS.SIGN_IN_GENERIC;
   }
 
   const candidate = error as {
@@ -81,7 +94,7 @@ function mapSignInError(error: unknown): string {
     status === 429 ||
     hasToken("too many requests", "rate limit", "over_request_rate_limit")
   ) {
-    return "요청이 많아 잠시 제한되었어요. 잠시 후 다시 시도해주세요.";
+    return AUTH_ERRORS.SIGN_IN_TOO_MANY_REQUESTS;
   }
 
   if (
@@ -91,13 +104,13 @@ function mapSignInError(error: unknown): string {
       "not confirmed"
     )
   ) {
-    return "이메일 인증이 완료되지 않았어요. 메일함에서 인증 후 다시 로그인해주세요.";
+    return AUTH_ERRORS.SIGN_IN_EMAIL_NOT_CONFIRMED;
   }
 
   if (
     hasToken("fetch failed", "failed to fetch", "network", "timeout")
   ) {
-    return "네트워크 연결이 불안정해 로그인에 실패했습니다. 연결 상태를 확인해주세요.";
+    return AUTH_ERRORS.SIGN_IN_NETWORK_ERROR;
   }
 
   if (
@@ -108,7 +121,7 @@ function mapSignInError(error: unknown): string {
       "invalid grant"
     )
   ) {
-    return "이메일 또는 비밀번호가 올바르지 않습니다.";
+    return AUTH_ERRORS.SIGN_IN_INVALID_CREDENTIALS;
   }
 
   if (
@@ -116,14 +129,14 @@ function mapSignInError(error: unknown): string {
     status === 403 ||
     hasToken("unauthorized", "forbidden")
   ) {
-    return "로그인 권한을 확인할 수 없습니다. 다시 로그인해주세요.";
+    return AUTH_ERRORS.SIGN_IN_UNAUTHORIZED;
   }
 
   if (typeof status === "number" && status >= 500) {
-    return "서버 오류로 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.";
+    return AUTH_ERRORS.SIGN_IN_SERVER_ERROR;
   }
 
-  return "로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+  return AUTH_ERRORS.SIGN_IN_GENERIC;
 }
 
 export async function signUpAction(formData: FormData) {
@@ -131,13 +144,13 @@ export async function signUpAction(formData: FormData) {
   const password = formData.get("password") as string;
 
   if (!email || !password) {
-    return { error: "이메일과 비밀번호를 입력해주세요." };
+    return { error: AUTH_ERRORS.EMAIL_PASSWORD_REQUIRED };
   }
 
   // MX 레코드 기반 이메일 도메인 검증
   const isDomainValid = await validateEmailDomain(email);
   if (!isDomainValid) {
-    return { error: "이메일 도메인이 유효하지 않아요. 주소를 다시 확인해주세요." };
+    return { error: AUTH_ERRORS.EMAIL_DOMAIN_INVALID };
   }
 
   const supabase = await createClient();
@@ -175,7 +188,7 @@ export async function signInAction(formData: FormData) {
   const password = formData.get("password") as string;
 
   if (!email || !password) {
-    return { error: "이메일과 비밀번호를 입력해주세요." };
+    return { error: AUTH_ERRORS.EMAIL_PASSWORD_REQUIRED };
   }
 
   const supabase = await createClient();
@@ -187,7 +200,7 @@ export async function signInAction(formData: FormData) {
 
   const userId = data.user?.id;
   if (!userId) {
-    return { error: "로그인에 실패했습니다." };
+    return { error: AUTH_ERRORS.SIGN_IN_FAILED };
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -197,7 +210,7 @@ export async function signInAction(formData: FormData) {
     .maybeSingle();
 
   if (profileError) {
-    return { error: "프로필 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요." };
+    return { error: AUTH_ERRORS.PROFILE_LOAD_ERROR };
   }
 
   if (profile) {
@@ -225,12 +238,12 @@ export async function saveProfileAction(formData: FormData) {
   const userContextRaw = formData.get("user_context") as string | null;
 
   if (!displayName || !selfLevel) {
-    return { error: "닉네임과 속도를 입력해주세요." };
+    return { error: PROFILE_ERRORS.DISPLAY_NAME_SELF_LEVEL_REQUIRED };
   }
 
   const normalizedDisplayName = displayName.trim();
   if (!normalizedDisplayName) {
-    return { error: "닉네임을 올바르게 입력해주세요." };
+    return { error: PROFILE_ERRORS.DISPLAY_NAME_INVALID };
   }
 
   // user_context 파싱 및 검증
@@ -240,13 +253,13 @@ export async function saveProfileAction(formData: FormData) {
     try {
       parsedCtx = JSON.parse(userContextRaw);
     } catch {
-      return { error: "사용 목적 형식이 올바르지 않습니다." };
+      return { error: PROFILE_ERRORS.USER_CONTEXT_FORMAT_INVALID };
     }
     if (!Array.isArray(parsedCtx)) {
-      return { error: "사용 목적 형식이 올바르지 않습니다." };
+      return { error: PROFILE_ERRORS.USER_CONTEXT_FORMAT_INVALID };
     }
     if (!parsedCtx.every((c) => VALID_USER_CONTEXTS.includes(c as UserContext))) {
-      return { error: "사용 목적 값이 올바르지 않습니다." };
+      return { error: PROFILE_ERRORS.USER_CONTEXT_VALUE_INVALID };
     }
     userContext = parsedCtx as UserContext[];
   }
@@ -258,13 +271,13 @@ export async function saveProfileAction(formData: FormData) {
     try {
       parsedSubjects = JSON.parse(subjectsRaw);
     } catch {
-      return { error: "분야 정보 형식이 올바르지 않습니다." };
+      return { error: PROFILE_ERRORS.SUBJECTS_FORMAT_INVALID };
     }
     if (
       !Array.isArray(parsedSubjects) ||
       parsedSubjects.some((s) => typeof s !== "string")
     ) {
-      return { error: "분야 정보 형식이 올바르지 않습니다." };
+      return { error: PROFILE_ERRORS.SUBJECTS_FORMAT_INVALID };
     }
     subjects = [...new Set(
       parsedSubjects
@@ -274,7 +287,7 @@ export async function saveProfileAction(formData: FormData) {
   }
 
   if (!VALID_SELF_LEVELS.includes(selfLevel as SelfLevel)) {
-    return { error: "속도 값이 올바르지 않습니다." };
+    return { error: PROFILE_ERRORS.SELF_LEVEL_INVALID };
   }
 
   const supabase = await createClient();
@@ -298,7 +311,7 @@ export async function saveProfileAction(formData: FormData) {
   });
 
   if (error) {
-    return { error: "프로필 저장에 실패했습니다. 다시 시도해주세요." };
+    return { error: PROFILE_ERRORS.SAVE_FAILED };
   }
 
   redirect("/dashboard");
@@ -316,33 +329,33 @@ export async function saveOnboardingV2Action(
 ) {
   const sceneText = data.sceneText?.trim();
   const lifeArea = data.lifeArea?.trim();
-  const displayName = data.displayName?.trim() || "slowgoes 사용자";
+  const displayName = data.displayName?.trim() || APP.DEFAULT_USER_NAME;
   const chapterTitle =
-    data.chapterTitle?.trim() || `${sceneText || "삶의 장면"} 이번 시즌 실행`;
+    data.chapterTitle?.trim() || buildDefaultChapterTitle(sceneText || "");
 
   if (!displayName) {
-    return { error: "닉네임을 올바르게 입력해주세요." };
+    return { error: PROFILE_ERRORS.DISPLAY_NAME_INVALID };
   }
   if (!sceneText) {
-    return { error: "삶의 장면이 비어 있습니다." };
+    return { error: VALIDATION_ERRORS.SCENE_TEXT_EMPTY };
   }
   if (!lifeArea) {
-    return { error: "삶의 영역 정보가 비어 있습니다." };
+    return { error: VALIDATION_ERRORS.LIFE_AREA_EMPTY };
   }
   if (!Number.isFinite(data.age) || data.age < 0 || data.age > 100) {
-    return { error: "나이 값이 올바르지 않습니다." };
+    return { error: VALIDATION_ERRORS.AGE_INVALID };
   }
   if (!VALID_GENDERS.includes(data.gender as ProfileGender)) {
-    return { error: "성별 값이 올바르지 않습니다." };
+    return { error: VALIDATION_ERRORS.GENDER_INVALID };
   }
   if (!VALID_PERSONALITY_TYPES.includes(data.personalityType as ProfilePersonality)) {
-    return { error: "성향 값이 올바르지 않습니다." };
+    return { error: VALIDATION_ERRORS.PERSONALITY_INVALID };
   }
   if (!VALID_PACE_TYPES.includes(data.paceType as ProfilePaceType)) {
-    return { error: "페이스 값이 올바르지 않습니다." };
+    return { error: VALIDATION_ERRORS.PACE_TYPE_INVALID };
   }
   if (!VALID_SELF_LEVELS.includes(data.selfLevel)) {
-    return { error: "속도 값이 올바르지 않습니다." };
+    return { error: PROFILE_ERRORS.SELF_LEVEL_INVALID };
   }
 
   const normalizedUserContext = (data.userContext ?? ["personal"]).filter((ctx, index, arr) =>
@@ -384,7 +397,7 @@ export async function saveOnboardingV2Action(
   }
 
   if (normalizedDailyTodos.length === 0 && normalizedRoutines.length === 0) {
-    return { error: "데일리투두 또는 루틴을 최소 1개 선택해주세요." };
+    return { error: VALIDATION_ERRORS.DAILY_TODO_OR_ROUTINE_REQUIRED };
   }
 
   const normalizedStrides = (data.stridePlan?.strides ?? []).map((item) => ({
@@ -404,7 +417,7 @@ export async function saveOnboardingV2Action(
     lifeArea,
     empathyMessage:
       data.stridePlan?.empathyMessage?.trim() ||
-      `${lifeArea}에 대한 장면이네요, 멋져요.`,
+      buildDefaultEmpathyMessage(lifeArea),
     strides: normalizedStrides,
     suggestedRoutines: normalizedSuggestedRoutines,
   };
@@ -419,7 +432,7 @@ export async function saveOnboardingV2Action(
   }
 
   if (!featureFlags.onboardingV2(user.id)) {
-    return { error: "온보딩 v2가 비활성화되어 있습니다." };
+    return { error: VALIDATION_ERRORS.ONBOARDING_V2_DISABLED };
   }
 
   const { error } = await supabase.rpc("save_onboarding_journey", {
@@ -443,7 +456,7 @@ export async function saveOnboardingV2Action(
   });
 
   if (error) {
-    return { error: "온보딩 저장에 실패했습니다. 다시 시도해주세요." };
+    return { error: VALIDATION_ERRORS.ONBOARDING_SAVE_FAILED };
   }
 
   redirect("/dashboard?onboarding_saved=1");
@@ -469,21 +482,21 @@ export async function analyzeLifeSceneAction(data: {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      throw new Error("인증이 필요합니다.");
+      throw new Error(AUTH_ERRORS.AUTH_REQUIRED);
     }
 
     const sceneText = data.sceneText?.trim();
     if (!sceneText) {
-      throw new Error("삶의 장면을 입력해주세요.");
+      throw new Error(VALIDATION_ERRORS.SCENE_TEXT_REQUIRED);
     }
     if (!Number.isFinite(data.age) || data.age < 0 || data.age > 100) {
-      throw new Error("나이 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.AGE_INVALID);
     }
     if (!VALID_GENDERS.includes(data.gender as ProfileGender)) {
-      throw new Error("성별 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.GENDER_INVALID);
     }
     if (!VALID_PERSONALITY_TYPES.includes(data.personalityType as ProfilePersonality)) {
-      throw new Error("성향 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.PERSONALITY_INVALID);
     }
 
     const analysis = await analyzeLifeScene({
@@ -498,7 +511,7 @@ export async function analyzeLifeSceneAction(data: {
     const message =
       error instanceof Error && error.message.trim().length > 0
         ? error.message
-        : "삶의 장면 분석 중 오류가 발생했습니다.";
+        : AI_ERRORS.SCENE_ANALYSIS_ERROR;
     return { success: false, error: message };
   }
 }
@@ -524,7 +537,7 @@ export async function addItemsToExistingBucketAction(data: {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return { success: false, error: "인증이 필요합니다." };
+      return { success: false, error: AUTH_ERRORS.AUTH_REQUIRED };
     }
 
     // 버킷 소유권 검증
@@ -536,7 +549,7 @@ export async function addItemsToExistingBucketAction(data: {
       .maybeSingle();
 
     if (bucketError || !bucket) {
-      return { success: false, error: "버킷을 찾을 수 없거나 접근 권한이 없습니다." };
+      return { success: false, error: BUCKET_ERRORS.NOT_FOUND_OR_ACCESS_DENIED };
     }
 
     const weekStart = getCurrentWeekStartDate();
@@ -582,7 +595,7 @@ export async function addItemsToExistingBucketAction(data: {
         .insert(todosToInsert);
 
       if (todoError) {
-        return { success: false, error: "데일리투두 추가에 실패했습니다." };
+        return { success: false, error: TODO_ERRORS.ADD_FAILED };
       }
     }
 
@@ -606,7 +619,7 @@ export async function addItemsToExistingBucketAction(data: {
         .insert(routinesToInsert);
 
       if (routineError) {
-        return { success: false, error: "루틴 추가에 실패했습니다." };
+        return { success: false, error: ROUTINE_ERRORS.ADD_FAILED };
       }
     }
 
@@ -635,7 +648,7 @@ export async function addItemsToExistingBucketAction(data: {
     const message =
       error instanceof Error && error.message.trim().length > 0
         ? error.message
-        : "기존 버킷에 아이템 추가 중 오류가 발생했습니다.";
+        : STRIDE_ERRORS.EXISTING_BUCKET_ADD_ERROR;
     return { success: false, error: message };
   }
 }

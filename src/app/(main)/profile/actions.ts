@@ -4,13 +4,19 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import {
+  PROFILE_ERRORS,
+  PASSWORD_ERRORS,
+  ACCOUNT_ERRORS,
+  AUTH_ERRORS,
+  ACCOUNT_DELETE_CONFIRM_TEXT,
+} from "@/lib/constants";
 
 const VALID_SELF_LEVELS = ["low", "medium", "high"] as const;
 type SelfLevel = (typeof VALID_SELF_LEVELS)[number];
 
 const VALID_USER_CONTEXTS = ["student", "university", "work", "personal"] as const;
 type UserContext = (typeof VALID_USER_CONTEXTS)[number];
-const ACCOUNT_DELETE_CONFIRM_TEXT = "탈퇴합니다";
 
 export async function updateProfileAction(formData: FormData) {
   const displayName = formData.get("display_name") as string;
@@ -20,12 +26,12 @@ export async function updateProfileAction(formData: FormData) {
   const userContextRaw = formData.get("user_context") as string | null;
 
   if (!displayName || !selfLevel) {
-    return { success: false, error: "닉네임과 속도를 입력해주세요." };
+    return { success: false, error: PROFILE_ERRORS.DISPLAY_NAME_SELF_LEVEL_REQUIRED };
   }
 
   const normalizedDisplayName = displayName.trim();
   if (!normalizedDisplayName) {
-    return { success: false, error: "닉네임을 올바르게 입력해주세요." };
+    return { success: false, error: PROFILE_ERRORS.DISPLAY_NAME_INVALID };
   }
 
   // user_context 파싱 및 검증
@@ -35,13 +41,13 @@ export async function updateProfileAction(formData: FormData) {
     try {
       parsedCtx = JSON.parse(userContextRaw);
     } catch {
-      return { success: false, error: "사용 목적 형식이 올바르지 않습니다." };
+      return { success: false, error: PROFILE_ERRORS.USER_CONTEXT_FORMAT_INVALID };
     }
     if (!Array.isArray(parsedCtx)) {
-      return { success: false, error: "사용 목적 형식이 올바르지 않습니다." };
+      return { success: false, error: PROFILE_ERRORS.USER_CONTEXT_FORMAT_INVALID };
     }
     if (!parsedCtx.every((c) => VALID_USER_CONTEXTS.includes(c as UserContext))) {
-      return { success: false, error: "사용 목적 값이 올바르지 않습니다." };
+      return { success: false, error: PROFILE_ERRORS.USER_CONTEXT_VALUE_INVALID };
     }
     userContext = parsedCtx as UserContext[];
   }
@@ -53,13 +59,13 @@ export async function updateProfileAction(formData: FormData) {
     try {
       parsedSubjects = JSON.parse(subjectsRaw);
     } catch {
-      return { success: false, error: "분야 정보 형식이 올바르지 않습니다." };
+      return { success: false, error: PROFILE_ERRORS.SUBJECTS_FORMAT_INVALID };
     }
     if (
       !Array.isArray(parsedSubjects) ||
       parsedSubjects.some((s) => typeof s !== "string")
     ) {
-      return { success: false, error: "분야 정보 형식이 올바르지 않습니다." };
+      return { success: false, error: PROFILE_ERRORS.SUBJECTS_FORMAT_INVALID };
     }
     subjects = [...new Set(
       parsedSubjects
@@ -69,7 +75,7 @@ export async function updateProfileAction(formData: FormData) {
   }
 
   if (!VALID_SELF_LEVELS.includes(selfLevel as SelfLevel)) {
-    return { success: false, error: "속도 값이 올바르지 않습니다." };
+    return { success: false, error: PROFILE_ERRORS.SELF_LEVEL_INVALID };
   }
 
   const supabase = await createClient();
@@ -95,7 +101,7 @@ export async function updateProfileAction(formData: FormData) {
     .eq("id", user.id);
 
   if (error) {
-    return { success: false, error: "프로필 저장에 실패했습니다. 다시 시도해주세요." };
+    return { success: false, error: PROFILE_ERRORS.SAVE_FAILED };
   }
 
   return { success: true };
@@ -106,22 +112,22 @@ export async function changePasswordAction(formData: FormData) {
   const confirmPassword = formData.get("confirm_password") as string;
 
   if (!newPassword || !confirmPassword) {
-    return { success: false, error: "비밀번호를 입력해주세요." };
+    return { success: false, error: PASSWORD_ERRORS.REQUIRED };
   }
 
   if (newPassword.length < 6) {
-    return { success: false, error: "비밀번호는 최소 6자 이상이어야 합니다." };
+    return { success: false, error: PASSWORD_ERRORS.TOO_SHORT };
   }
 
   if (newPassword !== confirmPassword) {
-    return { success: false, error: "비밀번호가 일치하지 않습니다." };
+    return { success: false, error: PASSWORD_ERRORS.MISMATCH };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password: newPassword });
 
   if (error) {
-    return { success: false, error: "비밀번호 변경에 실패했습니다. 다시 시도해주세요." };
+    return { success: false, error: PASSWORD_ERRORS.CHANGE_FAILED };
   }
 
   return { success: true };
@@ -129,7 +135,7 @@ export async function changePasswordAction(formData: FormData) {
 
 function mapDeleteAccountError(error: unknown): string {
   if (!error || typeof error !== "object") {
-    return "회원탈퇴 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+    return ACCOUNT_ERRORS.DELETE_GENERIC;
   }
 
   const candidate = error as {
@@ -159,21 +165,21 @@ function mapDeleteAccountError(error: unknown): string {
     status === 400 &&
     hasToken("invalid login credentials", "invalid_credentials", "invalid grant")
   ) {
-    return "비밀번호가 올바르지 않습니다.";
+    return PASSWORD_ERRORS.INCORRECT;
   }
 
   if (
     status === 429 ||
     hasToken("too many requests", "rate limit", "over_request_rate_limit")
   ) {
-    return "요청이 많아 잠시 제한되었어요. 잠시 후 다시 시도해주세요.";
+    return AUTH_ERRORS.SIGN_IN_TOO_MANY_REQUESTS;
   }
 
   if (typeof status === "number" && status >= 500) {
-    return "서버 오류로 회원탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.";
+    return ACCOUNT_ERRORS.DELETE_SERVER_ERROR;
   }
 
-  return "회원탈퇴 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+  return ACCOUNT_ERRORS.DELETE_GENERIC;
 }
 
 export async function deleteAccountAction(formData: FormData) {
@@ -181,7 +187,7 @@ export async function deleteAccountAction(formData: FormData) {
   const confirmText = formData.get("confirm_text") as string;
 
   if (!password) {
-    return { success: false, error: "비밀번호를 입력해주세요." };
+    return { success: false, error: PASSWORD_ERRORS.REQUIRED };
   }
 
   if (confirmText !== ACCOUNT_DELETE_CONFIRM_TEXT) {

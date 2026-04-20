@@ -1,6 +1,11 @@
 // AI 할 일 분석 — Gemini API로 하위 과제 분해, 난이도/시간 제안
 
 import { geminiModel } from "./gemini";
+import {
+  AI_ERRORS,
+  BUCKET_ERRORS,
+  STRIDE_ERRORS,
+} from "@/lib/constants";
 import type {
   ActionLogItemType,
   AISubtaskSuggestion,
@@ -236,8 +241,8 @@ function mapGeminiError(error: unknown): Error {
   ) {
     return new Error(
       retrySeconds
-        ? `AI 사용량 한도에 도달했어요. ${retrySeconds}초 후 다시 시도하거나 Gemini 요금제/한도를 확인해주세요.`
-        : "AI 사용량 한도에 도달했어요. 잠시 후 다시 시도하거나 Gemini 요금제/한도를 확인해주세요."
+        ? AI_ERRORS.RATE_LIMIT_WITH_RETRY(retrySeconds)
+        : AI_ERRORS.RATE_LIMIT
     );
   }
 
@@ -247,10 +252,10 @@ function mapGeminiError(error: unknown): Error {
     lower.includes("api key") ||
     lower.includes("permission")
   ) {
-    return new Error("Gemini API 키 또는 권한 설정을 확인해주세요.");
+    return new Error(AI_ERRORS.API_KEY_INVALID);
   }
 
-  return new Error("AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+  return new Error(AI_ERRORS.ANALYSIS_GENERIC);
 }
 
 function normalizeLifeArea(raw: unknown, sceneText: string): string {
@@ -953,7 +958,7 @@ ${hintsBlock ? hintsBlock + "\n" : ""}
 
   // 유효성 검증
   if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new Error("AI 응답이 올바르지 않습니다.");
+    throw new Error(AI_ERRORS.RESPONSE_INVALID);
   }
 
   const normalized = parsed.map((item) => ({
@@ -1039,7 +1044,7 @@ ${scopeHintLine}
   }
 
   if (!parsed || typeof parsed !== "object") {
-    throw new Error("AI 응답이 올바르지 않습니다.");
+    throw new Error(AI_ERRORS.RESPONSE_INVALID);
   }
 
   const object = parsed as {
@@ -1129,7 +1134,7 @@ export async function generateFirstStep(
   }
 
   if (!parsed || typeof parsed !== "object") {
-    throw new Error("AI 응답이 올바르지 않습니다.");
+    throw new Error(AI_ERRORS.RESPONSE_INVALID);
   }
 
   const row = parsed as {
@@ -1240,7 +1245,7 @@ ${currentSubtasks || "(세부 단계 없음)"}
   }
 
   if (!parsed || typeof parsed !== "object") {
-    throw new Error("AI 응답이 올바르지 않습니다.");
+    throw new Error(AI_ERRORS.RESPONSE_INVALID);
   }
 
   const row = parsed as {
@@ -1401,10 +1406,10 @@ export async function generateWeeklyItems(
   const lifeArea = input.lifeArea.trim();
 
   if (!bucketTitle) {
-    throw new Error("버킷 제목이 비어 있습니다.");
+    throw new Error(BUCKET_ERRORS.TITLE_EMPTY);
   }
   if (!lifeArea) {
-    throw new Error("삶의 영역이 비어 있습니다.");
+    throw new Error(STRIDE_ERRORS.LIFE_AREA_EMPTY);
   }
 
   const stridesSummary = input.strides
@@ -1462,7 +1467,7 @@ export async function generateActionTip(
 ): Promise<string> {
   const itemTitle = input.itemTitle.trim();
   if (!itemTitle) {
-    throw new Error("항목 제목이 비어 있습니다.");
+    throw new Error(STRIDE_ERRORS.ITEM_TITLE_EMPTY);
   }
 
   const itemTypeLabel = input.itemType === "routine" ? "작은 루틴" : "작은 할 일";
@@ -1564,7 +1569,7 @@ ${subtaskLabel}: "${parentTitle}"
   }
 
   if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new Error("AI 응답이 올바르지 않습니다.");
+    throw new Error(AI_ERRORS.RESPONSE_INVALID);
   }
 
   const normalized = parsed.map((item) => ({
@@ -1584,7 +1589,7 @@ export async function decomposeBucket(
 ): Promise<BucketDecompositionSuggestion[]> {
   const bucketTitle = input.bucketTitle.trim();
   if (!bucketTitle) {
-    throw new Error("버킷 제목이 비어 있습니다.");
+    throw new Error(BUCKET_ERRORS.TITLE_EMPTY);
   }
 
   const existingChapterTitles = (input.existingChapterTitles ?? [])
@@ -1641,7 +1646,7 @@ ${personalityPaceBlock}
   );
 
   if (suggestions.length === 0) {
-    throw new Error("버킷 분해 결과를 만들지 못했습니다.");
+    throw new Error(BUCKET_ERRORS.DECOMPOSE_RESULT_EMPTY);
   }
 
   return suggestions;
@@ -1658,10 +1663,10 @@ export async function regenerateSingleStride(
   const targetLevel = input.targetLevel;
 
   if (!bucketTitle) {
-    throw new Error("버킷 제목이 비어 있습니다.");
+    throw new Error(BUCKET_ERRORS.TITLE_EMPTY);
   }
   if (!STRIDE_ORDER.includes(targetLevel)) {
-    throw new Error("유효하지 않은 발걸음 레벨입니다.");
+    throw new Error(STRIDE_ERRORS.LEVEL_INVALID_ALT);
   }
 
   const existingSummary = input.existingStrides
@@ -1703,13 +1708,13 @@ ${existingSummary || "- 정보 없음"}
   }
 
   if (!parsed || typeof parsed !== "object") {
-    throw new Error("AI 응답이 올바르지 않습니다.");
+    throw new Error(AI_ERRORS.RESPONSE_INVALID);
   }
 
   const row = parsed as { level?: unknown; label?: unknown; action?: unknown };
   const action = toNonEmptyText(row.action);
   if (!action) {
-    throw new Error("발걸음 재생성 결과가 비어 있습니다.");
+    throw new Error(STRIDE_ERRORS.REGENERATE_RESULT_EMPTY);
   }
 
   return {
