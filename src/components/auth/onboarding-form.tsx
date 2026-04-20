@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { SegmentControl } from "@/components/ui/segment-control";
 import {
   addItemsToExistingBucketAction,
   analyzeLifeSceneAction,
@@ -9,14 +10,16 @@ import {
 import { demoAnalyzeLifeSceneAction } from "@/app/demo/actions";
 import { saveDemoOnboardingData } from "@/lib/demo/storage";
 import { cn } from "@/lib/utils";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getDemoScenes, getSceneCategoryOptions } from "@/lib/onboarding/demo-scenes";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getDemoScenes } from "@/lib/onboarding/demo-scenes";
 import { useRouter } from "next/navigation";
 import type {
   Bucket,
   DemoSceneItem,
   ExistingBucketContext,
   Gender,
+  PaceType,
+  SelfLevel,
   StrideItem,
   StrideLevel,
   LifeSceneAnalysisResult,
@@ -24,6 +27,8 @@ import type {
   PersonalityType,
   SuggestedRoutine,
 } from "@/types";
+
+const DRAFT_VERSION = "v1";
 
 // 나의 보폭(stride) 레벨 순서 — 짧은 → 긴
 const STRIDE_ORDER: StrideLevel[] = [
@@ -69,6 +74,65 @@ const CLOCK_HAND_ROTATION_CLASSES = [
   "rotate-[345deg]",
 ] as const;
 
+// MBTI 축별 세그먼트 옵션
+const MBTI_ENERGY_OPTIONS = [
+  { value: "I" as const, label: "I" },
+  { value: "E" as const, label: "E" },
+];
+const MBTI_SENSE_OPTIONS = [
+  { value: "S" as const, label: "S" },
+  { value: "N" as const, label: "N" },
+];
+const MBTI_JUDGMENT_OPTIONS = [
+  { value: "T" as const, label: "T" },
+  { value: "F" as const, label: "F" },
+];
+const MBTI_LIFESTYLE_OPTIONS = [
+  { value: "J" as const, label: "J" },
+  { value: "P" as const, label: "P" },
+];
+
+// 생활 속도 세그먼트 옵션
+const PACE_OPTIONS = [
+  { value: "slow" as PaceType, label: "느긋" },
+  { value: "balanced" as PaceType, label: "보통" },
+  { value: "focused" as PaceType, label: "빠른편" },
+];
+
+// Step 2 라이프 카테고리 카드
+const LIFE_CATEGORIES = [
+  {
+    key: "experience" as const,
+    icon: "🎨",
+    label: "경험",
+    desc: "꼭 한번 해보고 싶은것",
+    sceneCategoryKey: "must_do" as OnboardingSceneCategory["key"],
+  },
+  {
+    key: "growth" as const,
+    icon: "💪",
+    label: "성장",
+    desc: "조금씩 완성되는 나",
+    sceneCategoryKey: "life_scene" as OnboardingSceneCategory["key"],
+  },
+  {
+    key: "possession" as const,
+    icon: "💰",
+    label: "소유",
+    desc: "꼭 갖고 싶은것",
+    sceneCategoryKey: "must_do" as OnboardingSceneCategory["key"],
+  },
+  {
+    key: "relationship" as const,
+    icon: "👨‍👩‍👧‍👦",
+    label: "관계",
+    desc: "소중한 사람과의 시간",
+    sceneCategoryKey: "dont_miss" as OnboardingSceneCategory["key"],
+  },
+] as const;
+
+type LifeCategory = (typeof LIFE_CATEGORIES)[number]["key"];
+
 interface OnboardingFormProps {
   mode?: "default" | "demo";
   startStep?: 1 | 2;
@@ -76,10 +140,14 @@ interface OnboardingFormProps {
     age: number;
     gender: Gender;
     personalityType: PersonalityType;
+    paceType?: PaceType;
+    selfLevel?: SelfLevel;
   } | null;
   // 바텀시트 모드: 기존 버킷 목록 + 완료 콜백
   existingBuckets?: Array<Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at">>;
-  onComplete?: () => void; // redirect 대신 호출
+  onComplete?: () => void;
+  // sessionStorage 보존 키 (대시보드 탐색 모드에서만 사용)
+  sessionKey?: string;
 }
 
 function formatRoutineRepeat(routine: SuggestedRoutine) {
@@ -97,7 +165,6 @@ function formatRoutineRepeat(routine: SuggestedRoutine) {
 // 짧을수록 진하게 — STRIDE_ORDER index 기반
 function getStrideTone(level: StrideLevel) {
   const idx = STRIDE_ORDER.indexOf(level);
-  // 0~7 index를 5개 tone에 매핑
   if (idx <= 0) return "border-foreground/30 bg-foreground/[0.12]";
   if (idx <= 1) return "border-foreground/25 bg-foreground/[0.1]";
   if (idx <= 3) return "border-foreground/20 bg-foreground/[0.07]";
@@ -111,11 +178,13 @@ export function OnboardingForm({
   prefillProfile,
   existingBuckets,
   onComplete,
+  sessionKey,
 }: OnboardingFormProps) {
   const isDemo = mode === "demo";
   const router = useRouter();
   const initialStep = startStep === 2 ? 2 : 1;
   const hasBuckets = (existingBuckets?.length ?? 0) > 0;
+  const isProfileStep = initialStep === 1; // Step 1(프로필)을 보여주는 모드
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -142,12 +211,15 @@ export function OnboardingForm({
   const [personalityType, setPersonalityType] = useState<PersonalityType | null>(
     prefillProfile?.personalityType ?? null
   );
+  const [paceType, setPaceType] = useState<PaceType | null>(prefillProfile?.paceType ?? null);
   const [displayName] = useState("slowgoes 사용자");
 
+  const [selectedLifeCategory, setSelectedLifeCategory] = useState<LifeCategory | null>(null);
   const [sceneCategory, setSceneCategory] =
     useState<OnboardingSceneCategory["key"]>("must_do");
   const [selectedDemoScene, setSelectedDemoScene] = useState<DemoSceneItem | null>(null);
   const [customSceneInput, setCustomSceneInput] = useState("");
+  const [showGoalChat, setShowGoalChat] = useState(false);
 
   const [lifeSceneAnalysis, setLifeSceneAnalysis] = useState<LifeSceneAnalysisResult | null>(null);
   const [selectedDailyTodo, setSelectedDailyTodo] = useState("");
@@ -155,7 +227,52 @@ export function OnboardingForm({
   const [step3AnalysisKey, setStep3AnalysisKey] = useState<string | null>(null);
   const [isAnalyzingLifeScene, setIsAnalyzingLifeScene] = useState(false);
 
-  const isStep1Complete = age !== null && !!gender && !!personalityType;
+  // sessionStorage draft 복원 — 마운트 시 1회만 실행
+  const sessionKeyRef = useRef(sessionKey);
+  useEffect(() => {
+    const key = sessionKeyRef.current;
+    if (!key || typeof window === "undefined") return;
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return;
+    try {
+      const draft = JSON.parse(raw) as Record<string, unknown>;
+      if (draft._v !== DRAFT_VERSION) return;
+      if (draft.selectedLifeCategory) setSelectedLifeCategory(draft.selectedLifeCategory as LifeCategory);
+      if (draft.sceneCategory) setSceneCategory(draft.sceneCategory as OnboardingSceneCategory["key"]);
+      if (draft.selectedDemoScene) setSelectedDemoScene(draft.selectedDemoScene as DemoSceneItem);
+      if (draft.customSceneInput) setCustomSceneInput(draft.customSceneInput as string);
+      if (draft.lifeSceneAnalysis) {
+        setLifeSceneAnalysis(draft.lifeSceneAnalysis as LifeSceneAnalysisResult);
+        setStep3AnalysisKey((draft.step3AnalysisKey as string) ?? null);
+      }
+      if (draft.selectedDailyTodo) setSelectedDailyTodo(draft.selectedDailyTodo as string);
+      if (draft.selectedRoutineTitles) setSelectedRoutineTitles(draft.selectedRoutineTitles as string[]);
+      const draftStep = draft.step as number | undefined;
+      if (draftStep && draftStep >= initialStep) setStep(draftStep);
+    } catch {
+      // 손상된 draft 무시
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 마운트 1회만
+
+  // sessionStorage draft 저장
+  useEffect(() => {
+    if (!sessionKey || typeof window === "undefined") return;
+    const draft = {
+      _v: DRAFT_VERSION,
+      step,
+      selectedLifeCategory,
+      sceneCategory,
+      selectedDemoScene,
+      customSceneInput,
+      lifeSceneAnalysis,
+      selectedDailyTodo,
+      selectedRoutineTitles,
+      step3AnalysisKey,
+    };
+    sessionStorage.setItem(sessionKey, JSON.stringify(draft));
+  }, [sessionKey, step, selectedLifeCategory, sceneCategory, selectedDemoScene, customSceneInput, lifeSceneAnalysis, selectedDailyTodo, selectedRoutineTitles, step3AnalysisKey]);
+
   const isSceneFromCustomInput = customSceneInput.trim().length > 0;
   const selectedSceneText = isSceneFromCustomInput
     ? customSceneInput.trim()
@@ -166,7 +283,7 @@ export function OnboardingForm({
       ? `${selectedSceneText}|${age}|${gender}|${personalityType}`
       : null;
 
-  // 짧은 → 긴 순으로 정렬 (AI도 정렬해주지만 안전상 재정렬)
+  // 짧은 → 긴 순으로 정렬
   const orderedStrides: StrideItem[] = useMemo(() => {
     if (!lifeSceneAnalysis) return [];
     return [...lifeSceneAnalysis.strides].sort(
@@ -174,10 +291,8 @@ export function OnboardingForm({
     );
   }, [lifeSceneAnalysis]);
 
-  // 가장 짧은 단계 — Daily todo 자동 선택 기준
   const shortestStride = orderedStrides[0] ?? null;
 
-  // 시즌 액션(있으면) — 챕터 제목 fallback 용
   const selectedSeasonAction =
     lifeSceneAnalysis?.strides.find((item) => item.level === "this_season")?.action ?? "";
 
@@ -210,6 +325,7 @@ export function OnboardingForm({
     setSenseType(prefillProfile.personalityType[1] as "S" | "N");
     setJudgmentType(prefillProfile.personalityType[2] as "T" | "F");
     setLifestyleType(prefillProfile.personalityType[3] as "J" | "P");
+    if (prefillProfile.paceType) setPaceType(prefillProfile.paceType);
   }, [prefillProfile]);
 
   function resetStep3State() {
@@ -274,10 +390,14 @@ export function OnboardingForm({
     }
   }
 
-  function handleSceneCategoryChange(nextCategory: OnboardingSceneCategory["key"]) {
-    setSceneCategory(nextCategory);
+  function handleLifeCategorySelect(key: LifeCategory) {
+    const cat = LIFE_CATEGORIES.find((c) => c.key === key);
+    if (!cat) return;
+    setSelectedLifeCategory(key);
+    setSceneCategory(cat.sceneCategoryKey);
     setSelectedDemoScene(null);
     setCustomSceneInput("");
+    setShowGoalChat(false);
   }
 
   function handleSelectDemoScene(item: DemoSceneItem) {
@@ -333,7 +453,6 @@ export function OnboardingForm({
       }
 
       const analysis = result.data;
-      // 가장 짧은 stride의 action을 기본 데일리투두로 사용
       const sortedStrides = [...analysis.strides].sort(
         (a, b) => STRIDE_ORDER.indexOf(a.level) - STRIDE_ORDER.indexOf(b.level)
       );
@@ -384,7 +503,11 @@ export function OnboardingForm({
         return;
       }
       if (!personalityType) {
-        setError("성향을 선택해주세요.");
+        setError("MBTI 성향을 모두 선택해주세요.");
+        return;
+      }
+      if (!paceType) {
+        setError("생활 속도를 선택해주세요.");
         return;
       }
       setStep(2);
@@ -417,16 +540,13 @@ export function OnboardingForm({
   function handleBack() {
     setError(null);
 
-    // 바텀시트 모드: Step 2 또는 Step 3에서 뒤로가면 버킷 선택 화면으로
     if (hasBuckets) {
       if (step === 3 && selectedExistingBucket) {
-        // 기존 버킷 → Step 3에서 뒤로: 버킷 선택 화면으로
         setSelectedExistingBucket(null);
         setShowBucketSelect(true);
         return;
       }
       if (step === 2) {
-        // Step 2에서 뒤로: 버킷 선택 화면으로
         setShowBucketSelect(true);
         return;
       }
@@ -466,6 +586,11 @@ export function OnboardingForm({
 
     setIsLoading(true);
 
+    // sessionStorage 정리
+    if (sessionKey && typeof window !== "undefined") {
+      sessionStorage.removeItem(sessionKey);
+    }
+
     try {
       if (isDemo) {
         saveDemoOnboardingData({
@@ -475,6 +600,8 @@ export function OnboardingForm({
           age,
           gender,
           personalityType,
+          paceType: paceType ?? "balanced",
+          selfLevel: "medium",
           chapterTitle: selectedSeasonAction || `${selectedSceneText} 이번 시즌 실행`,
           stridePlan: lifeSceneAnalysis,
           selectedDailyTodos,
@@ -520,7 +647,7 @@ export function OnboardingForm({
         age,
         gender,
         personalityType,
-        paceType: "balanced",
+        paceType: paceType ?? "balanced",
         chapterTitle: selectedSeasonAction || `${selectedSceneText} 이번 시즌 실행`,
         stridePlan: lifeSceneAnalysis,
         selectedDailyTodos,
@@ -532,7 +659,6 @@ export function OnboardingForm({
         return;
       }
 
-      // 바텀시트 모드: redirect 대신 콜백
       if (onComplete) {
         onComplete();
         return;
@@ -558,7 +684,6 @@ export function OnboardingForm({
     </div>
   );
 
-  // 버킷 선택 화면에서 기존 버킷 클릭
   function handleSelectExistingBucket(bucket: Pick<Bucket, "id" | "title">) {
     setError(null);
     const context: ExistingBucketContext = {
@@ -567,16 +692,12 @@ export function OnboardingForm({
     };
     setSelectedExistingBucket(context);
     setShowBucketSelect(false);
-
-    // bucket.title이 sceneText 역할 → Step 3으로 바로 이동
-    // selectedSceneText를 설정하기 위해 customSceneInput 사용
     setCustomSceneInput(bucket.title);
     setSelectedDemoScene(null);
     resetStep3State();
     setStep(3);
   }
 
-  // 버킷 선택 화면에서 "새 장면 탐색하기" 클릭
   function handleNewBucketFromSelect() {
     setError(null);
     setSelectedExistingBucket(null);
@@ -624,7 +745,8 @@ export function OnboardingForm({
         </div>
       )}
 
-      {!showBucketSelect && step === 1 && (
+      {/* Step 1 — 나이·성별·MBTI·생활속도 */}
+      {!showBucketSelect && step === 1 && isProfileStep && (
         <div className="flex flex-col gap-6">
           <div className="rounded-2xl border border-foreground/15 bg-foreground/[0.03] p-5">
             <p className="mb-4 text-sm text-foreground/60">당신의 시간을 알려주세요</p>
@@ -654,6 +776,7 @@ export function OnboardingForm({
           </div>
 
           <div className="flex flex-col gap-5">
+            {/* 나이 */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="life_clock_age" className="text-sm font-medium text-foreground/70">
                 나이
@@ -672,6 +795,7 @@ export function OnboardingForm({
               />
             </div>
 
+            {/* 성별 */}
             <div className="flex flex-col gap-2">
               <p className="text-sm font-medium text-foreground/70">성별</p>
               <div className="grid grid-cols-2 gap-2">
@@ -693,133 +817,59 @@ export function OnboardingForm({
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium text-foreground/70">에너지 방향</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleEnergySelect("I")}
-                  className={cn(
-                    "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
-                    energyType === "I"
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/20 hover:bg-foreground/5"
-                  )}
-                >
-                  혼자가 편한 (I)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleEnergySelect("E")}
-                  className={cn(
-                    "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
-                    energyType === "E"
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/20 hover:bg-foreground/5"
-                  )}
-                >
-                  사람과 함께가 좋은 (E)
-                </button>
+            {/* MBTI — 4축 세그먼트 컨트롤 */}
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-medium text-foreground/70">MBTI 성향</p>
+
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs text-foreground/50">에너지 방향</p>
+                  <SegmentControl
+                    options={MBTI_ENERGY_OPTIONS}
+                    value={energyType}
+                    onChange={handleEnergySelect}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs text-foreground/50">정보 수집 방식</p>
+                  <SegmentControl
+                    options={MBTI_SENSE_OPTIONS}
+                    value={senseType}
+                    onChange={handleSenseSelect}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs text-foreground/50">판단 방식</p>
+                  <SegmentControl
+                    options={MBTI_JUDGMENT_OPTIONS}
+                    value={judgmentType}
+                    onChange={handleJudgmentSelect}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs text-foreground/50">생활 방식</p>
+                  <SegmentControl
+                    options={MBTI_LIFESTYLE_OPTIONS}
+                    value={lifestyleType}
+                    onChange={handleLifestyleSelect}
+                  />
+                </div>
               </div>
             </div>
 
+            {/* 생활 속도 — 세그먼트 컨트롤 */}
             <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium text-foreground/70">정보 수집 방식</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleSenseSelect("S")}
-                  className={cn(
-                    "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
-                    senseType === "S"
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/20 hover:bg-foreground/5"
-                  )}
-                >
-                  현실과 경험 중심 (S)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSenseSelect("N")}
-                  className={cn(
-                    "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
-                    senseType === "N"
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/20 hover:bg-foreground/5"
-                  )}
-                >
-                  직관과 가능성 중심 (N)
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium text-foreground/70">판단 방식</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleJudgmentSelect("T")}
-                  className={cn(
-                    "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
-                    judgmentType === "T"
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/20 hover:bg-foreground/5"
-                  )}
-                >
-                  논리적으로 따지는 (T)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleJudgmentSelect("F")}
-                  className={cn(
-                    "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
-                    judgmentType === "F"
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/20 hover:bg-foreground/5"
-                  )}
-                >
-                  감정과 공감 중심 (F)
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium text-foreground/70">생활 방식</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleLifestyleSelect("J")}
-                  className={cn(
-                    "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
-                    lifestyleType === "J"
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/20 hover:bg-foreground/5"
-                  )}
-                >
-                  계획적으로 정리하는 (J)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleLifestyleSelect("P")}
-                  className={cn(
-                    "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
-                    lifestyleType === "P"
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/20 hover:bg-foreground/5"
-                  )}
-                >
-                  유연하게 흐르는 (P)
-                </button>
-              </div>
+              <p className="text-sm font-medium text-foreground/70">생활 속도</p>
+              <SegmentControl
+                options={PACE_OPTIONS}
+                value={paceType}
+                onChange={(v) => { setError(null); setPaceType(v); }}
+              />
             </div>
           </div>
-
-          {isStep1Complete && (
-            <div className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
-              <p className="text-sm text-foreground/70">지금은 탐색의 시간이에요.</p>
-              <p className="text-sm text-foreground/70">앞으로 어떤 장면을 그리며 살고 싶은지, 같이 찾아볼까요?</p>
-            </div>
-          )}
 
           {error && <p className="text-sm text-red-500">{error}</p>}
           <Button type="button" onClick={handleNext} className="w-full">
@@ -828,6 +878,7 @@ export function OnboardingForm({
         </div>
       )}
 
+      {/* Step 2 — 삶의 장면 선택 */}
       {!showBucketSelect && step === 2 && (
         <div className="flex flex-col gap-6">
           <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
@@ -838,33 +889,49 @@ export function OnboardingForm({
           </div>
 
           <div>
-            <h2 className="mb-1 text-lg font-semibold">어떤 것을 만들고, 그리고 살고 싶나요?</h2>
-            <p className="text-sm text-foreground/60">삶의 장면을 하나 골라볼게요</p>
+            <h2 className="mb-1 text-lg font-semibold">내가 원하는게 뭘까요?</h2>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="scene_category" className="text-sm font-medium text-foreground/70">
-              카테고리
-            </label>
-            <select
-              id="scene_category"
-              value={sceneCategory}
-              onChange={(e) =>
-                handleSceneCategoryChange(e.target.value as OnboardingSceneCategory["key"])
-              }
-              className="min-h-[44px] w-full rounded-lg border border-foreground/20 bg-transparent px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-foreground/20"
-            >
-              {getSceneCategoryOptions().map((option) => (
-                <option key={option.key} value={option.key}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
+          {/* 카테고리 4개 카드 — 2×2 그리드 */}
           <div className="flex flex-col gap-2">
-            {gender && personalityType && age !== null ? (
-              getDemoScenes({
+            <p className="text-sm text-foreground/60">
+              하나만 선택할 수 있어요. 마음이 1%라도 더 기우는 쪽으로!
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {LIFE_CATEGORIES.map((cat) => {
+                const isSelected = selectedLifeCategory === cat.key;
+                return (
+                  <button
+                    key={cat.key}
+                    type="button"
+                    onClick={() => handleLifeCategorySelect(cat.key)}
+                    className={cn(
+                      "flex flex-col items-start rounded-xl border px-4 py-4 text-left transition-colors",
+                      isSelected
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-foreground/15 hover:bg-foreground/[0.04]"
+                    )}
+                  >
+                    <span className="text-2xl">{cat.icon}</span>
+                    <p className="mt-2 text-sm font-semibold">{cat.label}</p>
+                    <p
+                      className={cn(
+                        "mt-0.5 text-xs",
+                        isSelected ? "text-background/80" : "text-foreground/60"
+                      )}
+                    >
+                      {cat.desc}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 선택된 카테고리에 맞는 추천 장면 */}
+          {selectedLifeCategory && gender && personalityType && age !== null && (
+            <div className="flex flex-col gap-2">
+              {getDemoScenes({
                 category: sceneCategory,
                 age,
                 gender,
@@ -883,12 +950,11 @@ export function OnboardingForm({
                 >
                   {item.text}
                 </button>
-              ))
-            ) : (
-              <p className="text-sm text-foreground/60">Step 1 정보를 먼저 입력해주세요.</p>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
 
+          {/* 직접 입력 */}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="custom_scene" className="text-sm font-medium text-foreground/70">
               직접 입력 ✏️
@@ -908,6 +974,32 @@ export function OnboardingForm({
             />
           </div>
 
+          {/* 목표를 이룬 나와 대화해보기 */}
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => setShowGoalChat((v) => !v)}
+              className="flex w-full items-center justify-between rounded-xl border border-foreground/10 px-4 py-3 text-left text-sm transition-colors hover:bg-foreground/[0.04]"
+            >
+              <span>💬 목표를 이룬 나와 대화해보기</span>
+              <span className="text-foreground/60">→</span>
+            </button>
+            {showGoalChat && (
+              <div className="rounded-xl border border-foreground/15 bg-foreground/[0.03] px-4 py-4">
+                <p className="text-sm text-foreground/60">
+                  이 기능은 곧 출시될 예정이에요. 목표를 이룬 미래의 나와 대화하며 방향을 찾아볼 수 있어요.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowGoalChat(false)}
+                  className="mt-2 text-xs text-foreground/50 underline"
+                >
+                  닫기
+                </button>
+              </div>
+            )}
+          </div>
+
           {selectedSceneText && (
             <div className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
               <p className="mb-1 text-xs text-foreground/50">선택한 삶의 장면</p>
@@ -917,9 +1009,11 @@ export function OnboardingForm({
 
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex gap-2">
-            <Button type="button" variant="secondary" onClick={handleBack} className="flex-1">
-              이전
-            </Button>
+            {isProfileStep && (
+              <Button type="button" variant="secondary" onClick={handleBack} className="flex-1">
+                이전
+              </Button>
+            )}
             <Button type="button" onClick={handleNext} className="flex-1">
               다음
             </Button>
@@ -927,6 +1021,7 @@ export function OnboardingForm({
         </div>
       )}
 
+      {/* Step 3 — AI 분석 결과 */}
       {!showBucketSelect && step === 3 && (
         <div className="flex flex-col gap-6">
           <div>
@@ -955,7 +1050,6 @@ export function OnboardingForm({
 
               <div className="flex flex-col gap-3">
                 {orderedStrides.map((item, index) => {
-                  // 가장 짧은 stride가 데일리투두 자동 선택 기준
                   const isShortest = shortestStride?.level === item.level && index === 0;
                   const isSelected = isShortest && selectedDailyTodo === item.action;
                   return (
@@ -1066,6 +1160,7 @@ export function OnboardingForm({
         </div>
       )}
 
+      {/* Step 4 — 확인 */}
       {!showBucketSelect && step === 4 && (
         <div className="flex flex-col gap-6">
           <div>

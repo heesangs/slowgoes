@@ -2,8 +2,10 @@ import type {
   Gender,
   ItemSource,
   LifeSceneAnalysisResult,
+  PaceType,
   PersonalityType,
   RoutineRepeatUnit,
+  SelfLevel,
 } from "@/types";
 
 const DEMO_ONBOARDING_STORAGE_KEY = "slowgoes_demo_onboarding_v1";
@@ -15,6 +17,8 @@ export interface DemoOnboardingData {
   age: number;
   gender: Gender;
   personalityType: PersonalityType;
+  paceType: PaceType;
+  selfLevel: SelfLevel;
   chapterTitle: string;
   stridePlan: LifeSceneAnalysisResult;
   selectedDailyTodos: Array<{ title: string; source?: ItemSource }>;
@@ -59,6 +63,10 @@ export function getDemoOnboardingData(): DemoOnboardingData | null {
       };
       delete parsed.horizonAnalysis;
     }
+
+    // 레거시: paceType/selfLevel 없으면 폴백 후 저장
+    if (!parsed.paceType) parsed.paceType = "balanced";
+    if (!parsed.selfLevel) parsed.selfLevel = "medium";
 
     return parsed;
   } catch {
