@@ -96,7 +96,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
 
   // 탐색 바텀시트용 프로필 데이터 구성
   const prefillProfile = useMemo(() => {
-    const { life_clock_age, gender, personality_type } = data.profile;
+    const { life_clock_age, gender, personality_type, pace_type } = data.profile;
     if (
       life_clock_age != null &&
       (gender === "male" || gender === "female") &&
@@ -106,6 +106,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         age: life_clock_age,
         gender: gender as Gender,
         personalityType: personality_type as PersonalityType,
+        paceType: (pace_type ?? undefined) as import("@/types").PaceType | undefined,
       };
     }
     return null;
@@ -706,6 +707,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           startStep={2}
           prefillProfile={prefillProfile}
           existingBuckets={data.buckets}
+          sessionKey="slowgoes_dashboard_exploration_v1"
           onComplete={() => {
             setExplorationSheetOpen(false);
             router.refresh();
