@@ -216,7 +216,7 @@ export function BucketsPageContent({
       <div>
         <h1 className="text-2xl font-bold">버킷 관리</h1>
         <p className="text-sm text-foreground/60 mt-1">
-          나의 보폭별로 삶의 장면을 정리하고, 상태를 관리하세요.
+          나의 발걸음별로 삶의 장면을 정리하고, 상태를 관리하세요.
         </p>
       </div>
 

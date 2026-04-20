@@ -10,6 +10,7 @@ import {
   type DemoOnboardingData,
 } from "@/lib/demo/storage";
 import { cn } from "@/lib/utils";
+import { partitionStrides } from "@/lib/ai/analyze";
 
 function formatRoutineRepeat(unit: DemoOnboardingData["selectedRoutines"][number]["repeatUnit"], value: number) {
   if (unit === "daily") {
@@ -102,30 +103,53 @@ export default function DemoCompletePage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-foreground/10 p-5">
-          <p className="text-sm font-medium">나의 보폭</p>
-          <div className="mt-3 space-y-2">
-            {result.stridePlan.strides.map((item, index) => (
-              <div
-                key={`${item.level}-${index}-${item.action}`}
-                className={cn(
-                  "rounded-lg border px-3 py-3",
-                  // 첫 항목(AI가 정렬한 가장 짧은 단계)을 강조
-                  index === 0
-                    ? "border-foreground/25 bg-foreground/[0.08]"
-                    : "border-foreground/10 bg-foreground/[0.02]"
-                )}
-              >
-                <p className="text-xs text-foreground/60">{item.label}</p>
-                <p className="mt-0.5 text-sm">{item.action}</p>
+        {(() => {
+          const { displayStrides, bucketTodos } = partitionStrides(result.stridePlan.strides);
+          return (
+            <>
+              <div className="rounded-xl border border-foreground/10 p-5">
+                <p className="text-sm font-medium">나의 발걸음</p>
+                <div className="mt-3 space-y-2">
+                  {displayStrides.map((item, index) => (
+                    <div
+                      key={`stride-${item.level}-${index}`}
+                      className={cn(
+                        "rounded-lg border px-3 py-3",
+                        item.level === "someday"
+                          ? "border-foreground/25 bg-foreground/[0.08]"
+                          : "border-foreground/10 bg-foreground/[0.02]"
+                      )}
+                    >
+                      <p className="text-xs text-foreground/60">{item.label}</p>
+                      <p className="mt-0.5 text-sm">{item.action}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
+
+              {bucketTodos.length > 0 && (
+                <div className="rounded-xl border border-foreground/10 p-5">
+                  <p className="text-sm font-medium">버킷을 위한 투두</p>
+                  <div className="mt-3 space-y-2">
+                    {bucketTodos.map((item, index) => (
+                      <div
+                        key={`todo-${item.level}-${index}`}
+                        className="rounded-lg border border-foreground/10 bg-foreground/[0.02] px-3 py-3"
+                      >
+                        <p className="text-xs text-foreground/60">{item.label}</p>
+                        <p className="mt-0.5 text-sm">{item.action}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         <div className="space-y-2">
           <Link
-            href="/signup"
+            href="/signup?from=demo"
             className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-foreground px-4 py-2 text-base font-medium text-background transition-opacity hover:opacity-90"
           >
             회원가입하고 계속하기

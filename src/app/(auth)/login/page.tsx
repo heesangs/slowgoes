@@ -69,8 +69,23 @@ export default function LoginPage() {
     return localStorage.getItem(SAVED_EMAIL_KEY) ?? "";
   });
   const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // 이메일 형식 정규식 검증 (onBlur 시 호출)
+  function handleEmailBlur() {
+    if (!email) {
+      setEmailError(null);
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError("올바른 이메일 형식을 입력해주세요");
+    } else {
+      setEmailError(null);
+    }
+  }
 
   // 이메일 변경 시 localStorage에 저장
   useEffect(() => {
@@ -136,11 +151,18 @@ export default function LoginPage() {
             required
             autoComplete="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              // 입력 중에는 에러 클리어
+              if (emailError) setEmailError(null);
+            }}
+            onBlur={handleEmailBlur}
             onClear={() => {
               setEmail("");
+              setEmailError(null);
               localStorage.removeItem(SAVED_EMAIL_KEY);
             }}
+            error={emailError ?? undefined}
           />
 
           <Input

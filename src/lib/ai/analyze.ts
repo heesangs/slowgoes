@@ -20,8 +20,8 @@ import type {
 
 const LIFE_AREA_OPTIONS = ["건강", "관계", "성장", "경험", "일", "돈", "내면"] as const;
 
-// 나의 보폭(stride) — 짧은 → 긴 순서
-const STRIDE_LABELS: Record<StrideLevel, string> = {
+// 나의 발걸음(stride) — 짧은 → 긴 순서
+export const STRIDE_LABELS: Record<StrideLevel, string> = {
   today: "오늘",
   this_week: "이번 주",
   this_month: "이번 달",
@@ -32,7 +32,7 @@ const STRIDE_LABELS: Record<StrideLevel, string> = {
   someday: "언젠가",
 };
 
-const STRIDE_ORDER: StrideLevel[] = [
+export const STRIDE_ORDER: StrideLevel[] = [
   "today",
   "this_week",
   "this_month",
@@ -43,16 +43,48 @@ const STRIDE_ORDER: StrideLevel[] = [
   "someday",
 ];
 
-// 버킷 스코프 힌트 주변 3~4단계를 고르는 기본 범위
+// 표시 경계: this_month 이상 = 발걸음 카드, 미만 = 버킷 투두 소스
+const STRIDE_BOUNDARY_INDEX = STRIDE_ORDER.indexOf("this_month"); // 2
+
+/**
+ * strides 배열을 "발걸음 카드"(this_month 이상)와 "버킷 투두"(today/this_week)로 분리
+ * - displayStrides: 긴→짧은 순 (someday 먼저)
+ * - bucketTodos: 짧은→긴 순
+ */
+export function partitionStrides(strides: StrideItem[]): {
+  displayStrides: StrideItem[];
+  bucketTodos: StrideItem[];
+} {
+  const display: StrideItem[] = [];
+  const todos: StrideItem[] = [];
+  for (const s of strides) {
+    if (STRIDE_ORDER.indexOf(s.level) >= STRIDE_BOUNDARY_INDEX) {
+      display.push(s);
+    } else {
+      todos.push(s);
+    }
+  }
+  // 발걸음: 긴 → 짧은 (someday 먼저)
+  display.sort(
+    (a, b) => STRIDE_ORDER.indexOf(b.level) - STRIDE_ORDER.indexOf(a.level)
+  );
+  // 투두: 짧은 → 긴
+  todos.sort(
+    (a, b) => STRIDE_ORDER.indexOf(a.level) - STRIDE_ORDER.indexOf(b.level)
+  );
+  return { displayStrides: display, bucketTodos: todos };
+}
+
+// 버킷 스코프 힌트 주변 범위 — someday 항상 포함 + 짧은 단계(today/this_week) 포함
 const SCOPE_SUGGESTED_RANGE: Record<StrideScope, StrideLevel[]> = {
-  today: ["today", "this_week", "this_month"],
-  this_week: ["today", "this_week", "this_month"],
-  this_month: ["this_week", "this_month", "this_season"],
-  this_season: ["this_week", "this_month", "this_season"],
-  this_year: ["this_month", "this_season", "this_year"],
-  five_years: ["this_season", "this_year", "five_years"],
-  decade: ["this_year", "five_years", "decade"],
-  someday: ["this_month", "this_year", "someday"],
+  today: ["today", "this_week", "this_month", "someday"],
+  this_week: ["today", "this_week", "this_month", "someday"],
+  this_month: ["today", "this_week", "this_month", "this_season", "someday"],
+  this_season: ["today", "this_week", "this_month", "this_season", "someday"],
+  this_year: ["today", "this_week", "this_month", "this_season", "this_year", "someday"],
+  five_years: ["today", "this_week", "this_season", "this_year", "five_years", "someday"],
+  decade: ["today", "this_week", "this_year", "five_years", "decade", "someday"],
+  someday: ["today", "this_week", "this_month", "this_year", "someday"],
 };
 const PERSONALITY_OPTIONS = [
   "ISTJ", "ISFJ", "INFJ", "INTJ",
@@ -358,7 +390,7 @@ function buildStrideFallbackAction(sceneText: string, level: StrideLevel): strin
   }
 }
 
-// 기본 scope별 3단계 (SCOPE_SUGGESTED_RANGE) 위에 폴백 액션을 붙여 반환
+// 기본 scope별 폴백 (someday 항상 포함 + 짧은 단계 포함)
 function buildFallbackStrides(
   sceneText: string,
   scopeHint?: StrideScope | null
@@ -366,10 +398,15 @@ function buildFallbackStrides(
   const levels =
     scopeHint && SCOPE_SUGGESTED_RANGE[scopeHint]
       ? SCOPE_SUGGESTED_RANGE[scopeHint]
-      : ["this_week", "this_month", "this_year"] as StrideLevel[];
+      : (["today", "this_week", "this_month", "this_year", "someday"] as StrideLevel[]);
+
+  // someday가 없으면 추가
+  const withSomeday = levels.includes("someday")
+    ? levels
+    : [...levels, "someday" as StrideLevel];
 
   // 짧은 → 긴 순서 보장
-  const ordered = [...levels].sort(
+  const ordered = [...withSomeday].sort(
     (a, b) => STRIDE_ORDER.indexOf(a) - STRIDE_ORDER.indexOf(b)
   );
 
@@ -380,7 +417,7 @@ function buildFallbackStrides(
   }));
 }
 
-// AI 응답 → StrideItem[] 정규화 (3~5개, 짧은→긴 정렬, 중복 제거)
+// AI 응답 → StrideItem[] 정규화 (3~6개, 짧은→긴 정렬, 중복 제거, someday 필수)
 function normalizeStrides(
   rawStrides: unknown,
   sceneText: string,
@@ -392,7 +429,7 @@ function normalizeStrides(
     return fallback;
   }
 
-  // level별로 첫 번째 유효 action 하나씩 보관 (가장 짧은 단계만 추가 허용)
+  // level별로 첫 번째 유효 action 하나씩 보관
   const perLevel = new Map<StrideLevel, string[]>();
 
   for (const row of rawStrides) {
@@ -417,6 +454,20 @@ function normalizeStrides(
     action: perLevel.get(level)![0],
   }));
 
+  // someday가 없으면 fallback에서 보충
+  if (!items.some((i) => i.level === "someday")) {
+    const somedayFallback = fallback.find((f) => f.level === "someday");
+    if (somedayFallback) {
+      items.push(somedayFallback);
+    } else {
+      items.push({
+        level: "someday",
+        label: STRIDE_LABELS.someday,
+        action: buildStrideFallbackAction(sceneText, "someday"),
+      });
+    }
+  }
+
   // 3개 미만이면 fallback에서 없는 레벨을 보충
   if (items.length < 3) {
     const existingLevels = new Set(items.map((i) => i.level));
@@ -426,11 +477,21 @@ function normalizeStrides(
       existingLevels.add(fb.level);
       if (items.length >= 3) break;
     }
-    items.sort((a, b) => STRIDE_ORDER.indexOf(a.level) - STRIDE_ORDER.indexOf(b.level));
   }
 
-  // 5개 초과면 앞쪽(짧은 단계)부터 5개만 유지
-  return items.slice(0, 5);
+  // 재정렬 (짧은 → 긴)
+  items.sort((a, b) => STRIDE_ORDER.indexOf(a.level) - STRIDE_ORDER.indexOf(b.level));
+
+  // 6개 초과면 someday 보존하면서 축소
+  if (items.length > 6) {
+    const someday = items.find((i) => i.level === "someday")!;
+    const rest = items.filter((i) => i.level !== "someday").slice(0, 5);
+    return [...rest, someday].sort(
+      (a, b) => STRIDE_ORDER.indexOf(a.level) - STRIDE_ORDER.indexOf(b.level)
+    );
+  }
+
+  return items;
 }
 
 function normalizeRoutineRepeatUnit(raw: unknown): SuggestedRoutine["repeatUnit"] {
@@ -905,7 +966,7 @@ ${hintsBlock ? hintsBlock + "\n" : ""}
 }
 
 /**
- * 삶의 장면을 영역 + 나의 보폭(stride)으로 분석 (온보딩 Step 3)
+ * 삶의 장면을 영역 + 나의 발걸음(stride)으로 분석 (온보딩 Step 3)
  */
 export async function analyzeLifeScene(
   input: AnalyzeLifeSceneInput
@@ -920,22 +981,22 @@ export async function analyzeLifeScene(
 
   const strideScope = input.strideScope ?? null;
   const scopeHintLine = strideScope
-    ? `- 버킷의 중심 보폭 힌트: ${STRIDE_LABELS[strideScope]} (${strideScope})`
-    : "- 버킷의 중심 보폭 힌트: 자동 판단";
+    ? `- 버킷의 중심 발걸음 힌트: ${STRIDE_LABELS[strideScope]} (${strideScope})`
+    : "- 버킷의 중심 발걸음 힌트: 자동 판단";
 
   const prompt = `당신은 slowgoes 앱의 온보딩 AI 코치입니다.
 사용자의 삶의 장면을 다음 3가지로 분해하세요.
 
 1) 삶의 영역 분류 (건강/관계/성장/경험/일/돈/내면 중 1개)
-2) "나의 보폭(stride)" 분해 — 아래 8개 풀에서 버킷 성격에 맞춰 3~5개 선택
-   - 풀(짧은→긴): today | this_week | this_month | this_season | this_year | five_years | decade | someday
-   - 각 단계당 action 1개 (가장 짧은 단계만 최대 2개까지 허용)
-   - 짧은 단계일수록 즉시 실행 가능한 구체 행동
-   - 긴 단계일수록 추상적 지향점
+2) "나의 발걸음(stride)" 분해 — 3가지 카테고리로 구성:
+   a) "언젠가"(someday) — 반드시 1개 포함. 이 장면의 궁극적 지향점/비전.
+   b) 중간 단계 1~3개 — this_month, this_season, this_year, five_years, decade 중 버킷 성격에 맞춰 선택. 추상→구체 스펙트럼.
+   c) 짧은 단계 정확히 2개 — today 또는 this_week에서 선택. "버킷을 위한 투두"로 즉시 실행 가능한 구체 행동. 사용자가 둘 중 하나를 선택한다.
    - 배열은 짧은 → 긴 순으로 정렬
-3) 루틴 제안 2개
+3) 루틴 제안 정확히 2개
    - 각 루틴은 반복 단위(repeatUnit)와 반복 값(repeatValue)을 포함
    - repeatUnit: daily 또는 weekly
+   - 사용자가 둘 중 하나를 선택한다
 
 사용자 정보:
 - 나이: ${input.age}
@@ -947,18 +1008,21 @@ ${scopeHintLine}
 규칙:
 - 문장은 한국어로 작성
 - 공감 메시지는 짧고 따뜻하게 1문장
-- 가장 짧은 단계의 action은 오늘/이번 주 안에 바로 시작 가능한 구체 행동
-- 추상적인 표현보다 구체적인 행동으로 작성
-- suggestedRoutines는 정확히 2개로 작성
+- someday의 action은 "~하는 사람이 되고 싶다" 같은 비전 문장
+- 중간 단계는 해당 기간에 맞는 구체 목표/마일스톤
+- 짧은 단계(today/this_week)의 action은 지금 바로 시작 가능한 구체 행동
+- suggestedRoutines는 정확히 2개, 서로 다른 성격의 루틴
 
 아래 JSON 객체만 응답하세요:
 {
   "lifeArea": "건강|관계|성장|경험|일|돈|내면",
   "empathyMessage": "공감 메시지",
   "strides": [
+    { "level": "today", "label": "오늘", "action": "..." },
     { "level": "this_week", "label": "이번 주", "action": "..." },
     { "level": "this_month", "label": "이번 달", "action": "..." },
-    { "level": "this_year", "label": "1년 안", "action": "..." }
+    { "level": "this_year", "label": "1년 안", "action": "..." },
+    { "level": "someday", "label": "언젠가", "action": "..." }
   ],
   "suggestedRoutines": [
     { "title": "루틴 제목", "repeatUnit": "daily|weekly", "repeatValue": 숫자 },
@@ -1354,7 +1418,7 @@ export async function generateWeeklyItems(
 입력:
 - 버킷: ${bucketTitle}
 - 삶의 영역: ${lifeArea}
-- 나의 보폭:
+- 나의 발걸음:
 ${stridesSummary || "- 정보 없음"}
 - 기존 항목 제목(중복 금지): ${existingTitles}
 
@@ -1536,7 +1600,7 @@ export async function decomposeBucket(
 
 입력 정보:
 - 버킷: "${bucketTitle}"
-- 나의 보폭: ${scopeLabel}
+- 나의 발걸음: ${scopeLabel}
 - 성향: ${input.profile?.personality_type ?? "미정"}
 - 페이스: ${input.profile?.pace_type ?? "미정"}
 - 기존 챕터 제목: ${existingChapterTitles.length > 0 ? existingChapterTitles.join(" | ") : "없음"}
@@ -1584,7 +1648,7 @@ ${personalityPaceBlock}
 }
 
 /**
- * 단일 stride(보폭) 재생성 — 특정 레벨의 action 하나만 새로 제안
+ * 단일 stride(발걸음) 재생성 — 특정 레벨의 action 하나만 새로 제안
  */
 export async function regenerateSingleStride(
   input: RegenerateSingleStrideInput
@@ -1597,7 +1661,7 @@ export async function regenerateSingleStride(
     throw new Error("버킷 제목이 비어 있습니다.");
   }
   if (!STRIDE_ORDER.includes(targetLevel)) {
-    throw new Error("유효하지 않은 보폭 레벨입니다.");
+    throw new Error("유효하지 않은 발걸음 레벨입니다.");
   }
 
   const existingSummary = input.existingStrides
@@ -1612,12 +1676,12 @@ export async function regenerateSingleStride(
     )[0].level === targetLevel;
 
   const prompt = `당신은 slowgoes 앱의 실행 코치입니다.
-사용자가 특정 "나의 보폭(stride)" 단계의 행동만 새로 추천받고 싶어합니다.
+사용자가 특정 "나의 발걸음(stride)" 단계의 행동만 새로 추천받고 싶어합니다.
 
 입력:
 - 버킷: "${bucketTitle}"
 - 삶의 영역: ${lifeArea || "미정"}
-- 기존 보폭:
+- 기존 발걸음:
 ${existingSummary || "- 정보 없음"}
 - 재생성 대상 레벨: ${targetLevel} (${targetLabel})
 
@@ -1645,7 +1709,7 @@ ${existingSummary || "- 정보 없음"}
   const row = parsed as { level?: unknown; label?: unknown; action?: unknown };
   const action = toNonEmptyText(row.action);
   if (!action) {
-    throw new Error("보폭 재생성 결과가 비어 있습니다.");
+    throw new Error("발걸음 재생성 결과가 비어 있습니다.");
   }
 
   return {

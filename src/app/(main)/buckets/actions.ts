@@ -103,7 +103,7 @@ function validateBucketInput(input: SaveBucketInput) {
     throw new Error("버킷 제목을 입력해주세요.");
   }
   if (!VALID_STRIDE_SCOPES.includes(input.strideScope)) {
-    throw new Error("나의 보폭 값이 올바르지 않습니다.");
+    throw new Error("나의 발걸음 값이 올바르지 않습니다.");
   }
   if (!VALID_STATUSES.includes(input.status)) {
     throw new Error("상태 값이 올바르지 않습니다.");
