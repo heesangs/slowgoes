@@ -18,6 +18,7 @@ import {
   updateStridePlanAction,
 } from "@/app/(main)/dashboard/actions";
 import { cn } from "@/lib/utils";
+import { FEATURE_NAMES } from "@/lib/constants";
 import { partitionStrides } from "@/lib/ai/analyze";
 import type {
   ActionLogItemType,
@@ -421,7 +422,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         className="cursor-pointer rounded-xl border border-foreground/10 px-4 py-4 transition-colors hover:bg-foreground/[0.03]"
         onClick={openStrideSheet}
       >
-        <p className="text-sm text-foreground/60">나의 발걸음</p>
+        <p className="text-sm text-foreground/60">{FEATURE_NAMES.MY_STRIDES}</p>
         {data.stridePlan ? (() => {
           const { displayStrides: ds } = partitionStrides(data.stridePlan.strides ?? []);
           const somedayItem = ds.find((s) => s.level === "someday");
@@ -508,7 +509,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       <BottomSheet
         open={strideSheetOpen}
         onClose={() => setStrideSheetOpen(false)}
-        title="나의 발걸음 상세"
+        title={`${FEATURE_NAMES.MY_STRIDES} 상세`}
         footer={
           isEditing ? null : (
             <Button
@@ -585,7 +586,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
 
               {/* 섹션 1: 나의 발걸음 (this_month 이상, 긴→짧은 순) */}
               <div>
-                <p className="mb-2 text-xs font-semibold text-foreground/60">나의 발걸음</p>
+                <p className="mb-2 text-xs font-semibold text-foreground/60">{FEATURE_NAMES.MY_STRIDES}</p>
                 <div className="flex flex-col gap-2">
                   {sheetDisplayStrides.map((item, index) => {
                     const isRegenThis = regeneratingLevel === item.level;
@@ -700,7 +701,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       <BottomSheet
         open={explorationSheetOpen}
         onClose={() => setExplorationSheetOpen(false)}
-        title="탐색 시작"
+        title={FEATURE_NAMES.FIND_MY_DREAM}
         size="large"
       >
         <OnboardingForm

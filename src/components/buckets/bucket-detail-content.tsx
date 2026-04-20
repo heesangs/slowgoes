@@ -10,6 +10,7 @@ import {
   decomposeBucketAction,
   updateChapterAction,
 } from "@/app/(main)/buckets/actions";
+import { FEATURE_NAMES } from "@/lib/constants";
 import type {
   Bucket,
   BucketDecompositionSuggestion,
@@ -279,7 +280,7 @@ export function BucketDetailContent({
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold">{bucket.title}</h1>
           <p className="text-sm text-foreground/60">
-            삶의 영역: {bucket.life_area?.name ?? "미연결"}
+            {FEATURE_NAMES.LIFE_AREA}: {bucket.life_area?.name ?? "미연결"}
           </p>
         </div>
 

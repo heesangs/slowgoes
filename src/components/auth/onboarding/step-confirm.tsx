@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { FEATURE_NAMES } from "@/lib/constants";
 import type { LifeSceneAnalysisResult } from "@/types";
 import { formatRoutineRepeat } from "./utils";
 
@@ -33,7 +34,7 @@ export function StepConfirm({
       </div>
 
       <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-4">
-        <p className="mb-1 text-xs text-foreground/50">삶의 장면</p>
+        <p className="mb-1 text-xs text-foreground/50">{FEATURE_NAMES.LIFE_SCENE}</p>
         <p className="text-sm font-medium">{selectedSceneText}</p>
         {lifeSceneAnalysis?.lifeArea && (
           <p className="mt-1 text-xs text-foreground/50">영역: {lifeSceneAnalysis.lifeArea}</p>

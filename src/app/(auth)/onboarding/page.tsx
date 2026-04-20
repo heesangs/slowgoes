@@ -5,6 +5,7 @@ import { featureFlags } from "@/lib/flags";
 import { redirect } from "next/navigation";
 import { OnboardingForm } from "@/components/auth/onboarding-form";
 import { DemoDataMigrator } from "@/components/auth/demo-data-migrator";
+import { FEATURE_NAMES } from "@/lib/constants";
 import type { Gender, PersonalityType } from "@/types";
 
 interface OnboardingPageProps {
@@ -60,7 +61,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
     <div className="flex min-h-dvh items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold mb-2">탐색 시작</h1>
+          <h1 className="text-2xl font-bold mb-2">{FEATURE_NAMES.FIND_MY_DREAM}</h1>
           <p className="text-sm text-foreground/60">
             내 시간과 리듬을 먼저 살펴볼게요
           </p>
