@@ -5,6 +5,10 @@ import {
   analyzeLifeScene,
   generateFirstStep,
 } from "@/lib/ai/analyze";
+import {
+  AI_ERRORS,
+  VALIDATION_ERRORS,
+} from "@/lib/constants";
 import type {
   FirstStepPlanResult,
   Gender,
@@ -24,7 +28,7 @@ function toClientErrorMessage(error: unknown, fallback: string): string {
     lower.includes("googlegenerativeai") ||
     lower.includes("generativelanguage.googleapis.com")
   ) {
-    return "AI 서비스 호출 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+    return AI_ERRORS.SERVICE_ERROR;
   }
 
   if (message.length > 180) {
@@ -47,16 +51,16 @@ export async function demoAnalyzeLifeSceneAction(data: {
   try {
     const sceneText = data.sceneText?.trim();
     if (!sceneText) {
-      throw new Error("삶의 장면을 입력해주세요.");
+      throw new Error(VALIDATION_ERRORS.SCENE_TEXT_REQUIRED);
     }
     if (!Number.isFinite(data.age) || data.age < 0 || data.age > 100) {
-      throw new Error("나이 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.AGE_INVALID);
     }
     if (!["male", "female"].includes(data.gender)) {
-      throw new Error("성별 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.GENDER_INVALID);
     }
     if (!["ISTJ","ISFJ","INFJ","INTJ","ISTP","ISFP","INFP","INTP","ESTP","ESFP","ENFP","ENTP","ESTJ","ESFJ","ENFJ","ENTJ"].includes(data.personalityType)) {
-      throw new Error("성향 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.PERSONALITY_INVALID);
     }
 
     const analysis = await analyzeLifeScene({
@@ -70,7 +74,7 @@ export async function demoAnalyzeLifeSceneAction(data: {
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "삶의 장면 분석 중 오류가 발생했습니다."),
+      error: toClientErrorMessage(error, AI_ERRORS.SCENE_ANALYSIS_ERROR),
     };
   }
 }
@@ -93,22 +97,22 @@ export async function demoGenerateFirstStepAction(data: {
     const lifeArea = data.lifeArea?.trim();
 
     if (!weeklyAction) {
-      throw new Error("이번 주 행동을 선택해주세요.");
+      throw new Error(VALIDATION_ERRORS.WEEKLY_ACTION_REQUIRED);
     }
     if (!sceneText) {
-      throw new Error("삶의 장면이 비어 있습니다.");
+      throw new Error(VALIDATION_ERRORS.SCENE_TEXT_EMPTY);
     }
     if (!lifeArea) {
-      throw new Error("삶의 영역 정보가 비어 있습니다.");
+      throw new Error(VALIDATION_ERRORS.LIFE_AREA_EMPTY);
     }
     if (!Number.isFinite(data.age) || data.age < 0 || data.age > 100) {
-      throw new Error("나이 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.AGE_INVALID);
     }
     if (!["male", "female"].includes(data.gender)) {
-      throw new Error("성별 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.GENDER_INVALID);
     }
     if (!["ISTJ","ISFJ","INFJ","INTJ","ISTP","ISFP","INFP","INTP","ESTP","ESFP","ENFP","ENTP","ESTJ","ESFJ","ENFJ","ENTJ"].includes(data.personalityType)) {
-      throw new Error("성향 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.PERSONALITY_INVALID);
     }
 
     const plan = await generateFirstStep({
@@ -124,7 +128,7 @@ export async function demoGenerateFirstStepAction(data: {
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "첫 실행안 생성 중 오류가 발생했습니다."),
+      error: toClientErrorMessage(error, AI_ERRORS.FIRST_STEP_ERROR),
     };
   }
 }
@@ -150,28 +154,28 @@ export async function demoAdjustPaceAction(data: {
     const lifeArea = data.lifeArea?.trim();
 
     if (!["lighter", "more_specific", "once_per_week", "start_this_week", "start_today"].includes(option)) {
-      throw new Error("페이스 옵션 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.PACE_OPTION_INVALID);
     }
     if (!weeklyAction) {
-      throw new Error("이번 주 행동을 선택해주세요.");
+      throw new Error(VALIDATION_ERRORS.WEEKLY_ACTION_REQUIRED);
     }
     if (!sceneText) {
-      throw new Error("삶의 장면이 비어 있습니다.");
+      throw new Error(VALIDATION_ERRORS.SCENE_TEXT_EMPTY);
     }
     if (!lifeArea) {
-      throw new Error("삶의 영역 정보가 비어 있습니다.");
+      throw new Error(VALIDATION_ERRORS.LIFE_AREA_EMPTY);
     }
     if (!Number.isFinite(data.age) || data.age < 0 || data.age > 100) {
-      throw new Error("나이 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.AGE_INVALID);
     }
     if (!["male", "female"].includes(data.gender)) {
-      throw new Error("성별 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.GENDER_INVALID);
     }
     if (!["ISTJ","ISFJ","INFJ","INTJ","ISTP","ISFP","INFP","INTP","ESTP","ESFP","ENFP","ENTP","ESTJ","ESFJ","ENFJ","ENTJ"].includes(data.personalityType)) {
-      throw new Error("성향 값이 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.PERSONALITY_INVALID);
     }
     if (!data.currentPlan || !Array.isArray(data.currentPlan.subtasks)) {
-      throw new Error("현재 실행안 정보가 올바르지 않습니다.");
+      throw new Error(VALIDATION_ERRORS.CURRENT_PLAN_INVALID);
     }
 
     if (option !== "more_specific") {
@@ -193,7 +197,7 @@ export async function demoAdjustPaceAction(data: {
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "페이스 조정 중 오류가 발생했습니다."),
+      error: toClientErrorMessage(error, AI_ERRORS.PACE_ADJUST_ERROR),
     };
   }
 }

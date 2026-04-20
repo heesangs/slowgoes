@@ -11,6 +11,14 @@ import {
   STRIDE_LABELS,
 } from "@/lib/ai/analyze";
 import { getCurrentWeekStartDate } from "@/lib/utils";
+import {
+  AUTH_ERRORS,
+  AI_ERRORS,
+  BUCKET_ERRORS,
+  TODO_ERRORS,
+  ROUTINE_ERRORS,
+  STRIDE_ERRORS,
+} from "@/lib/constants";
 import type {
   ActionLogItemType,
   Gender,
@@ -34,7 +42,7 @@ function toClientErrorMessage(error: unknown, fallback: string): string {
     lower.includes("googlegenerativeai") ||
     lower.includes("generativelanguage.googleapis.com")
   ) {
-    return "AI 서비스 호출 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+    return AI_ERRORS.SERVICE_ERROR;
   }
 
   if (message.length > 180) {
@@ -52,7 +60,7 @@ async function getAuthContext() {
   } = await supabase.auth.getUser();
 
   if (error || !user) {
-    throw new Error("로그인이 필요합니다.");
+    throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
   }
 
   return { supabase, userId: user.id };
@@ -94,7 +102,7 @@ export async function toggleDailyTodoAction(todoId: string): Promise<{
       .maybeSingle();
 
     if (todoError || !todo) {
-      throw new Error("해당 데일리투두에 접근할 수 없습니다.");
+      throw new Error(TODO_ERRORS.ACCESS_DENIED);
     }
 
     const nextStatus = todo.status === "completed" ? "pending" : "completed";
@@ -151,7 +159,7 @@ export async function toggleDailyTodoAction(todoId: string): Promise<{
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "데일리투두 상태 변경에 실패했습니다."),
+      error: toClientErrorMessage(error, TODO_ERRORS.STATUS_CHANGE_FAILED),
     };
   }
 }
@@ -173,7 +181,7 @@ export async function toggleRoutineCompletionAction(routineId: string): Promise<
       .maybeSingle();
 
     if (routineError || !routine) {
-      throw new Error("해당 루틴에 접근할 수 없습니다.");
+      throw new Error(ROUTINE_ERRORS.ACCESS_DENIED);
     }
 
     const { data: existingCompletion, error: completionError } = await supabase
@@ -258,7 +266,7 @@ export async function toggleRoutineCompletionAction(routineId: string): Promise<
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "루틴 완료 처리에 실패했습니다."),
+      error: toClientErrorMessage(error, ROUTINE_ERRORS.COMPLETE_FAILED),
     };
   }
 }
@@ -280,7 +288,7 @@ export async function generateActionTipAction(
         .maybeSingle();
 
       if (todoError || !todo) {
-        throw new Error("데일리투두 정보를 찾을 수 없습니다.");
+        throw new Error(TODO_ERRORS.NOT_FOUND);
       }
 
       if (todo.action_tip?.trim()) {
@@ -337,7 +345,7 @@ export async function generateActionTipAction(
       .maybeSingle();
 
     if (routineError || !routine) {
-      throw new Error("루틴 정보를 찾을 수 없습니다.");
+      throw new Error(ROUTINE_ERRORS.NOT_FOUND);
     }
 
     if (routine.action_tip?.trim()) {
@@ -387,7 +395,7 @@ export async function generateActionTipAction(
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "행동 조언 생성에 실패했습니다."),
+      error: toClientErrorMessage(error, AI_ERRORS.ACTION_TIP_FAILED),
     };
   }
 }
@@ -429,10 +437,10 @@ export async function generateWeeklyItemsAction(bucketId: string): Promise<{
     ]);
 
     if (bucketResult.error || !bucketResult.data) {
-      throw new Error("버킷 정보를 찾을 수 없습니다.");
+      throw new Error(BUCKET_ERRORS.INFO_NOT_FOUND);
     }
     if (analysisResult.error || !analysisResult.data) {
-      throw new Error("AI 추천 정보를 먼저 생성해주세요.");
+      throw new Error(BUCKET_ERRORS.STRIDE_PLAN_REQUIRED);
     }
     if (dailyResult.error) throw dailyResult.error;
     if (routineResult.error) throw routineResult.error;
@@ -536,7 +544,7 @@ export async function generateWeeklyItemsAction(bucketId: string): Promise<{
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "이번 주 항목 생성에 실패했습니다."),
+      error: toClientErrorMessage(error, TODO_ERRORS.WEEKLY_GENERATE_FAILED),
     };
   }
 }
@@ -551,7 +559,7 @@ export async function addDailyTodoAction(
     const trimmedTitle = title.trim();
 
     if (!trimmedTitle) {
-      throw new Error("데일리투두 제목을 입력해주세요.");
+      throw new Error(TODO_ERRORS.TITLE_REQUIRED);
     }
 
     const weekStart = getCurrentWeekStartDate();
@@ -587,7 +595,7 @@ export async function addDailyTodoAction(
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "데일리투두 추가에 실패했습니다."),
+      error: toClientErrorMessage(error, TODO_ERRORS.ADD_FAILED),
     };
   }
 }
@@ -604,7 +612,7 @@ export async function addRoutineAction(
     const trimmedTitle = title.trim();
 
     if (!trimmedTitle) {
-      throw new Error("루틴 제목을 입력해주세요.");
+      throw new Error(ROUTINE_ERRORS.TITLE_REQUIRED);
     }
 
     const normalizedRepeatUnit = normalizeRepeatUnit(repeatUnit);
@@ -641,7 +649,7 @@ export async function addRoutineAction(
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "루틴 추가에 실패했습니다."),
+      error: toClientErrorMessage(error, ROUTINE_ERRORS.ADD_FAILED),
     };
   }
 }
@@ -652,16 +660,16 @@ export async function addRoutineAction(
 
 function normalizeDraftStrides(raw: unknown): StrideItem[] {
   if (!Array.isArray(raw)) {
-    throw new Error("발걸음 데이터 형식이 올바르지 않습니다.");
+    throw new Error(STRIDE_ERRORS.DATA_FORMAT_INVALID);
   }
   const normalized: StrideItem[] = [];
   for (const row of raw) {
     const item = row as { level?: unknown; label?: unknown; action?: unknown };
     if (typeof item.level !== "string" || !STRIDE_ORDER.includes(item.level as StrideLevel)) {
-      throw new Error("발걸음 레벨이 올바르지 않습니다.");
+      throw new Error(STRIDE_ERRORS.LEVEL_INVALID);
     }
     if (typeof item.action !== "string" || item.action.trim().length === 0) {
-      throw new Error("빈 action은 저장할 수 없습니다.");
+      throw new Error(STRIDE_ERRORS.EMPTY_ACTION);
     }
     const level = item.level as StrideLevel;
     normalized.push({
@@ -671,11 +679,11 @@ function normalizeDraftStrides(raw: unknown): StrideItem[] {
     });
   }
   if (normalized.length < 3 || normalized.length > 6) {
-    throw new Error("발걸음은 3~6개여야 합니다.");
+    throw new Error(STRIDE_ERRORS.COUNT_INVALID);
   }
   // someday 필수
   if (!normalized.some((s) => s.level === "someday")) {
-    throw new Error("'언젠가' 발걸음은 반드시 포함되어야 합니다.");
+    throw new Error(STRIDE_ERRORS.SOMEDAY_REQUIRED);
   }
   // 짧은 → 긴 순 정렬
   normalized.sort(
@@ -697,7 +705,7 @@ async function loadStridePlanForBucket(
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) throw new Error("AI 추천 정보를 먼저 생성해주세요.");
+  if (!data) throw new Error(BUCKET_ERRORS.STRIDE_PLAN_REQUIRED);
   return data as StridePlan;
 }
 
@@ -714,7 +722,7 @@ async function loadBucketContext(
     .maybeSingle();
 
   if (error || !data) {
-    throw new Error("해당 버킷에 접근할 수 없습니다.");
+    throw new Error(BUCKET_ERRORS.ACCESS_DENIED);
   }
 
   const row = data as {
@@ -789,7 +797,7 @@ export async function regenerateStridePlanAction(
 
     const profile = (profileResult.data as Profile | null) ?? null;
     if (!profile) {
-      throw new Error("프로필 정보가 없습니다.");
+      throw new Error(STRIDE_ERRORS.PROFILE_NOT_FOUND);
     }
 
     const analysis = await analyzeLifeScene({
@@ -823,7 +831,7 @@ export async function regenerateStridePlanAction(
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "발걸음 전체 재생성에 실패했습니다."),
+      error: toClientErrorMessage(error, STRIDE_ERRORS.REGENERATE_ALL_FAILED),
     };
   }
 }
@@ -839,7 +847,7 @@ export async function regenerateStrideItemAction(
     const { supabase, userId } = await getAuthContext();
 
     if (!STRIDE_ORDER.includes(targetLevel)) {
-      throw new Error("유효하지 않은 발걸음 레벨입니다.");
+      throw new Error(STRIDE_ERRORS.LEVEL_INVALID_ALT);
     }
 
     const [bucket, plan] = await Promise.all([
@@ -849,7 +857,7 @@ export async function regenerateStrideItemAction(
 
     const existingStrides = Array.isArray(plan.strides) ? plan.strides : [];
     if (!existingStrides.some((item) => item.level === targetLevel)) {
-      throw new Error("해당 레벨이 현재 발걸음 구성에 없습니다.");
+      throw new Error(STRIDE_ERRORS.LEVEL_NOT_IN_PLAN);
     }
 
     const newItem = await regenerateSingleStride({
@@ -879,7 +887,7 @@ export async function regenerateStrideItemAction(
   } catch (error) {
     return {
       success: false,
-      error: toClientErrorMessage(error, "발걸음 재생성에 실패했습니다."),
+      error: toClientErrorMessage(error, STRIDE_ERRORS.REGENERATE_SINGLE_FAILED),
     };
   }
 }

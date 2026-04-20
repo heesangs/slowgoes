@@ -2,6 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { decomposeBucket } from "@/lib/ai/analyze";
+import {
+  AUTH_ERRORS,
+  BUCKET_ERRORS,
+  CHAPTER_ERRORS,
+} from "@/lib/constants";
 import type {
   Bucket,
   BucketDecompositionSuggestion,
@@ -55,7 +60,7 @@ async function getAuthContext() {
   } = await supabase.auth.getUser();
 
   if (error || !user) {
-    throw new Error("로그인이 필요합니다.");
+    throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
   }
 
   return { supabase, userId: user.id };
@@ -76,7 +81,7 @@ async function assertLifeAreaOwnership(
     .maybeSingle();
 
   if (error || !data) {
-    throw new Error("선택한 삶의 영역에 접근할 수 없습니다.");
+    throw new Error(BUCKET_ERRORS.LIFE_AREA_ACCESS_DENIED);
   }
 }
 
@@ -93,20 +98,20 @@ async function assertBucketOwnership(
     .maybeSingle();
 
   if (error || !data) {
-    throw new Error("해당 버킷에 접근할 수 없습니다.");
+    throw new Error(BUCKET_ERRORS.ACCESS_DENIED);
   }
 }
 
 function validateBucketInput(input: SaveBucketInput) {
   const title = input.title?.trim();
   if (!title) {
-    throw new Error("버킷 제목을 입력해주세요.");
+    throw new Error(BUCKET_ERRORS.TITLE_REQUIRED);
   }
   if (!VALID_STRIDE_SCOPES.includes(input.strideScope)) {
-    throw new Error("나의 발걸음 값이 올바르지 않습니다.");
+    throw new Error(BUCKET_ERRORS.STRIDE_SCOPE_INVALID);
   }
   if (!VALID_STATUSES.includes(input.status)) {
-    throw new Error("상태 값이 올바르지 않습니다.");
+    throw new Error(BUCKET_ERRORS.STATUS_INVALID);
   }
   return title;
 }
@@ -132,17 +137,17 @@ function validateDateInput(value: string | null | undefined, fieldLabel: string)
 function validateChapterInput(input: SaveChapterInput) {
   const title = input.title?.trim();
   if (!title) {
-    throw new Error("챕터 제목을 입력해주세요.");
+    throw new Error(CHAPTER_ERRORS.TITLE_REQUIRED);
   }
   if (!VALID_CHAPTER_STATUSES.includes(input.status)) {
-    throw new Error("챕터 상태 값이 올바르지 않습니다.");
+    throw new Error(CHAPTER_ERRORS.STATUS_INVALID);
   }
 
   const startDate = validateDateInput(input.startDate, "시작일");
   const endDate = validateDateInput(input.endDate, "종료일");
 
   if (startDate && endDate && startDate > endDate) {
-    throw new Error("시작일은 종료일보다 늦을 수 없습니다.");
+    throw new Error(CHAPTER_ERRORS.DATE_RANGE_INVALID);
   }
 
   return {
@@ -183,14 +188,14 @@ export async function createBucketAction(
       .single();
 
     if (error || !data) {
-      throw error ?? new Error("버킷 생성에 실패했습니다.");
+      throw error ?? new Error(BUCKET_ERRORS.CREATE_FAILED);
     }
 
     return { success: true, data: data as BucketRow };
   } catch (error) {
     return {
       success: false,
-      error: toClientError(error, "버킷 생성 중 오류가 발생했습니다."),
+      error: toClientError(error, BUCKET_ERRORS.CREATE_ERROR),
     };
   }
 }
@@ -222,14 +227,14 @@ export async function updateBucketAction(
       .single();
 
     if (error || !data) {
-      throw error ?? new Error("버킷 수정에 실패했습니다.");
+      throw error ?? new Error(BUCKET_ERRORS.UPDATE_FAILED);
     }
 
     return { success: true, data: data as BucketRow };
   } catch (error) {
     return {
       success: false,
-      error: toClientError(error, "버킷 수정 중 오류가 발생했습니다."),
+      error: toClientError(error, BUCKET_ERRORS.UPDATE_ERROR),
     };
   }
 }
@@ -254,7 +259,7 @@ export async function deleteBucketAction(
   } catch (error) {
     return {
       success: false,
-      error: toClientError(error, "버킷 삭제 중 오류가 발생했습니다."),
+      error: toClientError(error, BUCKET_ERRORS.DELETE_ERROR),
     };
   }
 }
@@ -284,14 +289,14 @@ export async function createChapterAction(
       .single();
 
     if (error || !data) {
-      throw error ?? new Error("챕터 생성에 실패했습니다.");
+      throw error ?? new Error(CHAPTER_ERRORS.CREATE_FAILED);
     }
 
     return { success: true, data: data as ChapterRow };
   } catch (error) {
     return {
       success: false,
-      error: toClientError(error, "챕터 생성 중 오류가 발생했습니다."),
+      error: toClientError(error, CHAPTER_ERRORS.CREATE_ERROR),
     };
   }
 }
@@ -316,7 +321,7 @@ export async function updateChapterAction(
       .maybeSingle();
 
     if (chapterOwnershipError || !ownedChapter) {
-      throw new Error("해당 챕터에 접근할 수 없습니다.");
+      throw new Error(CHAPTER_ERRORS.ACCESS_DENIED);
     }
 
     const { data, error } = await supabase
@@ -335,14 +340,14 @@ export async function updateChapterAction(
       .single();
 
     if (error || !data) {
-      throw error ?? new Error("챕터 수정에 실패했습니다.");
+      throw error ?? new Error(CHAPTER_ERRORS.UPDATE_FAILED);
     }
 
     return { success: true, data: data as ChapterRow };
   } catch (error) {
     return {
       success: false,
-      error: toClientError(error, "챕터 수정 중 오류가 발생했습니다."),
+      error: toClientError(error, CHAPTER_ERRORS.UPDATE_ERROR),
     };
   }
 }
@@ -371,7 +376,7 @@ export async function deleteChapterAction(
   } catch (error) {
     return {
       success: false,
-      error: toClientError(error, "챕터 삭제 중 오류가 발생했습니다."),
+      error: toClientError(error, CHAPTER_ERRORS.DELETE_ERROR),
     };
   }
 }
@@ -402,7 +407,7 @@ export async function decomposeBucketAction(
     ]);
 
     if (bucketResult.error || !bucketResult.data) {
-      throw new Error("해당 버킷에 접근할 수 없습니다.");
+      throw new Error(BUCKET_ERRORS.ACCESS_DENIED);
     }
 
     const suggestions = await decomposeBucket({
@@ -420,7 +425,7 @@ export async function decomposeBucketAction(
   } catch (error) {
     return {
       success: false,
-      error: toClientError(error, "버킷 분해 중 오류가 발생했습니다."),
+      error: toClientError(error, BUCKET_ERRORS.DECOMPOSE_ERROR),
     };
   }
 }
