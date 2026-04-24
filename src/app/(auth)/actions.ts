@@ -170,7 +170,7 @@ export async function signUpAction(formData: FormData) {
       redirect("/login?verify=existing");
     }
 
-    redirect("/login?verify=pending");
+    redirect(`/login?verify=pending&email=${encodeURIComponent(email)}`);
   }
 
   const shouldUseOnboardingV2 = data.user?.id
@@ -317,16 +317,22 @@ export async function saveProfileAction(formData: FormData) {
   redirect("/dashboard");
 }
 
-export async function saveOnboardingV2Action(
-  data: OnboardingV2SavePayload & {
-    displayName?: string;
-    selfLevel: SelfLevel;
-    userContext?: UserContext[];
-    grade?: string | null;
-    subjects?: string[];
-    chapterTitle?: string;
-  }
-) {
+type SaveOnboardingV2Input = OnboardingV2SavePayload & {
+  displayName?: string;
+  selfLevel: SelfLevel;
+  userContext?: UserContext[];
+  grade?: string | null;
+  subjects?: string[];
+  chapterTitle?: string;
+};
+
+type SaveOnboardingV2Result =
+  | { success: true }
+  | { success: false; error: string; requiresAuth?: boolean };
+
+async function saveOnboardingV2Internal(
+  data: SaveOnboardingV2Input
+): Promise<SaveOnboardingV2Result> {
   const sceneText = data.sceneText?.trim();
   const lifeArea = data.lifeArea?.trim();
   const displayName = data.displayName?.trim() || APP.DEFAULT_USER_NAME;
@@ -334,28 +340,28 @@ export async function saveOnboardingV2Action(
     data.chapterTitle?.trim() || buildDefaultChapterTitle(sceneText || "");
 
   if (!displayName) {
-    return { error: PROFILE_ERRORS.DISPLAY_NAME_INVALID };
+    return { success: false, error: PROFILE_ERRORS.DISPLAY_NAME_INVALID };
   }
   if (!sceneText) {
-    return { error: VALIDATION_ERRORS.SCENE_TEXT_EMPTY };
+    return { success: false, error: VALIDATION_ERRORS.SCENE_TEXT_EMPTY };
   }
   if (!lifeArea) {
-    return { error: VALIDATION_ERRORS.LIFE_AREA_EMPTY };
+    return { success: false, error: VALIDATION_ERRORS.LIFE_AREA_EMPTY };
   }
   if (!Number.isFinite(data.age) || data.age < 0 || data.age > 100) {
-    return { error: VALIDATION_ERRORS.AGE_INVALID };
+    return { success: false, error: VALIDATION_ERRORS.AGE_INVALID };
   }
   if (!VALID_GENDERS.includes(data.gender as ProfileGender)) {
-    return { error: VALIDATION_ERRORS.GENDER_INVALID };
+    return { success: false, error: VALIDATION_ERRORS.GENDER_INVALID };
   }
   if (!VALID_PERSONALITY_TYPES.includes(data.personalityType as ProfilePersonality)) {
-    return { error: VALIDATION_ERRORS.PERSONALITY_INVALID };
+    return { success: false, error: VALIDATION_ERRORS.PERSONALITY_INVALID };
   }
   if (!VALID_PACE_TYPES.includes(data.paceType as ProfilePaceType)) {
-    return { error: VALIDATION_ERRORS.PACE_TYPE_INVALID };
+    return { success: false, error: VALIDATION_ERRORS.PACE_TYPE_INVALID };
   }
   if (!VALID_SELF_LEVELS.includes(data.selfLevel)) {
-    return { error: PROFILE_ERRORS.SELF_LEVEL_INVALID };
+    return { success: false, error: PROFILE_ERRORS.SELF_LEVEL_INVALID };
   }
 
   const normalizedUserContext = (data.userContext ?? ["personal"]).filter((ctx, index, arr) =>
@@ -397,7 +403,7 @@ export async function saveOnboardingV2Action(
   }
 
   if (normalizedDailyTodos.length === 0 && normalizedRoutines.length === 0) {
-    return { error: VALIDATION_ERRORS.DAILY_TODO_OR_ROUTINE_REQUIRED };
+    return { success: false, error: VALIDATION_ERRORS.DAILY_TODO_OR_ROUTINE_REQUIRED };
   }
 
   const normalizedStrides = (data.stridePlan?.strides ?? []).map((item) => ({
@@ -428,11 +434,15 @@ export async function saveOnboardingV2Action(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    return {
+      success: false,
+      error: "로그인이 필요합니다. 다시 로그인해주세요.",
+      requiresAuth: true,
+    };
   }
 
   if (!featureFlags.onboardingV2(user.id)) {
-    return { error: VALIDATION_ERRORS.ONBOARDING_V2_DISABLED };
+    return { success: false, error: VALIDATION_ERRORS.ONBOARDING_V2_DISABLED };
   }
 
   const { error } = await supabase.rpc("save_onboarding_journey", {
@@ -456,10 +466,33 @@ export async function saveOnboardingV2Action(
   });
 
   if (error) {
-    return { error: VALIDATION_ERRORS.ONBOARDING_SAVE_FAILED };
+    return { success: false, error: VALIDATION_ERRORS.ONBOARDING_SAVE_FAILED };
+  }
+
+  return { success: true };
+}
+
+export async function saveOnboardingV2Action(data: SaveOnboardingV2Input) {
+  const result = await saveOnboardingV2Internal(data);
+
+  if (!result.success) {
+    if (result.requiresAuth) {
+      redirect("/login");
+    }
+    return { error: result.error };
   }
 
   redirect("/dashboard?onboarding_saved=1");
+}
+
+export async function saveOnboardingV2ForMigrationAction(
+  data: SaveOnboardingV2Input
+): Promise<{ success: boolean; error?: string }> {
+  const result = await saveOnboardingV2Internal(data);
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+  return { success: true };
 }
 
 /**

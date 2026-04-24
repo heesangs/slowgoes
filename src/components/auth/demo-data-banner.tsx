@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  getDemoOnboardingBackupData,
   getDemoOnboardingData,
   type DemoOnboardingData,
 } from "@/lib/demo/storage";
@@ -12,7 +13,7 @@ export function DemoDataBanner() {
   const [data, setData] = useState<DemoOnboardingData | null>(null);
 
   useEffect(() => {
-    setData(getDemoOnboardingData());
+    setData(getDemoOnboardingData() ?? getDemoOnboardingBackupData());
   }, []);
 
   if (!data) return null;
