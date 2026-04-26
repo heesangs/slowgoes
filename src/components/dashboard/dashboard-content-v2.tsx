@@ -8,6 +8,7 @@ import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { OnboardingForm } from "@/components/auth/onboarding-form";
 import { useToast } from "@/components/ui/toast";
+import { BucketList } from "@/components/buckets/bucket-list";
 import {
   generateActionTipAction,
   generateWeeklyItemsAction,
@@ -17,20 +18,27 @@ import {
   toggleRoutineCompletionAction,
   updateStridePlanAction,
 } from "@/app/(main)/dashboard/actions";
+import { getBucketManagementDataAction } from "@/app/(main)/buckets/actions";
 import { cn } from "@/lib/utils";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { partitionStrides } from "@/lib/ai/analyze";
 import type {
   ActionLogItemType,
+  Bucket,
   DailyTodo,
   DashboardV2Data,
   Gender,
+  LifeArea,
   PersonalityType,
   RoutineWithCompletion,
   StrideItem,
   StrideLevel,
   SuggestedRoutine,
 } from "@/types";
+
+type BucketRowFull = Bucket & {
+  life_area?: Pick<LifeArea, "id" | "name"> | null;
+};
 
 interface DashboardContentV2Props {
   data: DashboardV2Data;
@@ -68,7 +76,42 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
 
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
   const [strideSheetOpen, setStrideSheetOpen] = useState(false);
+  const [bucketEntrySheetOpen, setBucketEntrySheetOpen] = useState(false);
+  const [bucketManageSheetOpen, setBucketManageSheetOpen] = useState(false);
+  const [bucketManageData, setBucketManageData] = useState<{
+    buckets: BucketRowFull[];
+    lifeAreas: Pick<LifeArea, "id" | "name">[];
+  } | null>(null);
+  const [bucketManageLoading, setBucketManageLoading] = useState(false);
+  const [bucketManageError, setBucketManageError] = useState<string | null>(null);
+  const [bucketManageDirty, setBucketManageDirty] = useState(false);
   const [explorationSheetOpen, setExplorationSheetOpen] = useState(false);
+
+  async function openBucketManageSheet() {
+    setBucketEntrySheetOpen(false);
+    setBucketManageSheetOpen(true);
+    setBucketManageError(null);
+    setBucketManageDirty(false);
+    setBucketManageLoading(true);
+    try {
+      const result = await getBucketManagementDataAction();
+      if (!result.success || !result.data) {
+        setBucketManageError(result.error ?? "버킷 데이터를 불러오지 못했습니다.");
+        setBucketManageData({ buckets: [], lifeAreas: [] });
+        return;
+      }
+      setBucketManageData(result.data);
+    } finally {
+      setBucketManageLoading(false);
+    }
+  }
+
+  function closeBucketManageSheet() {
+    setBucketManageSheetOpen(false);
+    if (bucketManageDirty) {
+      router.refresh();
+    }
+  }
   const [selectedActionItem, setSelectedActionItem] = useState<ActionSheetItem | null>(null);
   const [actionTip, setActionTip] = useState<string | null>(null);
   const [isTipLoading, setIsTipLoading] = useState(false);
@@ -326,7 +369,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           </div>
           <button
             type="button"
-            onClick={() => setExplorationSheetOpen(true)}
+            onClick={() => setBucketEntrySheetOpen(true)}
             className="inline-flex min-h-[44px] items-center rounded-lg border border-foreground/20 px-3 text-xs font-medium transition-colors hover:bg-foreground/5"
           >
             버킷 추가
@@ -450,7 +493,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
 
       <button
         type="button"
-        onClick={() => setExplorationSheetOpen(true)}
+        onClick={() => setBucketEntrySheetOpen(true)}
         className="fixed bottom-6 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-2xl text-background shadow-lg transition-opacity hover:opacity-90"
         aria-label="버킷 추가"
       >
@@ -694,6 +737,61 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           );
         })() : (
           <p className="text-sm text-foreground/60">표시할 AI 추천 정보가 없어요.</p>
+        )}
+      </BottomSheet>
+
+      {/* 버킷 추가 진입 선택 시트 — 관리 vs 새로 생성 */}
+      <BottomSheet
+        open={bucketEntrySheetOpen}
+        onClose={() => setBucketEntrySheetOpen(false)}
+        title="버킷"
+      >
+        <div className="flex flex-col gap-3 py-2">
+          <button
+            type="button"
+            onClick={() => {
+              void openBucketManageSheet();
+            }}
+            className="flex flex-col items-start gap-1 rounded-xl border border-foreground/10 px-4 py-4 text-left transition-colors hover:bg-foreground/5"
+          >
+            <span className="text-base font-semibold">버킷리스트 관리</span>
+            <span className="text-xs text-foreground/60">기존 버킷을 보고 수정하거나 정리해요</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setBucketEntrySheetOpen(false);
+              setExplorationSheetOpen(true);
+            }}
+            className="flex flex-col items-start gap-1 rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-4 text-left transition-colors hover:bg-foreground/10"
+          >
+            <span className="text-base font-semibold">버킷리스트 생성</span>
+            <span className="text-xs text-foreground/60">새로운 장면을 탐색해 새 버킷을 만들어요</span>
+          </button>
+        </div>
+      </BottomSheet>
+
+      {/* 버킷리스트 관리 바텀시트 — lazy fetch 후 BucketList 렌더 */}
+      <BottomSheet
+        open={bucketManageSheetOpen}
+        onClose={closeBucketManageSheet}
+        title="버킷 관리"
+        size="large"
+      >
+        {bucketManageLoading && (
+          <p className="py-6 text-center text-sm text-foreground/60">
+            버킷을 불러오는 중...
+          </p>
+        )}
+
+        {!bucketManageLoading && bucketManageData && (
+          <BucketList
+            initialBuckets={bucketManageData.buckets}
+            lifeAreas={bucketManageData.lifeAreas}
+            fetchError={bucketManageError ?? undefined}
+            onChanged={() => setBucketManageDirty(true)}
+            onNavigateDetail={() => setBucketManageSheetOpen(false)}
+          />
         )}
       </BottomSheet>
 

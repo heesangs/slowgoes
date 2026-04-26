@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   addItemsToExistingBucketAction,
   saveOnboardingV2Action,
+  saveOnboardingV2NoRedirectAction,
 } from "@/app/(auth)/actions";
 import { saveDemoOnboardingData } from "@/lib/demo/storage";
 import type {
@@ -125,10 +126,12 @@ export function useOnboardingSubmit({
       }
 
       // 새 버킷 생성 (기본 플로우)
-      const result = await saveOnboardingV2Action({
+      // - 시트 모드 (onComplete 있음): redirect 안 하는 액션 사용 → onComplete 콜백으로 시트 닫기
+      // - standalone 모드 (/onboarding 페이지): redirect 액션 사용 → 대시보드로 이동
+      const payload = {
         displayName: "slowgoes 사용자",
-        selfLevel: "medium",
-        userContext: ["personal"],
+        selfLevel: "medium" as const,
+        userContext: ["personal" as const],
         grade: "",
         subjects: [],
         sceneText: selectedSceneText,
@@ -137,24 +140,31 @@ export function useOnboardingSubmit({
         age,
         gender,
         personalityType,
-        paceType: paceType ?? "balanced",
+        paceType: paceType ?? ("balanced" as const),
         chapterTitle: selectedSeasonAction || `${selectedSceneText} 이번 시즌 실행`,
         stridePlan: lifeSceneAnalysis,
         selectedDailyTodos,
         selectedRoutines,
-      });
+      };
 
+      if (onComplete) {
+        const result = await saveOnboardingV2NoRedirectAction(payload);
+        if (!result.success) {
+          setError(result.error ?? "온보딩 저장에 실패했습니다.");
+          return;
+        }
+        onComplete();
+        return;
+      }
+
+      const result = await saveOnboardingV2Action(payload);
+      // saveOnboardingV2Action 성공 시 내부에서 redirect throw → 아래 라인 도달 안 함
       if (result?.error) {
         setError(result.error);
         return;
       }
-
-      if (onComplete) {
-        onComplete();
-        return;
-      }
     } catch {
-      // redirect는 throw 에러이므로 무시
+      // redirect는 throw 에러이므로 무시 (standalone 모드에서만 발생)
     } finally {
       setIsLoading(false);
     }

@@ -83,6 +83,7 @@ export const BUCKET_ERRORS = {
   UPDATE_FAILED: "버킷 수정에 실패했습니다.",
   UPDATE_ERROR: "버킷 수정 중 오류가 발생했습니다.",
   DELETE_ERROR: "버킷 삭제 중 오류가 발생했습니다.",
+  LIST_ERROR: "버킷 목록을 불러오지 못했습니다.",
   DECOMPOSE_ERROR: "버킷 분해 중 오류가 발생했습니다.",
   DECOMPOSE_RESULT_EMPTY: "버킷 분해 결과를 만들지 못했습니다.",
   INFO_NOT_FOUND: "버킷 정보를 찾을 수 없습니다.",
