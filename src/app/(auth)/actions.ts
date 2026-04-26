@@ -485,7 +485,12 @@ export async function saveOnboardingV2Action(data: SaveOnboardingV2Input) {
   redirect("/dashboard?onboarding_saved=1");
 }
 
-export async function saveOnboardingV2ForMigrationAction(
+/**
+ * 온보딩 저장 — redirect 없이 결과만 반환.
+ * 데모 마이그레이션, 대시보드 바텀시트("새로운 장면 탐색") 등
+ * 페이지 이동 없이 후속 콜백을 직접 처리해야 하는 컨텍스트에서 사용.
+ */
+export async function saveOnboardingV2NoRedirectAction(
   data: SaveOnboardingV2Input
 ): Promise<{ success: boolean; error?: string }> {
   const result = await saveOnboardingV2Internal(data);

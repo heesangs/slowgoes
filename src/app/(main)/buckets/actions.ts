@@ -239,11 +239,85 @@ export async function updateBucketAction(
   }
 }
 
+/**
+ * 대시보드의 "버킷리스트 관리" 시트가 열릴 때 lazy 로 호출.
+ * /buckets 페이지의 server component 와 동일한 데이터 셰이프 반환.
+ */
+export async function getBucketManagementDataAction(): Promise<{
+  success: boolean;
+  data?: {
+    buckets: BucketRow[];
+    lifeAreas: Pick<LifeArea, "id" | "name">[];
+  };
+  error?: string;
+}> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const [lifeAreasResult, bucketsResult] = await Promise.all([
+      supabase
+        .from("life_areas")
+        .select("id, name")
+        .eq("user_id", userId)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("buckets")
+        .select("*, life_area:life_areas(id, name)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+    ]);
+
+    if (lifeAreasResult.error) throw lifeAreasResult.error;
+    if (bucketsResult.error) throw bucketsResult.error;
+
+    return {
+      success: true,
+      data: {
+        lifeAreas:
+          (lifeAreasResult.data as Pick<LifeArea, "id" | "name">[] | null) ?? [],
+        buckets: (bucketsResult.data as BucketRow[] | null) ?? [],
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientError(error, BUCKET_ERRORS.LIST_ERROR),
+    };
+  }
+}
+
 export async function deleteBucketAction(
   bucketId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { supabase, userId } = await getAuthContext();
+
+    // 자식 데이터 처리
+    // - tasks: 히스토리 보존을 위해 bucket_id만 NULL 처리 (action_logs와 일관)
+    // - chapters: 버킷에 강하게 종속되므로 사전 삭제
+    //   (FK가 NO ACTION이라 사전 삭제 없으면 외래키 제약 위반으로 버킷 삭제 실패)
+    // - daily_todos / routines / action_logs: FK SET NULL로 자동 처리됨
+    // - stride_plans: FK CASCADE로 자동 삭제됨
+    const { error: tasksError } = await supabase
+      .from("tasks")
+      .update({ bucket_id: null })
+      .eq("bucket_id", bucketId)
+      .eq("user_id", userId);
+
+    if (tasksError) {
+      throw tasksError;
+    }
+
+    const { error: chaptersError } = await supabase
+      .from("chapters")
+      .delete()
+      .eq("bucket_id", bucketId)
+      .eq("user_id", userId);
+
+    if (chaptersError) {
+      throw chaptersError;
+    }
 
     const { error } = await supabase
       .from("buckets")

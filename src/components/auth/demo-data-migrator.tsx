@@ -11,7 +11,7 @@ import {
   getDemoOnboardingData,
   saveDemoOnboardingBackupData,
 } from "@/lib/demo/storage";
-import { saveOnboardingV2ForMigrationAction } from "@/app/(auth)/actions";
+import { saveOnboardingV2NoRedirectAction } from "@/app/(auth)/actions";
 
 const DEMO_MIGRATION_LOCK_KEY = "slowgoes_demo_migration_lock_v1";
 const DEMO_MIGRATION_LOCK_STALE_MS = 30_000;
@@ -65,7 +65,7 @@ export function DemoDataMigrator({ children }: DemoDataMigratorProps) {
       // 원본이 손상되어도 복구할 수 있도록 마이그레이션 직전에 백업
       saveDemoOnboardingBackupData(demoData);
 
-      const result = await saveOnboardingV2ForMigrationAction({
+      const result = await saveOnboardingV2NoRedirectAction({
         sceneText: demoData.sceneText,
         lifeArea: demoData.lifeArea,
         age: demoData.age,
