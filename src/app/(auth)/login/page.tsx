@@ -5,6 +5,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signInAction } from "@/app/(auth)/actions";
+import { DemoDataBanner } from "@/components/auth/demo-data-banner";
 import Link from "next/link";
 import { Suspense, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
@@ -18,7 +19,9 @@ function isNextRedirectError(error: unknown): error is Error & { digest: string 
   return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
 }
 
-const VERIFY_BANNERS: Record<string, { message: string; tone: "info" | "warn" | "error" }> = {
+type BannerTone = "info" | "warn" | "error";
+
+const VERIFY_BANNERS: Record<string, { message: string; tone: BannerTone }> = {
   pending: {
     message: "인증 메일을 보냈어요. 메일함(스팸함 포함)을 확인한 후 로그인해주세요.",
     tone: "info",
@@ -37,14 +40,28 @@ const VERIFY_BANNERS: Record<string, { message: string; tone: "info" | "warn" | 
   },
 };
 
+function buildPendingMessage(email: string | null) {
+  if (!email) return VERIFY_BANNERS.pending.message;
+  return `인증 메일을 ${email}로 보냈어요. 메일함(스팸함 포함)을 확인한 후 로그인해주세요.`;
+}
+
 function VerifyBanner() {
   const searchParams = useSearchParams();
   const verifyStatus = searchParams.get("verify");
+  const verifyEmail = searchParams.get("email");
 
   const banner = useMemo(() => {
     if (!verifyStatus) return null;
-    return VERIFY_BANNERS[verifyStatus] ?? null;
-  }, [verifyStatus]);
+    const base = VERIFY_BANNERS[verifyStatus] ?? null;
+    if (!base) return null;
+    if (verifyStatus === "pending") {
+      return {
+        ...base,
+        message: buildPendingMessage(verifyEmail),
+      };
+    }
+    return base;
+  }, [verifyStatus, verifyEmail]);
 
   if (!banner) return null;
 
@@ -134,6 +151,8 @@ export default function LoginPage() {
         <Suspense>
           <VerifyBanner />
         </Suspense>
+
+        <DemoDataBanner />
 
         <form
           onSubmit={(e) => {
