@@ -5,7 +5,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signInAction } from "@/app/(auth)/actions";
-import { DemoDataBanner } from "@/components/auth/demo-data-banner";
 import Link from "next/link";
 import { Suspense, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
@@ -151,8 +150,6 @@ export default function LoginPage() {
         <Suspense>
           <VerifyBanner />
         </Suspense>
-
-        <DemoDataBanner />
 
         <form
           onSubmit={(e) => {
