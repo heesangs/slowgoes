@@ -1361,6 +1361,68 @@ ${stridesSummary || "- 정보 없음"}
   return normalizeWeeklyItemsResult(parsed, input);
 }
 
+/**
+ * "한걸음 더" 시트용 — 데일리 투두 1개 또는 루틴 1개만 단건 추천.
+ * 사용자가 시트를 열거나 부분 새로고침(↻)을 누를 때 호출.
+ *
+ * 미리보기용 — DB 저장은 별도 applyNextStepAction에서 처리.
+ */
+interface GenerateSingleNextStepInput {
+  bucketTitle: string;
+  lifeArea: string;
+  strides: StrideItem[];
+  type: "daily_todo" | "routine";
+  /** 중복 방지를 위해 이미 표시 중인 항목 제목 (부분 새로고침 시) */
+  excludeTitles?: string[];
+}
+
+export type SingleNextStepDailyResult = { type: "daily_todo"; title: string };
+export type SingleNextStepRoutineResult = {
+  type: "routine";
+  title: string;
+  repeatUnit: SuggestedRoutine["repeatUnit"];
+  repeatValue: SuggestedRoutine["repeatValue"];
+};
+export type SingleNextStepResult = SingleNextStepDailyResult | SingleNextStepRoutineResult;
+
+export async function generateSingleNextStep(
+  input: GenerateSingleNextStepInput
+): Promise<SingleNextStepResult> {
+  const bucketTitle = input.bucketTitle.trim();
+  const lifeArea = input.lifeArea.trim();
+
+  if (!bucketTitle) throw new Error(BUCKET_ERRORS.TITLE_EMPTY);
+  if (!lifeArea) throw new Error(STRIDE_ERRORS.LIFE_AREA_EMPTY);
+
+  // 단건 호출이라도 generateWeeklyItems를 재사용해 응답 구조의 일관성 유지.
+  // type에 따라 결과의 첫 번째 항목만 추출.
+  const weekly = await generateWeeklyItems({
+    bucketTitle,
+    lifeArea,
+    strides: input.strides,
+    existingTitles: input.excludeTitles ?? [],
+  });
+
+  if (input.type === "daily_todo") {
+    const first = weekly.dailyTodos[0];
+    if (!first) {
+      throw new Error("새 데일리 투두 추천 결과가 비어 있습니다.");
+    }
+    return { type: "daily_todo", title: first.title };
+  }
+
+  const firstRoutine = weekly.routines[0];
+  if (!firstRoutine) {
+    throw new Error("새 루틴 추천 결과가 비어 있습니다.");
+  }
+  return {
+    type: "routine",
+    title: firstRoutine.title,
+    repeatUnit: firstRoutine.repeatUnit,
+    repeatValue: firstRoutine.repeatValue,
+  };
+}
+
 function truncateActionTip(text: string): string {
   if (text.length <= 220) return text;
   return `${text.slice(0, 217).trim()}...`;

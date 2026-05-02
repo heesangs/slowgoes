@@ -4,7 +4,6 @@ import { FEATURE_NAMES } from "@/lib/constants";
 
 interface LifeClockHeaderProps {
   age: number | null | undefined;
-  activeChapterTitle?: string | null;
 }
 
 function getLifeClockLabel(age: number | null | undefined) {
@@ -21,16 +20,14 @@ function getLifeClockLabel(age: number | null | undefined) {
   return `${meridiem} ${hour12}:${String(minute).padStart(2, "0")}`;
 }
 
-export function LifeClockHeader({ age, activeChapterTitle }: LifeClockHeaderProps) {
+// 인생시계 카드 — 현재 시간만 표시. 버킷 정보는 현재 버킷 카드(StrideSection)에서 단일하게 노출.
+export function LifeClockHeader({ age }: LifeClockHeaderProps) {
   const lifeClockLabel = getLifeClockLabel(age);
 
   return (
     <section className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-4">
       <p className="text-sm text-foreground/60">{FEATURE_NAMES.MY_CLOCK}</p>
       <p className="text-xl font-semibold mt-1">{lifeClockLabel}</p>
-      <p className="text-sm text-foreground/70 mt-3">
-        선택한 {FEATURE_NAMES.BUCKET}: {activeChapterTitle ?? "지금은 탐색 단계"}
-      </p>
     </section>
   );
 }

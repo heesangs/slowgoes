@@ -5,10 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import {
   analyzeLifeScene,
   generateActionTip,
+  generateSingleNextStep,
   generateWeeklyItems,
   regenerateSingleStride,
   STRIDE_ORDER,
   STRIDE_LABELS,
+  type SingleNextStepResult,
 } from "@/lib/ai/analyze";
 import { getCurrentWeekStartDate } from "@/lib/utils";
 import {
@@ -545,6 +547,212 @@ export async function generateWeeklyItemsAction(bucketId: string): Promise<{
     return {
       success: false,
       error: toClientErrorMessage(error, TODO_ERRORS.WEEKLY_GENERATE_FAILED),
+    };
+  }
+}
+
+/**
+ * "한걸음 더" 시트 — 버킷의 발걸음/영역 컨텍스트와 기존 항목 제목을 함께 로드.
+ * 단건 추천(미리보기)와 적용 액션에서 공통으로 사용.
+ */
+async function loadNextStepContext(bucketId: string) {
+  const { supabase, userId } = await getAuthContext();
+  const weekStart = getCurrentWeekStartDate();
+
+  const [bucketResult, analysisResult, dailyResult, routineResult] = await Promise.all([
+    supabase
+      .from("buckets")
+      .select("id, title, life_area:life_areas(name)")
+      .eq("id", bucketId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+    supabase
+      .from("stride_plans")
+      .select("strides, life_area")
+      .eq("bucket_id", bucketId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+    supabase
+      .from("daily_todos")
+      .select("title, sort_order")
+      .eq("user_id", userId)
+      .eq("bucket_id", bucketId)
+      .eq("week_start", weekStart),
+    supabase
+      .from("routines")
+      .select("title, sort_order")
+      .eq("user_id", userId)
+      .eq("bucket_id", bucketId)
+      .eq("is_active", true),
+  ]);
+
+  if (bucketResult.error || !bucketResult.data) {
+    throw new Error(BUCKET_ERRORS.INFO_NOT_FOUND);
+  }
+  if (analysisResult.error || !analysisResult.data) {
+    throw new Error(BUCKET_ERRORS.STRIDE_PLAN_REQUIRED);
+  }
+  if (dailyResult.error) throw dailyResult.error;
+  if (routineResult.error) throw routineResult.error;
+
+  const bucket = bucketResult.data as {
+    id: string;
+    title: string;
+    life_area?: { name?: string } | { name?: string }[] | null;
+  };
+
+  const lifeAreaRaw = bucket.life_area;
+  const bucketLifeArea = Array.isArray(lifeAreaRaw)
+    ? lifeAreaRaw[0]?.name ?? null
+    : lifeAreaRaw?.name ?? null;
+
+  const dailyRows =
+    (dailyResult.data as Array<{ title: string; sort_order: number | null }> | null) ?? [];
+  const routineRows =
+    (routineResult.data as Array<{ title: string; sort_order: number | null }> | null) ?? [];
+
+  const VALID_STRIDE_LEVELS = [
+    "today",
+    "this_week",
+    "this_month",
+    "this_season",
+    "this_year",
+    "five_years",
+    "decade",
+    "someday",
+  ] as const;
+
+  const strides = Array.isArray(analysisResult.data.strides)
+    ? (analysisResult.data.strides as Array<{ level: string; label: string; action: string }>).map(
+        (item) => ({
+          level: (VALID_STRIDE_LEVELS as readonly string[]).includes(item.level)
+            ? (item.level as (typeof VALID_STRIDE_LEVELS)[number])
+            : "this_week",
+          label: item.label,
+          action: item.action,
+        })
+      )
+    : [];
+
+  return {
+    supabase,
+    userId,
+    weekStart,
+    bucket,
+    lifeArea: bucketLifeArea ?? (analysisResult.data.life_area as string) ?? "성장",
+    strides,
+    dailyRows,
+    routineRows,
+  };
+}
+
+/**
+ * "한걸음 더" 시트의 단건 미리보기. DB 저장 없이 추천만 반환.
+ * type: 'daily_todo' | 'routine'
+ * excludeTitles: 부분 새로고침 시 현재 표시 중인 동종 항목 제목(중복 방지)
+ */
+export async function generateNextStepPreviewAction(
+  bucketId: string,
+  type: "daily_todo" | "routine",
+  excludeTitles: string[] = []
+): Promise<{ success: boolean; data?: SingleNextStepResult; error?: string }> {
+  try {
+    const ctx = await loadNextStepContext(bucketId);
+    const existingSameType =
+      type === "daily_todo"
+        ? ctx.dailyRows.map((row) => row.title)
+        : ctx.routineRows.map((row) => row.title);
+
+    const result = await generateSingleNextStep({
+      bucketTitle: ctx.bucket.title,
+      lifeArea: ctx.lifeArea,
+      strides: ctx.strides,
+      type,
+      excludeTitles: [...existingSameType, ...excludeTitles].filter(Boolean),
+    });
+
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, TODO_ERRORS.WEEKLY_GENERATE_FAILED),
+    };
+  }
+}
+
+/**
+ * "한걸음 더" 시트의 "적용하기" — 미리보기로 받은 데일리/루틴을 DB에 저장.
+ * daily / routine 둘 다 옵션이며, 적어도 하나는 있어야 함.
+ */
+export async function applyNextStepAction(
+  bucketId: string,
+  payload: {
+    daily?: { title: string } | null;
+    routine?: {
+      title: string;
+      repeatUnit: RoutineRepeatUnit;
+      repeatValue: number;
+    } | null;
+  }
+): Promise<{
+  success: boolean;
+  data?: { addedDailyTodos: number; addedRoutines: number };
+  error?: string;
+}> {
+  try {
+    const dailyTitle = payload.daily?.title.trim();
+    const routineTitle = payload.routine?.title.trim();
+
+    if (!dailyTitle && !routineTitle) {
+      throw new Error("적용할 항목을 선택해 주세요.");
+    }
+
+    const ctx = await loadNextStepContext(bucketId);
+
+    const dailyStartSortOrder =
+      ctx.dailyRows.reduce((max, row) => Math.max(max, row.sort_order ?? 0), -1) + 1;
+    const routineStartSortOrder =
+      ctx.routineRows.reduce((max, row) => Math.max(max, row.sort_order ?? 0), -1) + 1;
+
+    let addedDailyTodos = 0;
+    let addedRoutines = 0;
+
+    if (dailyTitle) {
+      const { error } = await ctx.supabase.from("daily_todos").insert({
+        user_id: ctx.userId,
+        bucket_id: ctx.bucket.id,
+        title: dailyTitle,
+        status: "pending",
+        source: "ai_generated" as const,
+        week_start: ctx.weekStart,
+        sort_order: dailyStartSortOrder,
+      });
+      if (error) throw error;
+      addedDailyTodos = 1;
+    }
+
+    if (routineTitle && payload.routine) {
+      const { error } = await ctx.supabase.from("routines").insert({
+        user_id: ctx.userId,
+        bucket_id: ctx.bucket.id,
+        title: routineTitle,
+        source: "ai_generated" as const,
+        repeat_unit: payload.routine.repeatUnit,
+        repeat_value: payload.routine.repeatValue,
+        is_active: true,
+        sort_order: routineStartSortOrder,
+      });
+      if (error) throw error;
+      addedRoutines = 1;
+    }
+
+    revalidatePath("/dashboard");
+
+    return { success: true, data: { addedDailyTodos, addedRoutines } };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, TODO_ERRORS.ADD_FAILED),
     };
   }
 }
