@@ -23,14 +23,13 @@ interface StrideSectionProps {
   onRegenerateAll: () => void;
   /** 발걸음 단건 다시 추천 */
   onRegenerateLevel: (level: StrideLevel) => void;
-  /** 이번 주에 담기 (현재 그대로 유지 — PR 2에서 "한걸음 더"로 변경 예정) */
-  onSubmitWeekly: () => void;
+  /** "한걸음 더" 시트 열기 — 1개 데일리 + 1개 루틴 미리보기 */
+  onOpenNextStep: () => void;
   /** 진행 상태 */
   isRegenAll: boolean;
   regeneratingLevel: StrideLevel | null;
-  isGeneratingWeekly: boolean;
-  /** 이번 주에 담기 가능 여부 (선택된 버킷 존재) */
-  canSubmitWeekly: boolean;
+  /** "한걸음 더" 시트를 열 수 있는 조건 (선택된 버킷 존재) */
+  canOpenNextStep: boolean;
   /** 초기 펼침 상태 (기본 false). 필요 시 외부에서 강제 가능 */
   defaultOpen?: boolean;
 }
@@ -41,11 +40,10 @@ export function StrideSection({
   onAddBucket,
   onRegenerateAll,
   onRegenerateLevel,
-  onSubmitWeekly,
+  onOpenNextStep,
   isRegenAll,
   regeneratingLevel,
-  isGeneratingWeekly,
-  canSubmitWeekly,
+  canOpenNextStep,
   defaultOpen = false,
 }: StrideSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -152,15 +150,14 @@ export function StrideSection({
             })}
           </div>
 
-          {/* 푸터: 이번 주에 담기 (PR 2에서 "한걸음 더"로 변경 예정) */}
+          {/* 푸터: 한걸음 더 — 새 데일리/루틴 1개씩 미리보기 시트 */}
           <Button
             type="button"
             className="w-full"
-            onClick={onSubmitWeekly}
-            isLoading={isGeneratingWeekly}
-            disabled={!canSubmitWeekly}
+            onClick={onOpenNextStep}
+            disabled={!canOpenNextStep}
           >
-            이번 주에 담기
+            한걸음 더
           </Button>
         </div>
       )}

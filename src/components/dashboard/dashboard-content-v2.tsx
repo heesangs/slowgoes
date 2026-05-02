@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LifeClockHeader } from "@/components/dashboard/life-clock-header";
+import { NextStepSheet } from "@/components/dashboard/next-step-sheet";
 import { StrideSection } from "@/components/dashboard/stride-section";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,6 @@ import { useToast } from "@/components/ui/toast";
 import { BucketList } from "@/components/buckets/bucket-list";
 import {
   generateActionTipAction,
-  generateWeeklyItemsAction,
   regenerateStrideItemAction,
   regenerateStridePlanAction,
   toggleDailyTodoAction,
@@ -113,7 +113,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [actionTip, setActionTip] = useState<string | null>(null);
   const [isTipLoading, setIsTipLoading] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
-  const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
+  // "한걸음 더" 시트 (NextStepSheet)
+  const [nextStepSheetOpen, setNextStepSheetOpen] = useState(false);
 
   // 발걸음 재생성 진행 상태 (StrideSection으로 전달)
   const [regeneratingLevel, setRegeneratingLevel] = useState<StrideLevel | null>(null);
@@ -243,30 +244,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     router.refresh();
   }
 
-  async function handleGenerateWeeklyItems() {
-    if (!data.selectedBucket?.id) {
-      toast("먼저 버킷을 선택해주세요.", "error");
-      return;
-    }
-
-    setIsGeneratingWeekly(true);
-    const result = await generateWeeklyItemsAction(data.selectedBucket.id);
-    if (!result.success) {
-      toast(result.error ?? "이번 주 항목 생성에 실패했습니다.", "error");
-      setIsGeneratingWeekly(false);
-      return;
-    }
-
-    const addedDailyTodos = result.data?.addedDailyTodos ?? 0;
-    const addedRoutines = result.data?.addedRoutines ?? 0;
-    toast(
-      `${FEATURE_NAMES.DAILY_TODO} ${addedDailyTodos}개 · ${FEATURE_NAMES.ROUTINE} ${addedRoutines}개를 추가했어요.`,
-      "success"
-    );
-    setIsGeneratingWeekly(false);
-    router.refresh();
-  }
-
   // 개별 발걸음 단계 재생성 — StrideSection의 단건 ↻ 버튼에서 호출
   async function handleRegenerateOne(level: StrideLevel) {
     if (!data.selectedBucket?.id) return;
@@ -312,13 +289,16 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         onRegenerateLevel={(level) => {
           void handleRegenerateOne(level);
         }}
-        onSubmitWeekly={() => {
-          void handleGenerateWeeklyItems();
+        onOpenNextStep={() => {
+          if (!data.selectedBucket?.id) {
+            toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
+            return;
+          }
+          setNextStepSheetOpen(true);
         }}
         isRegenAll={isRegenAll}
         regeneratingLevel={regeneratingLevel}
-        isGeneratingWeekly={isGeneratingWeekly}
-        canSubmitWeekly={!!data.selectedBucket}
+        canOpenNextStep={!!data.selectedBucket}
       />
 
       <section className="rounded-xl border border-foreground/10 px-4 py-4">
@@ -522,6 +502,14 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           }}
         />
       </BottomSheet>
+
+      {/* "한걸음 더" 시트 — StrideSection 푸터 버튼에서 진입 */}
+      <NextStepSheet
+        open={nextStepSheetOpen}
+        onClose={() => setNextStepSheetOpen(false)}
+        bucketId={data.selectedBucket?.id ?? null}
+        onApplied={() => router.refresh()}
+      />
     </div>
   );
 }
