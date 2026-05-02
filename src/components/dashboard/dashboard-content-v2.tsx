@@ -242,23 +242,14 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       <StrideSection
         bucketTitle={data.selectedBucket?.title ?? null}
         stridePlan={data.stridePlan}
-        onAddBucket={() => setFindMeSheetOpen(true)}
         onRegenerateAll={() => {
           void handleRegenerateAll();
         }}
         onRegenerateLevel={(level) => {
           void handleRegenerateOne(level);
         }}
-        onOpenNextStep={() => {
-          if (!data.selectedBucket?.id) {
-            toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
-            return;
-          }
-          setNextStepSheetOpen(true);
-        }}
         isRegenAll={isRegenAll}
         regeneratingLevel={regeneratingLevel}
-        canOpenNextStep={!!data.selectedBucket}
       />
 
       <section className="rounded-xl border border-foreground/10 px-4 py-4">
@@ -269,14 +260,22 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
               총 {totalItemsCount}개 (데일리 {data.dailyTodos.length} · 루틴 {data.routines.length})
             </p>
           </div>
-          {extraMergedCount > 0 && (
-            <Link
-              href={detailHref}
-              className="inline-flex min-h-[36px] items-center rounded-md border border-foreground/20 px-2.5 text-xs transition-colors hover:bg-foreground/5"
-            >
-              더보기 +{extraMergedCount}
-            </Link>
-          )}
+          {/* Issue 3 — "한걸음 더" 버튼을 핵심 액션으로 승격.
+              버킷 미선택 시 안내 toast로 분기. */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!data.selectedBucket?.id) {
+                toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
+                return;
+              }
+              setNextStepSheetOpen(true);
+            }}
+            disabled={!data.selectedBucket}
+            className="inline-flex min-h-[36px] items-center rounded-md border border-foreground/20 bg-foreground/[0.04] px-3 text-xs font-medium transition-colors hover:bg-foreground/[0.08] disabled:opacity-40"
+          >
+            한걸음 더
+          </button>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -327,6 +326,18 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             </div>
           )}
         </div>
+
+        {/* Issue 3 — 더보기 +N 은 카드들 아래, 우측 정렬 */}
+        {extraMergedCount > 0 && (
+          <div className="mt-3 flex justify-end">
+            <Link
+              href={detailHref}
+              className="inline-flex min-h-[36px] items-center rounded-md border border-foreground/20 px-2.5 text-xs transition-colors hover:bg-foreground/5"
+            >
+              더보기 +{extraMergedCount}
+            </Link>
+          </div>
+        )}
       </section>
 
       <button
