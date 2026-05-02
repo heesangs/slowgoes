@@ -1,14 +1,18 @@
 "use client";
 
-// "한걸음 더" 시트 — StrideSection 푸터에서 진입.
+// "한걸음 더" 시트 — "오늘의 한걸음" 섹션 헤더의 한걸음 더 버튼에서 진입.
 //
-// 동작 (DEVELOPER.md "14c. Main Dashboard Design Principles" 3번 "세분화된 통제"):
-// - 시트 진입 시 데일리 투두 1개 + 루틴 1개를 자동 미리보기 (DB 저장 X).
-// - 각 항목 옆 ↻ 부분 새로고침 — 해당 항목만 다시 추천.
-// - "적용하기"를 누를 때만 DB(daily_todos / routines)에 INSERT.
+// 흐름 (DEVELOPER.md "14c. Main Dashboard Design Principles"):
+// 1) 진입 시 모드 선택 — "데일리 투두만 / 루틴만 / 둘 다 받기"
+//    사용자 의도(보통 1개만 추가)와 시스템 동작 단위를 일치 (3번 "세분화된 통제").
+// 2) 모드 선택 후 해당 type만 자동 미리보기 (DB 저장 X).
+// 3) 각 항목 옆 ↻ 부분 새로고침 — 해당 항목만 다시 추천.
+// 4) "적용하기" 버튼을 누를 때만 daily_todos / routines 테이블에 INSERT.
 //
-// 체험판은 "2개 생성 → 사용자 선택"이지만 메인은 "1개 + 새로고침"으로
-// 한 번에 모든 결정을 강제하지 않는 흐름.
+// 안정성 메모 (Issue 1):
+// - "둘 다" 모드에서도 daily/routine을 *순차* 호출한다.
+//   동시 호출은 supabase auth 토큰 refresh race를 유발해 간헐적
+//   인증 실패("튕김")의 핫스팟이 될 수 있음.
 
 import { useEffect, useState } from "react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
@@ -26,6 +30,8 @@ import type {
 } from "@/lib/ai/analyze";
 import type { RoutineRepeatUnit } from "@/types";
 
+type NextStepMode = "daily_only" | "routine_only" | "both";
+
 interface NextStepSheetProps {
   open: boolean;
   onClose: () => void;
@@ -42,6 +48,9 @@ function formatRepeat(unit: RoutineRepeatUnit, value: number) {
 export function NextStepSheet({ open, onClose, bucketId, onApplied }: NextStepSheetProps) {
   const { toast } = useToast();
 
+  // null = 모드 선택 화면
+  const [mode, setMode] = useState<NextStepMode | null>(null);
+
   const [daily, setDaily] = useState<SingleNextStepDailyResult | null>(null);
   const [routine, setRoutine] = useState<SingleNextStepRoutineResult | null>(null);
   const [isLoadingDaily, setIsLoadingDaily] = useState(false);
@@ -50,9 +59,10 @@ export function NextStepSheet({ open, onClose, bucketId, onApplied }: NextStepSh
   const [errorRoutine, setErrorRoutine] = useState<string | null>(null);
   const [isApplying, setIsApplying] = useState(false);
 
-  // 시트가 닫힐 때 상태 초기화
+  // 시트가 닫힐 때 상태 초기화 (다음 진입 시 항상 모드 선택부터)
   useEffect(() => {
     if (!open) {
+      setMode(null);
       setDaily(null);
       setRoutine(null);
       setErrorDaily(null);
@@ -60,14 +70,27 @@ export function NextStepSheet({ open, onClose, bucketId, onApplied }: NextStepSh
     }
   }, [open]);
 
-  // 시트 진입 시 자동 미리보기 — 데일리/루틴 병렬 호출
+  // 모드 결정 후 자동 미리보기 — 둘 다 모드는 *순차* 호출 (race 차단)
   useEffect(() => {
-    if (!open || !bucketId) return;
-    void loadDaily([]);
-    void loadRoutine([]);
-    // 의도적으로 한 번만 — 재시도는 ↻ 버튼이 담당
+    if (!open || !bucketId || !mode) return;
+
+    let cancelled = false;
+    void (async () => {
+      if (mode === "daily_only" || mode === "both") {
+        await loadDaily([]);
+        if (cancelled) return;
+      }
+      if (mode === "routine_only" || mode === "both") {
+        await loadRoutine([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // 의도적으로 mode 변경 시에만 — 이후 ↻ 버튼이 재호출 담당
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, bucketId]);
+  }, [open, bucketId, mode]);
 
   async function loadDaily(excludeTitles: string[]) {
     if (!bucketId) return;
@@ -98,23 +121,30 @@ export function NextStepSheet({ open, onClose, bucketId, onApplied }: NextStepSh
   }
 
   async function handleApply() {
-    if (!bucketId) return;
-    if (!daily && !routine) {
+    if (!bucketId || !mode) return;
+
+    const includeDaily = mode === "daily_only" || mode === "both";
+    const includeRoutine = mode === "routine_only" || mode === "both";
+
+    const payload = {
+      daily: includeDaily && daily ? { title: daily.title } : null,
+      routine:
+        includeRoutine && routine
+          ? {
+              title: routine.title,
+              repeatUnit: routine.repeatUnit,
+              repeatValue: routine.repeatValue,
+            }
+          : null,
+    };
+
+    if (!payload.daily && !payload.routine) {
       toast("적용할 항목이 없어요.", "error");
       return;
     }
 
     setIsApplying(true);
-    const result = await applyNextStepAction(bucketId, {
-      daily: daily ? { title: daily.title } : null,
-      routine: routine
-        ? {
-            title: routine.title,
-            repeatUnit: routine.repeatUnit,
-            repeatValue: routine.repeatValue,
-          }
-        : null,
-    });
+    const result = await applyNextStepAction(bucketId, payload);
     setIsApplying(false);
 
     if (!result.success) {
@@ -123,18 +153,29 @@ export function NextStepSheet({ open, onClose, bucketId, onApplied }: NextStepSh
     }
 
     const added = result.data;
-    toast(
-      `${FEATURE_NAMES.DAILY_TODO} ${added?.addedDailyTodos ?? 0}개 · ${FEATURE_NAMES.ROUTINE} ${
-        added?.addedRoutines ?? 0
-      }개를 추가했어요.`,
-      "success"
-    );
+    const parts: string[] = [];
+    if ((added?.addedDailyTodos ?? 0) > 0) {
+      parts.push(`${FEATURE_NAMES.DAILY_TODO} ${added!.addedDailyTodos}개`);
+    }
+    if ((added?.addedRoutines ?? 0) > 0) {
+      parts.push(`${FEATURE_NAMES.ROUTINE} ${added!.addedRoutines}개`);
+    }
+    toast(`${parts.join(" · ") || "항목"}를 추가했어요.`, "success");
     onApplied();
     onClose();
   }
 
+  const isModeSelectStep = mode === null;
+
+  // 적용 가능 조건
   const canApply =
-    !isApplying && !isLoadingDaily && !isLoadingRoutine && (daily !== null || routine !== null);
+    !!mode &&
+    !isApplying &&
+    !isLoadingDaily &&
+    !isLoadingRoutine &&
+    ((mode === "daily_only" && daily !== null) ||
+      (mode === "routine_only" && routine !== null) ||
+      (mode === "both" && (daily !== null || routine !== null)));
 
   return (
     <BottomSheet
@@ -142,45 +183,170 @@ export function NextStepSheet({ open, onClose, bucketId, onApplied }: NextStepSh
       onClose={onClose}
       title="한걸음 더"
       footer={
-        <Button
-          type="button"
-          className="w-full"
-          onClick={() => {
-            void handleApply();
-          }}
-          isLoading={isApplying}
-          disabled={!canApply}
-        >
-          적용하기
-        </Button>
+        isModeSelectStep ? null : (
+          <Button
+            type="button"
+            className="w-full"
+            onClick={() => {
+              void handleApply();
+            }}
+            isLoading={isApplying}
+            disabled={!canApply}
+          >
+            적용하기
+          </Button>
+        )
       }
     >
-      <div className="flex flex-col gap-3 py-1">
-        <p className="text-xs text-foreground/60">
-          새 {FEATURE_NAMES.DAILY_TODO}와 {FEATURE_NAMES.ROUTINE}을 1개씩 추천해드려요. ↻로 다시
-          받을 수 있어요.
-        </p>
+      {isModeSelectStep ? (
+        <ModeSelectStep onSelect={(m) => setMode(m)} />
+      ) : (
+        <PreviewStep
+          mode={mode}
+          daily={daily}
+          routine={routine}
+          isLoadingDaily={isLoadingDaily}
+          isLoadingRoutine={isLoadingRoutine}
+          errorDaily={errorDaily}
+          errorRoutine={errorRoutine}
+          onBack={() => {
+            setMode(null);
+            setDaily(null);
+            setRoutine(null);
+            setErrorDaily(null);
+            setErrorRoutine(null);
+          }}
+          onRefreshDaily={() => {
+            void loadDaily(daily ? [daily.title] : []);
+          }}
+          onRefreshRoutine={() => {
+            void loadRoutine(routine ? [routine.title] : []);
+          }}
+        />
+      )}
+    </BottomSheet>
+  );
+}
 
-        {/* 데일리 투두 카드 */}
+// ─── 모드 선택 단계 ───────────────────────────────────────────
+
+interface ModeSelectStepProps {
+  onSelect: (mode: NextStepMode) => void;
+}
+
+function ModeSelectStep({ onSelect }: ModeSelectStepProps) {
+  return (
+    <div className="flex flex-col gap-3 py-1">
+      <p className="text-sm text-foreground/70">무엇을 더 받고 싶으세요?</p>
+      <ModeCard
+        icon="📌"
+        title={`${FEATURE_NAMES.DAILY_TODO}만`}
+        desc="이번 주에 한 번 실행할 작은 행동"
+        onClick={() => onSelect("daily_only")}
+      />
+      <ModeCard
+        icon="🔁"
+        title={`${FEATURE_NAMES.ROUTINE}만`}
+        desc="매일 또는 매주 반복할 행동"
+        onClick={() => onSelect("routine_only")}
+      />
+      <ModeCard
+        icon="✨"
+        title="둘 다 받기"
+        desc={`${FEATURE_NAMES.DAILY_TODO}와 ${FEATURE_NAMES.ROUTINE}을 함께 받아요`}
+        onClick={() => onSelect("both")}
+      />
+    </div>
+  );
+}
+
+interface ModeCardProps {
+  icon: string;
+  title: string;
+  desc: string;
+  onClick: () => void;
+}
+
+function ModeCard({ icon, title, desc, onClick }: ModeCardProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-start gap-3 rounded-xl border border-foreground/10 px-4 py-4 text-left transition-colors hover:bg-foreground/[0.04]"
+    >
+      <span className="text-2xl" aria-hidden>
+        {icon}
+      </span>
+      <div className="flex-1">
+        <p className="text-base font-semibold">{title}</p>
+        <p className="mt-0.5 text-xs text-foreground/60">{desc}</p>
+      </div>
+    </button>
+  );
+}
+
+// ─── 미리보기 단계 ───────────────────────────────────────────
+
+interface PreviewStepProps {
+  mode: NextStepMode;
+  daily: SingleNextStepDailyResult | null;
+  routine: SingleNextStepRoutineResult | null;
+  isLoadingDaily: boolean;
+  isLoadingRoutine: boolean;
+  errorDaily: string | null;
+  errorRoutine: string | null;
+  onBack: () => void;
+  onRefreshDaily: () => void;
+  onRefreshRoutine: () => void;
+}
+
+function PreviewStep({
+  mode,
+  daily,
+  routine,
+  isLoadingDaily,
+  isLoadingRoutine,
+  errorDaily,
+  errorRoutine,
+  onBack,
+  onRefreshDaily,
+  onRefreshRoutine,
+}: PreviewStepProps) {
+  const showDaily = mode === "daily_only" || mode === "both";
+  const showRoutine = mode === "routine_only" || mode === "both";
+
+  return (
+    <div className="flex flex-col gap-3 py-1">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex w-fit items-center gap-1 text-xs text-foreground/60 transition-colors hover:text-foreground"
+      >
+        <span aria-hidden>←</span>
+        <span>다른 종류 받기</span>
+      </button>
+
+      <p className="text-xs text-foreground/60">
+        ↻로 마음에 드는 추천이 나올 때까지 다시 받을 수 있어요.
+      </p>
+
+      {showDaily && (
         <PreviewCard
           label={FEATURE_NAMES.DAILY_TODO}
           isLoading={isLoadingDaily}
           error={errorDaily}
-          onRefresh={() => {
-            void loadDaily(daily ? [daily.title] : []);
-          }}
+          onRefresh={onRefreshDaily}
         >
           {daily && <p className="text-sm font-medium">{daily.title}</p>}
         </PreviewCard>
+      )}
 
-        {/* 루틴 카드 */}
+      {showRoutine && (
         <PreviewCard
           label={FEATURE_NAMES.ROUTINE}
           isLoading={isLoadingRoutine}
           error={errorRoutine}
-          onRefresh={() => {
-            void loadRoutine(routine ? [routine.title] : []);
-          }}
+          onRefresh={onRefreshRoutine}
         >
           {routine && (
             <>
@@ -191,8 +357,8 @@ export function NextStepSheet({ open, onClose, bucketId, onApplied }: NextStepSh
             </>
           )}
         </PreviewCard>
-      </div>
-    </BottomSheet>
+      )}
+    </div>
   );
 }
 
