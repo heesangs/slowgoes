@@ -1,56 +1,16 @@
 "use client";
 
-// 메인 라우트 그룹의 상단 헤더
-// - 기본 경로 (/dashboard, /actions, /review, /profile 등): 로고 + 우측 아이콘 액션
-// - /buckets 계열: 뒤로가기 + 페이지 제목 (집중 모드)
+// 메인 라우트 그룹의 상단 헤더 — 로고 + 우측 아이콘 액션.
 //
-// 페이지 단위 헤더 분기를 위해 client component 로 분리.
+// 이전엔 /buckets 계열에서 뒤로가기 헤더로 분기했지만, /buckets 페이지 자체가
+// 폐기되어(메인 대시보드 + "숨은 나 찾기" 시트로 흡수) 분기 자체가 사라졌다.
+//
 // (main)/layout.tsx 는 server component 로 유지하면서 헤더만 client 로 위임.
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 
 export function MainHeader() {
-  const pathname = usePathname();
-  const router = useRouter();
-
-  const isBucketsRoute =
-    pathname === "/buckets" || pathname.startsWith("/buckets/");
-
-  if (isBucketsRoute) {
-    // 뒤로가기 헤더 — /buckets 와 /buckets/[id] 모두 적용
-    const title = pathname === "/buckets" ? "버킷 관리" : "버킷 상세";
-    return (
-      <header className="border-b border-foreground/10 px-4 py-3">
-        <div className="mx-auto flex max-w-2xl items-center gap-2">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:bg-foreground/5"
-            aria-label="뒤로가기"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.75 19.5L8.25 12l7.5-7.5"
-              />
-            </svg>
-          </button>
-          <p className="text-base font-semibold">{title}</p>
-        </div>
-      </header>
-    );
-  }
-
-  // 기본 헤더 — 로고 + 우측 아이콘
   return (
     <header className="border-b border-foreground/10 px-4 py-3">
       <div className="mx-auto flex max-w-2xl items-center justify-between">

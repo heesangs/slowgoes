@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type {
-  Bucket,
   DemoSceneItem,
-  ExistingBucketContext,
   Gender,
   OnboardingSceneCategory,
   PaceType,
@@ -21,7 +19,6 @@ import { StepProfile } from "./onboarding/step-profile";
 import { StepScene } from "./onboarding/step-scene";
 import { StepAnalysis } from "./onboarding/step-analysis";
 import { StepConfirm } from "./onboarding/step-confirm";
-import { BucketSelect } from "./onboarding/bucket-select";
 
 interface OnboardingFormProps {
   mode?: "default" | "demo";
@@ -33,8 +30,7 @@ interface OnboardingFormProps {
     paceType?: PaceType;
     selfLevel?: SelfLevel;
   } | null;
-  // 바텀시트 모드: 기존 버킷 목록 + 완료 콜백
-  existingBuckets?: Array<Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at">>;
+  // 바텀시트 모드 — 완료 시 호출되는 콜백 (없으면 페이지 redirect)
   onComplete?: () => void;
   // sessionStorage 보존 키 (대시보드 탐색 모드에서만 사용)
   sessionKey?: string;
@@ -44,19 +40,15 @@ export function OnboardingForm({
   mode = "default",
   startStep,
   prefillProfile,
-  existingBuckets,
   onComplete,
   sessionKey,
 }: OnboardingFormProps) {
   const isDemo = mode === "demo";
   const initialStep = startStep === 2 ? 2 : 1;
-  const hasBuckets = (existingBuckets?.length ?? 0) > 0;
   const isProfileStep = initialStep === 1;
 
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState(initialStep);
-  const [showBucketSelect, setShowBucketSelect] = useState(hasBuckets);
-  const [selectedExistingBucket, setSelectedExistingBucket] = useState<ExistingBucketContext | null>(null);
 
   // Step 1 상태
   const [age, setAge] = useState<number | null>(prefillProfile?.age ?? null);
@@ -197,7 +189,8 @@ export function OnboardingForm({
     selectedDailyTodo,
     selectedRoutineTitles,
     selectedSeasonAction,
-    selectedExistingBucket,
+    // PR 3 이후 시트는 항상 새 버킷 생성. "기존 버킷에 추가" 흐름은 폐기됨.
+    selectedExistingBucket: null,
     onComplete,
     clearDraft,
     setError,
@@ -303,40 +296,7 @@ export function OnboardingForm({
 
   function handleBack() {
     setError(null);
-
-    if (hasBuckets) {
-      if (step === 3 && selectedExistingBucket) {
-        setSelectedExistingBucket(null);
-        setShowBucketSelect(true);
-        return;
-      }
-      if (step === 2) {
-        setShowBucketSelect(true);
-        return;
-      }
-    }
-
     setStep((prev) => Math.max(1, prev - 1));
-  }
-
-  function handleSelectExistingBucket(bucket: Pick<Bucket, "id" | "title">) {
-    setError(null);
-    const context: ExistingBucketContext = { bucketId: bucket.id, bucketTitle: bucket.title };
-    setSelectedExistingBucket(context);
-    setShowBucketSelect(false);
-    setCustomSceneInput(bucket.title);
-    setSelectedDemoScene(null);
-    resetAnalysisState();
-    setStep(3);
-  }
-
-  function handleNewBucketFromSelect() {
-    setError(null);
-    setSelectedExistingBucket(null);
-    setShowBucketSelect(false);
-    setCustomSceneInput("");
-    setSelectedDemoScene(null);
-    setStep(2);
   }
 
   const stepIndicator = (
@@ -355,17 +315,9 @@ export function OnboardingForm({
 
   return (
     <div className="flex flex-col gap-6">
-      {!showBucketSelect && stepIndicator}
+      {stepIndicator}
 
-      {showBucketSelect && existingBuckets && (
-        <BucketSelect
-          existingBuckets={existingBuckets}
-          onSelectBucket={handleSelectExistingBucket}
-          onNewBucket={handleNewBucketFromSelect}
-        />
-      )}
-
-      {!showBucketSelect && step === 1 && isProfileStep && (
+      {step === 1 && isProfileStep && (
         <StepProfile
           age={age}
           gender={gender}
@@ -388,7 +340,7 @@ export function OnboardingForm({
         />
       )}
 
-      {!showBucketSelect && step === 2 && (
+      {step === 2 && (
         <StepScene
           age={age}
           gender={gender}
@@ -416,7 +368,7 @@ export function OnboardingForm({
         />
       )}
 
-      {!showBucketSelect && step === 3 && (
+      {step === 3 && (
         <StepAnalysis
           isAnalyzingLifeScene={isAnalyzingLifeScene}
           lifeSceneAnalysis={lifeSceneAnalysis}
@@ -433,7 +385,7 @@ export function OnboardingForm({
         />
       )}
 
-      {!showBucketSelect && step === 4 && (
+      {step === 4 && (
         <StepConfirm
           selectedSceneText={selectedSceneText}
           lifeSceneAnalysis={lifeSceneAnalysis}
