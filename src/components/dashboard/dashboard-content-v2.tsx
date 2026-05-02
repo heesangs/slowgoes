@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { FindMeSheet } from "@/components/dashboard/find-me-sheet";
 import { LifeClockHeader } from "@/components/dashboard/life-clock-header";
 import { NextStepSheet } from "@/components/dashboard/next-step-sheet";
 import { StrideSection } from "@/components/dashboard/stride-section";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
-import { OnboardingForm } from "@/components/auth/onboarding-form";
 import { useToast } from "@/components/ui/toast";
-import { BucketList } from "@/components/buckets/bucket-list";
 import {
   generateActionTipAction,
   regenerateStrideItemAction,
@@ -18,25 +17,18 @@ import {
   toggleDailyTodoAction,
   toggleRoutineCompletionAction,
 } from "@/app/(main)/dashboard/actions";
-import { getBucketManagementDataAction } from "@/app/(main)/buckets/actions";
 import { cn } from "@/lib/utils";
 import { FEATURE_NAMES } from "@/lib/constants";
 import type {
   ActionLogItemType,
-  Bucket,
   DailyTodo,
   DashboardV2Data,
   Gender,
-  LifeArea,
   PersonalityType,
   RoutineWithCompletion,
   StrideLevel,
   SuggestedRoutine,
 } from "@/types";
-
-type BucketRowFull = Bucket & {
-  life_area?: Pick<LifeArea, "id" | "name"> | null;
-};
 
 interface DashboardContentV2Props {
   data: DashboardV2Data;
@@ -73,42 +65,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const router = useRouter();
 
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
-  const [bucketEntrySheetOpen, setBucketEntrySheetOpen] = useState(false);
-  const [bucketManageSheetOpen, setBucketManageSheetOpen] = useState(false);
-  const [bucketManageData, setBucketManageData] = useState<{
-    buckets: BucketRowFull[];
-    lifeAreas: Pick<LifeArea, "id" | "name">[];
-  } | null>(null);
-  const [bucketManageLoading, setBucketManageLoading] = useState(false);
-  const [bucketManageError, setBucketManageError] = useState<string | null>(null);
-  const [bucketManageDirty, setBucketManageDirty] = useState(false);
-  const [explorationSheetOpen, setExplorationSheetOpen] = useState(false);
+  // "숨은 나 찾기" 시트 — + 버튼의 단일 진입점.
+  // 시트 안에서 "내 버킷 (전환)" / "새 장면 탐색" 모드 스위칭.
+  const [findMeSheetOpen, setFindMeSheetOpen] = useState(false);
 
-  async function openBucketManageSheet() {
-    setBucketEntrySheetOpen(false);
-    setBucketManageSheetOpen(true);
-    setBucketManageError(null);
-    setBucketManageDirty(false);
-    setBucketManageLoading(true);
-    try {
-      const result = await getBucketManagementDataAction();
-      if (!result.success || !result.data) {
-        setBucketManageError(result.error ?? "버킷 데이터를 불러오지 못했습니다.");
-        setBucketManageData({ buckets: [], lifeAreas: [] });
-        return;
-      }
-      setBucketManageData(result.data);
-    } finally {
-      setBucketManageLoading(false);
-    }
-  }
-
-  function closeBucketManageSheet() {
-    setBucketManageSheetOpen(false);
-    if (bucketManageDirty) {
-      router.refresh();
-    }
-  }
   const [selectedActionItem, setSelectedActionItem] = useState<ActionSheetItem | null>(null);
   const [actionTip, setActionTip] = useState<string | null>(null);
   const [isTipLoading, setIsTipLoading] = useState(false);
@@ -282,7 +242,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       <StrideSection
         bucketTitle={data.selectedBucket?.title ?? null}
         stridePlan={data.stridePlan}
-        onAddBucket={() => setBucketEntrySheetOpen(true)}
+        onAddBucket={() => setFindMeSheetOpen(true)}
         onRegenerateAll={() => {
           void handleRegenerateAll();
         }}
@@ -371,7 +331,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
 
       <button
         type="button"
-        onClick={() => setBucketEntrySheetOpen(true)}
+        onClick={() => setFindMeSheetOpen(true)}
         className="fixed bottom-6 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-2xl text-background shadow-lg transition-opacity hover:opacity-90"
         aria-label="버킷 추가"
       >
@@ -428,80 +388,21 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       </BottomSheet>
 
 
-      {/* 버킷 추가 진입 선택 시트 — 관리 vs 새로 생성 */}
-      <BottomSheet
-        open={bucketEntrySheetOpen}
-        onClose={() => setBucketEntrySheetOpen(false)}
-        title="버킷"
-      >
-        <div className="flex flex-col gap-3 py-2">
-          <button
-            type="button"
-            onClick={() => {
-              void openBucketManageSheet();
-            }}
-            className="flex flex-col items-start gap-1 rounded-xl border border-foreground/10 px-4 py-4 text-left transition-colors hover:bg-foreground/5"
-          >
-            <span className="text-base font-semibold">버킷리스트 관리</span>
-            <span className="text-xs text-foreground/60">기존 버킷을 보고 수정하거나 정리해요</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setBucketEntrySheetOpen(false);
-              setExplorationSheetOpen(true);
-            }}
-            className="flex flex-col items-start gap-1 rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-4 text-left transition-colors hover:bg-foreground/10"
-          >
-            <span className="text-base font-semibold">버킷리스트 생성</span>
-            <span className="text-xs text-foreground/60">새로운 장면을 탐색해 새 버킷을 만들어요</span>
-          </button>
-        </div>
-      </BottomSheet>
 
-      {/* 버킷리스트 관리 바텀시트 — lazy fetch 후 BucketList 렌더 */}
-      <BottomSheet
-        open={bucketManageSheetOpen}
-        onClose={closeBucketManageSheet}
-        title="버킷 관리"
-        size="large"
-      >
-        {bucketManageLoading && (
-          <p className="py-6 text-center text-sm text-foreground/60">
-            버킷을 불러오는 중...
-          </p>
-        )}
-
-        {!bucketManageLoading && bucketManageData && (
-          <BucketList
-            initialBuckets={bucketManageData.buckets}
-            lifeAreas={bucketManageData.lifeAreas}
-            fetchError={bucketManageError ?? undefined}
-            onChanged={() => setBucketManageDirty(true)}
-            onNavigateDetail={() => setBucketManageSheetOpen(false)}
-          />
-        )}
-      </BottomSheet>
-
-      {/* 탐색 바텀시트 — 버킷 추가 전체 플로우 */}
-      <BottomSheet
-        open={explorationSheetOpen}
-        onClose={() => setExplorationSheetOpen(false)}
-        title={FEATURE_NAMES.FIND_ME}
-        size="large"
-      >
-        <OnboardingForm
-          startStep={2}
-          prefillProfile={prefillProfile}
-          existingBuckets={data.buckets}
-          sessionKey="slowgoes_dashboard_exploration_v1"
-          onComplete={() => {
-            setExplorationSheetOpen(false);
-            router.refresh();
-            toast("새로운 행동이 추가되었어요 ✨", "success");
-          }}
-        />
-      </BottomSheet>
+      {/* "숨은 나 찾기" 시트 — + 버튼의 단일 진입점.
+          시트 안에서 "내 버킷 (전환)" / "새 장면 탐색" 모드 스위칭. */}
+      <FindMeSheet
+        open={findMeSheetOpen}
+        onClose={() => setFindMeSheetOpen(false)}
+        buckets={data.buckets.map((b) => ({ id: b.id, title: b.title }))}
+        selectedBucketId={data.selectedBucket?.id ?? null}
+        prefillProfile={prefillProfile}
+        onExplorationComplete={() => {
+          setFindMeSheetOpen(false);
+          router.refresh();
+          toast("새로운 행동이 추가되었어요 ✨", "success");
+        }}
+      />
 
       {/* "한걸음 더" 시트 — StrideSection 푸터 버튼에서 진입 */}
       <NextStepSheet
