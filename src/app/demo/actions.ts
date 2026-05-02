@@ -43,6 +43,7 @@ export async function demoAnalyzeLifeSceneAction(data: {
   age: number;
   gender: Gender;
   personalityType: PersonalityType;
+  lifeAreaHint?: string | null;
 }): Promise<{
   success: boolean;
   data?: LifeSceneAnalysisResult;
@@ -68,6 +69,7 @@ export async function demoAnalyzeLifeSceneAction(data: {
       age: data.age,
       gender: data.gender,
       personalityType: data.personalityType,
+      lifeAreaHint: data.lifeAreaHint ?? null,
     });
 
     return { success: true, data: analysis };

@@ -58,7 +58,7 @@ export default function DemoCompletePage() {
           <p className="text-xs font-medium text-foreground/60">체험 결과 요약</p>
           <h1 className="mt-1 text-xl font-semibold">{result.sceneText}</h1>
           <p className="mt-2 text-sm text-foreground/70">
-            {FEATURE_NAMES.LIFE_AREA}: {result.lifeArea}
+            영역: {result.lifeArea}
           </p>
           <p className="mt-1 text-sm text-foreground/70">
             공감 메시지: {result.stridePlan.empathyMessage}
@@ -66,7 +66,7 @@ export default function DemoCompletePage() {
         </div>
 
         <div className="rounded-xl border border-foreground/10 p-5">
-          <p className="text-sm font-medium">데일리투두</p>
+          <p className="text-sm font-medium">{FEATURE_NAMES.DAILY_TODO}</p>
           <div className="mt-3 space-y-2">
             {result.selectedDailyTodos.length > 0 ? (
               result.selectedDailyTodos.map((item, index) => (
@@ -78,13 +78,15 @@ export default function DemoCompletePage() {
                 </div>
               ))
             ) : (
-              <p className="text-sm text-foreground/60">선택된 데일리투두가 없어요.</p>
+              <p className="text-sm text-foreground/60">
+                선택된 {FEATURE_NAMES.DAILY_TODO}가 없어요.
+              </p>
             )}
           </div>
         </div>
 
         <div className="rounded-xl border border-foreground/10 p-5">
-          <p className="text-sm font-medium">루틴</p>
+          <p className="text-sm font-medium">{FEATURE_NAMES.ROUTINE}</p>
           <div className="mt-3 space-y-2">
             {result.selectedRoutines.length > 0 ? (
               result.selectedRoutines.map((routine, index) => (
@@ -99,7 +101,9 @@ export default function DemoCompletePage() {
                 </div>
               ))
             ) : (
-              <p className="text-sm text-foreground/60">선택된 루틴이 없어요.</p>
+              <p className="text-sm text-foreground/60">
+                선택된 {FEATURE_NAMES.ROUTINE}이 없어요.
+              </p>
             )}
           </div>
         </div>

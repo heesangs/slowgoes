@@ -34,7 +34,7 @@ export function StepConfirm({
       </div>
 
       <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-4">
-        <p className="mb-1 text-xs text-foreground/50">{FEATURE_NAMES.LIFE_SCENE}</p>
+        <p className="mb-1 text-xs text-foreground/50">선택한 장면</p>
         <p className="text-sm font-medium">{selectedSceneText}</p>
         {lifeSceneAnalysis?.lifeArea && (
           <p className="mt-1 text-xs text-foreground/50">영역: {lifeSceneAnalysis.lifeArea}</p>
@@ -42,7 +42,7 @@ export function StepConfirm({
       </div>
 
       <div className="rounded-xl border border-foreground/10 px-4 py-4">
-        <p className="text-xs text-foreground/50">데일리투두</p>
+        <p className="text-xs text-foreground/50">{FEATURE_NAMES.DAILY_TODO}</p>
         {selectedDailyTodo ? (
           <p className="mt-1 text-sm font-medium">{selectedDailyTodo}</p>
         ) : (
@@ -51,7 +51,7 @@ export function StepConfirm({
       </div>
 
       <div className="rounded-xl border border-foreground/10 px-4 py-4">
-        <p className="text-xs text-foreground/50">루틴</p>
+        <p className="text-xs text-foreground/50">{FEATURE_NAMES.ROUTINE}</p>
         {selectedRoutineTitles.length > 0 ? (
           <div className="mt-2 flex flex-col gap-2">
             {lifeSceneAnalysis?.suggestedRoutines

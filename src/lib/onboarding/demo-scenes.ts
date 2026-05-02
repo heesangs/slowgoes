@@ -1,3 +1,4 @@
+import type { LifeCategory } from "@/components/auth/onboarding/constants";
 import type { DemoSceneItem, Gender, OnboardingSceneCategory, PersonalityType } from "@/types";
 
 type AgeGroup = "teen" | "young_adult" | "adult";
@@ -251,17 +252,62 @@ const SEED_BY_PERSONA: Partial<
   },
 };
 
+// 영역(life category)별 시드 — 페르소나와 무관하게 항상 가산되는 핵심 차별화 데이터.
+// 카테고리마다 4개 + "직접 입력 ✏️" 자리를 보장하기 위해 4개씩 두고, 호출부에서 직접 입력 옵션을 항상 마지막에 보장.
+const LIFE_AREA_SEED: Record<LifeCategory, string[]> = {
+  experience: [
+    "해외에서 한 달 살아보기",
+    "버킷리스트 여행 떠나기",
+    "새로운 취미 한 가지 시작하기",
+    "꼭 가보고 싶던 공간 방문하기",
+  ],
+  growth: [
+    "새로운 기술 익혀보기",
+    "꾸준히 책 읽는 습관 만들기",
+    "관심 분야 작은 프로젝트 완성하기",
+    "1년 뒤의 나에게 자랑할 일 만들기",
+  ],
+  // "일/돈"을 흡수 — 커리어·재정·소유 모두 포괄
+  possession: [
+    "내 집 마련 준비 시작하기",
+    "사이드 프로젝트로 수익 만들기",
+    "월 생활비 안정화하기",
+    "전문성 있는 커리어로 자리잡기",
+  ],
+  relationship: [
+    "부모님과 정기적으로 연락하기",
+    "오래된 친구와 시간 만들기",
+    "가족과 의미 있는 추억 남기기",
+    "고마운 사람에게 마음 전하기",
+  ],
+  health: [
+    "주 3회 운동 루틴 만들기",
+    "식단 가볍게 정리하기",
+    "수면 시간 안정적으로 확보하기",
+    "정기 건강검진 챙기기",
+  ],
+  inner: [
+    "일주일 한 번 회고하기",
+    "하루 10분 명상하기",
+    "감정 일기 시작하기",
+    "마음이 편해지는 나만의 공간 만들기",
+  ],
+};
+
 function getAgeGroup(age: number): AgeGroup {
   if (age <= 19) return "teen";
   if (age <= 34) return "young_adult";
   return "adult";
 }
 
+const DIRECT_INPUT_LABEL = "직접 입력 ✏️";
+
 function dedupeAndLimit(items: string[], limit = 7) {
   const unique: string[] = [];
   for (const item of items) {
     const normalized = item.trim();
     if (!normalized) continue;
+    if (normalized === DIRECT_INPUT_LABEL) continue; // 항상 마지막에 보장하기 위해 중간엔 제외
     if (unique.includes(normalized)) continue;
     unique.push(normalized);
     if (unique.length >= limit) break;
@@ -279,6 +325,8 @@ export function getSceneCategoryOptions(): OnboardingSceneCategory[] {
 
 export function getDemoScenes(params: {
   category: OnboardingSceneCategory["key"];
+  /** 6개 UI 카테고리. 영역별 시드를 항상 우선 가산해 카테고리 간 차별화를 보장한다. */
+  lifeCategory?: LifeCategory;
   age: number;
   gender: Gender;
   personalityType: PersonalityType;
@@ -289,12 +337,16 @@ export function getDemoScenes(params: {
   const group = toPersonalityGroup(params.personalityType);
   const seedFromPersona =
     SEED_BY_PERSONA[ageGroup]?.[params.gender]?.[group]?.[category] ?? [];
+  const seedFromLifeArea = params.lifeCategory ? LIFE_AREA_SEED[params.lifeCategory] : [];
   const seedDefault = DEFAULT_SEED[category];
 
-  const merged = dedupeAndLimit([...seedFromPersona, ...seedDefault], 7);
-  return merged.map((text, index) => ({
+  // 우선순위: 영역별 → 페르소나 → 기본. 끝에 항상 "직접 입력 ✏️" 보장.
+  const merged = dedupeAndLimit([...seedFromLifeArea, ...seedFromPersona, ...seedDefault], 7);
+  const items: DemoSceneItem[] = merged.map((text, index) => ({
     id: `${category}-${index}`,
     text,
     category,
   }));
+  items.push({ id: `${category}-direct`, text: DIRECT_INPUT_LABEL, category });
+  return items;
 }

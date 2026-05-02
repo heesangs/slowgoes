@@ -9,7 +9,6 @@ import {
 import type {
   ActionLogItemType,
   AISubtaskSuggestion,
-  BucketDecompositionSuggestion,
   Difficulty,
   FirstStepPlanResult,
   Gender,
@@ -608,6 +607,8 @@ interface AnalyzeLifeSceneInput {
   gender: Gender;
   personalityType: PersonalityType;
   strideScope?: StrideScope | null;
+  /** UI 카테고리에서 추론한 lifeArea 힌트 — AI가 더 적합한 영역으로 분류해도 무방. */
+  lifeAreaHint?: string | null;
 }
 
 interface GenerateFirstStepInput {
@@ -638,13 +639,6 @@ interface DifficultyLearningHint {
   averageTimeMultiplier: number | null;
   sampleSize: number;
   note: string;
-}
-
-interface DecomposeBucketInput {
-  bucketTitle: string;
-  strideScope: StrideScope;
-  profile: Profile | null;
-  existingChapterTitles?: string[];
 }
 
 interface GenerateWeeklyItemsInput {
@@ -801,98 +795,6 @@ function buildDifficultyLearningPromptBlock(
 - 참고 메모: ${learning.note}`;
 }
 
-function buildFallbackBucketSuggestions(
-  bucketTitle: string,
-  strideScope: StrideScope
-): BucketDecompositionSuggestion[] {
-  const scopeLabel = STRIDE_LABELS[strideScope];
-  const base = bucketTitle.trim();
-  const firstActionDuration =
-    strideScope === "this_season" || strideScope === "this_year" ? "15분" : "10분";
-
-  return [
-    {
-      chapterTitle: `${base} 준비 루틴 만들기`,
-      chapterDescription: `${scopeLabel} 목표를 시작하기 위한 기본 루틴을 정리합니다.`,
-      firstAction: `${firstActionDuration} 동안 시작 체크리스트 3개 작성하기`,
-    },
-    {
-      chapterTitle: `${base} 실행 환경 정돈하기`,
-      chapterDescription: `실행을 막는 방해 요소를 줄이고 바로 시작 가능한 환경을 만듭니다.`,
-      firstAction: "지금 당장 방해 요소 1개 제거하고 실행 장소 정리하기",
-    },
-    {
-      chapterTitle: `${base} 첫 결과 만들기`,
-      chapterDescription: `작은 결과물을 빠르게 만들어 동력을 확보합니다.`,
-      firstAction: "오늘 끝낼 수 있는 최소 결과물 1개 정의하고 10분 시작하기",
-    },
-  ];
-}
-
-function normalizeBucketSuggestions(
-  rawSuggestions: unknown,
-  bucketTitle: string,
-  strideScope: StrideScope,
-  existingChapterTitles: string[]
-): BucketDecompositionSuggestion[] {
-  if (!Array.isArray(rawSuggestions)) {
-    return buildFallbackBucketSuggestions(bucketTitle, strideScope);
-  }
-
-  const existingSet = new Set(existingChapterTitles.map((title) => title.trim()));
-  const normalized = rawSuggestions
-    .map((row) => {
-      const item = row as {
-        chapterTitle?: unknown;
-        chapter_title?: unknown;
-        title?: unknown;
-        chapterDescription?: unknown;
-        chapter_description?: unknown;
-        description?: unknown;
-        firstAction?: unknown;
-        first_action?: unknown;
-      };
-
-      const chapterTitle =
-        toNonEmptyText(item.chapterTitle) ??
-        toNonEmptyText(item.chapter_title) ??
-        toNonEmptyText(item.title);
-
-      const chapterDescription =
-        toNonEmptyText(item.chapterDescription) ??
-        toNonEmptyText(item.chapter_description) ??
-        toNonEmptyText(item.description);
-
-      const firstAction =
-        toNonEmptyText(item.firstAction) ??
-        toNonEmptyText(item.first_action);
-
-      if (!chapterTitle || !chapterDescription || !firstAction) {
-        return null;
-      }
-
-      if (existingSet.has(chapterTitle)) {
-        return null;
-      }
-
-      return {
-        chapterTitle,
-        chapterDescription,
-        firstAction,
-      };
-    })
-    .filter((row): row is BucketDecompositionSuggestion => Boolean(row))
-    .slice(0, 4);
-
-  if (normalized.length > 0) {
-    return normalized;
-  }
-
-  return buildFallbackBucketSuggestions(bucketTitle, strideScope)
-    .filter((item) => !existingSet.has(item.chapterTitle))
-    .slice(0, 3);
-}
-
 /**
  * 할 일을 3~7개 하위 과제로 분해
  */
@@ -988,6 +890,10 @@ export async function analyzeLifeScene(
   const scopeHintLine = strideScope
     ? `- 버킷의 중심 발걸음 힌트: ${STRIDE_LABELS[strideScope]} (${strideScope})`
     : "- 버킷의 중심 발걸음 힌트: 자동 판단";
+  const lifeAreaHint = input.lifeAreaHint?.trim() || null;
+  const lifeAreaHintLine = lifeAreaHint
+    ? `- 사용자가 선택한 영역 힌트: ${lifeAreaHint} (다른 영역이 더 자연스러우면 그쪽으로 분류해도 됩니다)`
+    : "- 사용자가 선택한 영역 힌트: 자동 판단";
 
   const prompt = `당신은 slowgoes 앱의 온보딩 AI 코치입니다.
 사용자의 삶의 장면을 다음 3가지로 분해하세요.
@@ -1009,6 +915,7 @@ export async function analyzeLifeScene(
 - 성향: ${input.personalityType}
 - 삶의 장면: "${sceneText}"
 ${scopeHintLine}
+${lifeAreaHintLine}
 
 규칙:
 - 문장은 한국어로 작성
@@ -1579,77 +1486,6 @@ ${subtaskLabel}: "${parentTitle}"
   }));
 
   return applyDifficultyLearning(normalized, difficultyLearning, 5, 60);
-}
-
-/**
- * 버킷(삶의 장면)을 2~4개의 챕터 + 첫 행동으로 분해
- */
-export async function decomposeBucket(
-  input: DecomposeBucketInput
-): Promise<BucketDecompositionSuggestion[]> {
-  const bucketTitle = input.bucketTitle.trim();
-  if (!bucketTitle) {
-    throw new Error(BUCKET_ERRORS.TITLE_EMPTY);
-  }
-
-  const existingChapterTitles = (input.existingChapterTitles ?? [])
-    .map((title) => title.trim())
-    .filter(Boolean)
-    .slice(0, 12);
-
-  const personalityPaceBlock = buildPersonalityPacePromptBlock(input.profile);
-  const scopeLabel = STRIDE_LABELS[input.strideScope];
-
-  const prompt = `당신은 slowgoes 앱의 버킷 분해 코치입니다.
-사용자의 큰 삶의 장면(버킷)을 챕터 단위 목표로 나누고, 각 챕터마다 심리적 부담이 낮은 첫 행동을 제안하세요.
-
-입력 정보:
-- 버킷: "${bucketTitle}"
-- 나의 발걸음: ${scopeLabel}
-- 성향: ${input.profile?.personality_type ?? "미정"}
-- 페이스: ${input.profile?.pace_type ?? "미정"}
-- 기존 챕터 제목: ${existingChapterTitles.length > 0 ? existingChapterTitles.join(" | ") : "없음"}
-
-성향/페이스 적용 규칙:
-${personalityPaceBlock}
-
-출력 규칙:
-- 2~4개의 챕터를 제안
-- 챕터 제목은 중복 없이 구체적인 실행 문장으로 작성
-- 챕터 설명은 한 문장(20~60자)
-- firstAction은 지금 당장 시작 가능한 가장 작은 행동(5~20분)
-- 전체 문장은 한국어
-- 기존 챕터 제목과 겹치는 제안은 피함
-
-반드시 아래 JSON 배열 형식으로만 응답하세요:
-[
-  {
-    "chapterTitle": "챕터 제목",
-    "chapterDescription": "챕터 설명",
-    "firstAction": "부담이 낮은 첫 행동"
-  }
-]`;
-
-  let parsed: unknown;
-  try {
-    const result = await geminiModel.generateContent(prompt);
-    parsed = parseJsonResponse(result.response.text());
-  } catch (error) {
-    throw mapGeminiError(error);
-  }
-
-  const suggestions = normalizeBucketSuggestions(
-    parsed,
-    bucketTitle,
-    input.strideScope,
-    existingChapterTitles
-  );
-
-  if (suggestions.length === 0) {
-    throw new Error(BUCKET_ERRORS.DECOMPOSE_RESULT_EMPTY);
-  }
-
-  return suggestions;
 }
 
 /**

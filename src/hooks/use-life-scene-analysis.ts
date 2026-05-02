@@ -13,6 +13,8 @@ interface UseLifeSceneAnalysisParams {
   gender: Gender | null;
   personalityType: PersonalityType | null;
   selectedSceneText: string;
+  /** Step 2에서 사용자가 고른 카테고리의 lifeArea 힌트 (옵션) */
+  lifeAreaHint?: string | null;
   setError: (error: string | null) => void;
 }
 
@@ -23,6 +25,7 @@ export function useLifeSceneAnalysis({
   gender,
   personalityType,
   selectedSceneText,
+  lifeAreaHint,
   setError,
 }: UseLifeSceneAnalysisParams) {
   const [lifeSceneAnalysis, setLifeSceneAnalysis] = useState<LifeSceneAnalysisResult | null>(null);
@@ -69,9 +72,16 @@ export function useLifeSceneAnalysis({
         setSelectedRoutineTitles([]);
       }
 
+      const payload = {
+        sceneText: selectedSceneText,
+        age,
+        gender,
+        personalityType,
+        lifeAreaHint: lifeAreaHint ?? null,
+      };
       const result = await (isDemo
-        ? demoAnalyzeLifeSceneAction({ sceneText: selectedSceneText, age, gender, personalityType })
-        : analyzeLifeSceneAction({ sceneText: selectedSceneText, age, gender, personalityType }));
+        ? demoAnalyzeLifeSceneAction(payload)
+        : analyzeLifeSceneAction(payload));
 
       if (!result.success || !result.data) {
         setError(result.error ?? "삶의 장면 분석 중 오류가 발생했습니다.");
@@ -97,6 +107,7 @@ export function useLifeSceneAnalysis({
       age,
       gender,
       isDemo,
+      lifeAreaHint,
       lifeSceneAnalysis,
       personalityType,
       selectedSceneText,

@@ -278,7 +278,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
 
     const addedDailyTodos = result.data?.addedDailyTodos ?? 0;
     const addedRoutines = result.data?.addedRoutines ?? 0;
-    toast(`데일리투두 ${addedDailyTodos}개 · 루틴 ${addedRoutines}개를 추가했어요.`, "success");
+    toast(
+      `${FEATURE_NAMES.DAILY_TODO} ${addedDailyTodos}개 · ${FEATURE_NAMES.ROUTINE} ${addedRoutines}개를 추가했어요.`,
+      "success"
+    );
     setIsGeneratingWeekly(false);
     setStrideSheetOpen(false);
     router.refresh();
@@ -420,7 +423,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
               }}
               className="w-full rounded-lg border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-left transition-colors hover:bg-foreground/[0.05]"
             >
-              <p className="text-xs text-foreground/60">데일리투두</p>
+              <p className="text-xs text-foreground/60">{FEATURE_NAMES.DAILY_TODO}</p>
               <p className={cn("mt-0.5 text-sm font-medium", firstDailyTodo.status === "completed" && "line-through text-foreground/45")}>
                 {firstDailyTodo.title}
               </p>
@@ -428,7 +431,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             </button>
           ) : (
             <div className="rounded-lg border border-dashed border-foreground/20 px-3 py-3 text-sm text-foreground/60">
-              이번 주 데일리투두가 아직 없어요.
+              이번 주 {FEATURE_NAMES.DAILY_TODO}가 아직 없어요.
             </div>
           )}
 
@@ -527,7 +530,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           <div className="flex flex-col gap-3">
             <div className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-3">
               <p className="text-xs text-foreground/60">
-                {selectedActionItem.type === "daily_todo" ? "데일리투두" : "루틴"}
+                {selectedActionItem.type === "daily_todo" ? FEATURE_NAMES.DAILY_TODO : FEATURE_NAMES.ROUTINE}
               </p>
               <p className="mt-0.5 text-sm font-medium">{selectedActionItem.title}</p>
               {selectedActionItem.bucketTitle && (
@@ -799,7 +802,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       <BottomSheet
         open={explorationSheetOpen}
         onClose={() => setExplorationSheetOpen(false)}
-        title={FEATURE_NAMES.FIND_MY_DREAM}
+        title={FEATURE_NAMES.FIND_ME}
         size="large"
       >
         <OnboardingForm

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { FEATURE_NAMES } from "@/lib/constants";
 import type {
   Bucket,
   DemoSceneItem,
@@ -93,6 +92,12 @@ export function OnboardingForm({
 
   const lifeClock = useMemo(() => computeLifeClock(age), [age]);
 
+  // 선택된 카테고리에서 AI lifeArea 힌트 추출 — 분석 정확도 향상에 기여
+  const lifeAreaHint = useMemo(() => {
+    const cat = LIFE_CATEGORIES.find((c) => c.key === selectedLifeCategory);
+    return cat?.lifeAreaHint ?? null;
+  }, [selectedLifeCategory]);
+
   // prefillProfile 변경 시 상태 동기화
   useEffect(() => {
     if (!prefillProfile) return;
@@ -130,6 +135,7 @@ export function OnboardingForm({
     gender,
     personalityType,
     selectedSceneText,
+    lifeAreaHint,
     setError,
   });
 
@@ -277,7 +283,9 @@ export function OnboardingForm({
     }
 
     if (step === 2) {
-      if (!selectedSceneText) { setError(`${FEATURE_NAMES.LIFE_SCENE}을 하나 선택하거나 직접 입력해주세요.`); return; }
+      if (!selectedSceneText) { setError("장면을 하나 선택하거나 직접 입력해주세요."); return; }
+      // 분석이 진행 중이면 새 호출을 막아 중복 호출 방지
+      if (isAnalyzingLifeScene) return;
       resetAnalysisState();
       setStep(3);
       return;
@@ -394,6 +402,7 @@ export function OnboardingForm({
           selectedSceneText={selectedSceneText}
           isProfileStep={isProfileStep}
           error={error}
+          isSubmitting={isAnalyzingLifeScene}
           onLifeCategorySelect={handleLifeCategorySelect}
           onDemoSceneSelect={handleSelectDemoScene}
           onCustomSceneChange={(v) => {

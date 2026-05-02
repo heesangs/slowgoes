@@ -1,5 +1,7 @@
 "use client";
 
+import { FEATURE_NAMES } from "@/lib/constants";
+
 interface LifeClockHeaderProps {
   age: number | null | undefined;
   activeChapterTitle?: string | null;
@@ -24,10 +26,10 @@ export function LifeClockHeader({ age, activeChapterTitle }: LifeClockHeaderProp
 
   return (
     <section className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-4">
-      <p className="text-sm text-foreground/60">인생 시계</p>
+      <p className="text-sm text-foreground/60">{FEATURE_NAMES.MY_CLOCK}</p>
       <p className="text-xl font-semibold mt-1">{lifeClockLabel}</p>
       <p className="text-sm text-foreground/70 mt-3">
-        선택한 버킷: {activeChapterTitle ?? "지금은 탐색 단계"}
+        선택한 {FEATURE_NAMES.BUCKET}: {activeChapterTitle ?? "지금은 탐색 단계"}
       </p>
     </section>
   );

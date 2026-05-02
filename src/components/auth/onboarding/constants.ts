@@ -1,4 +1,4 @@
-import type { Gender, PaceType, OnboardingSceneCategory } from "@/types";
+import type { Gender, LifeAreaName, OnboardingSceneCategory, PaceType } from "@/types";
 
 export const DRAFT_VERSION = "v1";
 
@@ -57,13 +57,17 @@ export const PACE_OPTIONS = [
   { value: "focused" as PaceType, label: "빠른편" },
 ];
 
+// 사용자가 정한 6개 카테고리 — 순서: 경험 / 성장 / 소유 / 관계 / 건강 / 내면
+// 백엔드 LifeAreaName(7개)과 1:1이 아니라, "일/돈"은 "소유"로 흡수해 UI를 6개로 단순화.
+// `lifeAreaHint`는 Step 3에서 AI에게 영역 추론 힌트로 전달(필수 아님, 안전망은 normalizeLifeArea).
 export const LIFE_CATEGORIES = [
   {
     key: "experience" as const,
     icon: "🎨",
     label: "경험",
-    desc: "꼭 한번 해보고 싶은것",
+    desc: "꼭 한번 해보고 싶은 것",
     sceneCategoryKey: "must_do" as OnboardingSceneCategory["key"],
+    lifeAreaHint: "경험" as LifeAreaName,
   },
   {
     key: "growth" as const,
@@ -71,13 +75,15 @@ export const LIFE_CATEGORIES = [
     label: "성장",
     desc: "조금씩 완성되는 나",
     sceneCategoryKey: "life_scene" as OnboardingSceneCategory["key"],
+    lifeAreaHint: "성장" as LifeAreaName,
   },
   {
     key: "possession" as const,
     icon: "💰",
     label: "소유",
-    desc: "꼭 갖고 싶은것",
+    desc: "꼭 갖고 싶은 것 · 일과 돈",
     sceneCategoryKey: "must_do" as OnboardingSceneCategory["key"],
+    lifeAreaHint: "돈" as LifeAreaName,
   },
   {
     key: "relationship" as const,
@@ -85,7 +91,31 @@ export const LIFE_CATEGORIES = [
     label: "관계",
     desc: "소중한 사람과의 시간",
     sceneCategoryKey: "dont_miss" as OnboardingSceneCategory["key"],
+    lifeAreaHint: "관계" as LifeAreaName,
+  },
+  {
+    key: "health" as const,
+    icon: "🌿",
+    label: "건강",
+    desc: "몸과 마음의 컨디션",
+    sceneCategoryKey: "life_scene" as OnboardingSceneCategory["key"],
+    lifeAreaHint: "건강" as LifeAreaName,
+  },
+  {
+    key: "inner" as const,
+    icon: "🧘",
+    label: "내면",
+    desc: "나를 들여다보는 시간",
+    sceneCategoryKey: "life_scene" as OnboardingSceneCategory["key"],
+    lifeAreaHint: "내면" as LifeAreaName,
   },
 ] as const;
 
 export type LifeCategory = (typeof LIFE_CATEGORIES)[number]["key"];
+
+// 구버전 sessionStorage draft에서 안전하게 fallback하기 위한 키 집합
+const VALID_LIFE_CATEGORY_KEYS = new Set<string>(LIFE_CATEGORIES.map((c) => c.key));
+
+export function isLifeCategory(value: unknown): value is LifeCategory {
+  return typeof value === "string" && VALID_LIFE_CATEGORY_KEYS.has(value);
+}

@@ -1,4 +1,9 @@
 // 브랜드 및 서비스 내 기능 이름 상수
+//
+// 사용 가이드:
+// - 사용자 노출 텍스트에서 핵심 용어를 쓸 때 한국어 리터럴 대신 `FEATURE_NAMES.*`를 import 하여 사용한다.
+// - 용어를 바꿀 일이 생기면 이 파일에서만 수정하면 전 화면에 반영된다.
+// - 자세한 가이드는 `DEVELOPER.md`의 "Brand Naming & FEATURE_NAMES" 섹션 참조.
 
 export const APP = {
   NAME: "slowgoes",
@@ -6,22 +11,19 @@ export const APP = {
 } as const;
 
 export const FEATURE_NAMES = {
-  LIFE_SCENE: "삶의 장면",
-  LIFE_AREA: "삶의 영역",
   MY_STRIDES: "나의 발걸음",
-  TIME_HORIZON: "시간의 지평",
   BUCKET: "버킷",
-  CHAPTER: "챕터",
   DAILY_TODO: "데일리 투두",
   ROUTINE: "루틴",
-  LIFE_CLOCK: "라이프 클락",
-  FIND_MY_DREAM: "나의 꿈 찾기",
+  MY_CLOCK: "나의 시간",
+  FIND_ME: "숨은 나 찾기",
 } as const;
 
-// 챕터 기본 제목 생성 헬퍼
+// 레거시 챕터 RPC 입력용 기본 제목 헬퍼 — 현재 챕터 UI는 제거되었지만 DB RPC는 chapter_title을 요구.
 export const DEFAULT_CHAPTER_TITLE_SUFFIX = "이번 시즌 실행";
 export function buildDefaultChapterTitle(sceneText: string): string {
-  return `${sceneText || FEATURE_NAMES.LIFE_SCENE} ${DEFAULT_CHAPTER_TITLE_SUFFIX}`;
+  const fallback = sceneText.trim() || "장면";
+  return `${fallback} ${DEFAULT_CHAPTER_TITLE_SUFFIX}`;
 }
 
 // 버킷 기본 공감 메시지 생성 헬퍼

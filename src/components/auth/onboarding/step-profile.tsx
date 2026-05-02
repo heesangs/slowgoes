@@ -73,9 +73,9 @@ export function StepProfile({
 
           <div className="min-h-[48px]">
             {lifeClock ? (
-              <p className="text-base font-semibold">당신의 인생 시계는 {lifeClock.label}이에요.</p>
+              <p className="text-base font-semibold">당신의 시간은 {lifeClock.label}이에요.</p>
             ) : (
-              <p className="text-sm text-foreground/50">나이를 입력하면 인생시계가 시작돼요.</p>
+              <p className="text-sm text-foreground/50">나이를 입력하면 당신의 시간이 시작돼요.</p>
             )}
             {personalityType && (
               <p className="mt-1 text-xs text-foreground/50">현재 성향: {personalityType}</p>
