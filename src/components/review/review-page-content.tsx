@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { LifeBalanceInsight, ReviewPageData, ReviewTimeBand } from "@/types";
 
@@ -37,8 +38,8 @@ function shortDate(value: string) {
 }
 
 function itemTypeLabel(type: "daily_todo" | "routine" | undefined) {
-  if (type === "daily_todo") return "데일리투두";
-  if (type === "routine") return "루틴";
+  if (type === "daily_todo") return FEATURE_NAMES.DAILY_TODO;
+  if (type === "routine") return FEATURE_NAMES.ROUTINE;
   return "행동";
 }
 

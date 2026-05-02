@@ -84,23 +84,9 @@ export const BUCKET_ERRORS = {
   UPDATE_ERROR: "버킷 수정 중 오류가 발생했습니다.",
   DELETE_ERROR: "버킷 삭제 중 오류가 발생했습니다.",
   LIST_ERROR: "버킷 목록을 불러오지 못했습니다.",
-  DECOMPOSE_ERROR: "버킷 분해 중 오류가 발생했습니다.",
-  DECOMPOSE_RESULT_EMPTY: "버킷 분해 결과를 만들지 못했습니다.",
   INFO_NOT_FOUND: "버킷 정보를 찾을 수 없습니다.",
   STRIDE_PLAN_REQUIRED: "AI 추천 정보를 먼저 생성해주세요.",
   TITLE_EMPTY: "버킷 제목이 비어 있습니다.",
-} as const;
-
-export const CHAPTER_ERRORS = {
-  ACCESS_DENIED: "해당 챕터에 접근할 수 없습니다.",
-  TITLE_REQUIRED: "챕터 제목을 입력해주세요.",
-  STATUS_INVALID: "챕터 상태 값이 올바르지 않습니다.",
-  DATE_RANGE_INVALID: "시작일은 종료일보다 늦을 수 없습니다.",
-  CREATE_FAILED: "챕터 생성에 실패했습니다.",
-  CREATE_ERROR: "챕터 생성 중 오류가 발생했습니다.",
-  UPDATE_FAILED: "챕터 수정에 실패했습니다.",
-  UPDATE_ERROR: "챕터 수정 중 오류가 발생했습니다.",
-  DELETE_ERROR: "챕터 삭제 중 오류가 발생했습니다.",
 } as const;
 
 export const TODO_ERRORS = {

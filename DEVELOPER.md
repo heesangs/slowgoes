@@ -725,6 +725,45 @@ src/components/
 
 ---
 
+## 14b. Brand Naming & FEATURE_NAMES
+
+서비스 핵심 용어(버킷 / 데일리 투두 / 루틴 / 나의 발걸음 / 나의 시간 / 숨은 나 찾기)는
+`src/lib/constants/brand.ts`의 `FEATURE_NAMES` 상수를 **단일 출처(single source of truth)**로 사용한다.
+
+### 사용 규칙
+
+- **새 UI 텍스트**에서 위 용어를 쓸 때 한국어 리터럴 대신 `FEATURE_NAMES.*`를 import.
+  ```tsx
+  import { FEATURE_NAMES } from "@/lib/constants";
+  // ✅ 권장
+  <p>{FEATURE_NAMES.ROUTINE} 추가</p>
+  // ❌ 지양
+  <p>루틴 추가</p>
+  ```
+- **에러/검증 메시지 상수**(`*_ERRORS`)는 사용자 가독성과 안정적 참조를 위해 평문 유지.
+  단, 신규로 추가하는 메시지에는 `FEATURE_NAMES` 보간을 권장.
+- **서버 측 throw 메시지**(`toClientError` 등)도 평문 유지 — 빌드 시 트리쉐이킹/문자열 검색의 안정성 우선.
+- 용어가 바뀌면 `FEATURE_NAMES`에서만 수정 → 전 화면에 자동 반영.
+
+### 현재 키
+
+| 키 | 값 | 비고 |
+|---|---|---|
+| `MY_STRIDES` | 나의 발걸음 | 시간 지평 8단계 통칭 |
+| `BUCKET` | 버킷 | 사용자 장면(꿈) 단위 |
+| `DAILY_TODO` | 데일리 투두 | 주간 단위 실행 항목 |
+| `ROUTINE` | 루틴 | 반복 실행 항목 |
+| `MY_CLOCK` | 나의 시간 | 라이프 클락 노출 라벨 |
+| `FIND_ME` | 숨은 나 찾기 | 탐색 시트(구 "나의 꿈 찾기") |
+
+### 용어 변경 이력
+
+- 2026-05-02: `LIFE_CLOCK("라이프 클락") → MY_CLOCK("나의 시간")`,
+  `FIND_MY_DREAM("나의 꿈 찾기") → FIND_ME("숨은 나 찾기")`,
+  `LIFE_SCENE / LIFE_AREA / TIME_HORIZON / CHAPTER` 키 제거.
+
+---
+
 ## 15. 환경 변수
 
 ```env

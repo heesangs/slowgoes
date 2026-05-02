@@ -27,7 +27,7 @@ export function BucketsPageContent({
     <div className="flex flex-col gap-6">
       <div>
         <p className="text-sm text-foreground/60">
-          {FEATURE_NAMES.MY_STRIDES}별로 {FEATURE_NAMES.LIFE_SCENE}을 정리하고, 상태를 관리하세요.
+          {FEATURE_NAMES.MY_STRIDES}별로 {FEATURE_NAMES.BUCKET}을 정리하고, 상태를 관리하세요.
         </p>
       </div>
 

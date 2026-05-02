@@ -9,7 +9,7 @@ export default function DemoPage() {
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-foreground/60">
             체험판
           </p>
-          <h1 className="mb-2 text-2xl font-bold">{FEATURE_NAMES.FIND_MY_DREAM}</h1>
+          <h1 className="mb-2 text-2xl font-bold">{FEATURE_NAMES.FIND_ME}</h1>
           <p className="text-sm text-foreground/60">
             로그인 없이 온보딩을 체험해보세요.
             <br />

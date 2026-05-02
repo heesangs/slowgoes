@@ -6,6 +6,8 @@ import { FEATURE_NAMES } from "@/lib/constants";
 import type { LifeSceneAnalysisResult, StrideItem } from "@/types";
 import { formatRoutineRepeat, getStrideTone } from "./utils";
 
+const ANALYSIS_HEADER_TITLE = "장면을 시간 위에 펼치고 있어요";
+
 interface StepAnalysisProps {
   isAnalyzingLifeScene: boolean;
   lifeSceneAnalysis: LifeSceneAnalysisResult | null;
@@ -38,18 +40,29 @@ export function StepAnalysis({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="mb-1 text-lg font-semibold">{FEATURE_NAMES.LIFE_SCENE}을 시간으로 정리하고 있어요</h2>
-        <p className="text-sm text-foreground/60">{FEATURE_NAMES.MY_STRIDES}과 투두, 루틴을 확인해보세요</p>
+        <h2 className="mb-1 text-lg font-semibold">{ANALYSIS_HEADER_TITLE}</h2>
+        <p className="text-sm text-foreground/60">
+          {FEATURE_NAMES.MY_STRIDES}과 {FEATURE_NAMES.DAILY_TODO}, {FEATURE_NAMES.ROUTINE}을 확인해보세요
+        </p>
       </div>
 
       {isAnalyzingLifeScene && (
-        <div className="flex animate-pulse flex-col gap-3">
-          <div className="h-8 w-24 rounded-full bg-foreground/10" />
-          <div className="h-5 w-2/3 rounded bg-foreground/10" />
-          <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.12]" />
-          <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.07]" />
-          <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.03]" />
-        </div>
+        <>
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-lg bg-foreground/[0.04] px-4 py-3 text-sm text-foreground/70"
+          >
+            AI가 {FEATURE_NAMES.MY_STRIDES}을 그리는 중이에요… 잠시만 기다려 주세요
+          </div>
+          <div className="flex animate-pulse flex-col gap-3">
+            <div className="h-8 w-24 rounded-full bg-foreground/10" />
+            <div className="h-5 w-2/3 rounded bg-foreground/10" />
+            <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.12]" />
+            <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.07]" />
+            <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.03]" />
+          </div>
+        </>
       )}
 
       {!isAnalyzingLifeScene && lifeSceneAnalysis && (
@@ -82,8 +95,10 @@ export function StepAnalysis({
           {bucketTodos.length > 0 && (
             <section className="flex flex-col gap-3">
               <div>
-                <h3 className="text-sm font-semibold">버킷을 위한 투두</h3>
-                <p className="text-xs text-foreground/60">하나를 선택하면 이번 주 데일리투두가 됩니다.</p>
+                <h3 className="text-sm font-semibold">{FEATURE_NAMES.BUCKET}을 위한 {FEATURE_NAMES.DAILY_TODO}</h3>
+                <p className="text-xs text-foreground/60">
+                  하나를 선택하면 이번 주 {FEATURE_NAMES.DAILY_TODO}가 됩니다.
+                </p>
               </div>
               <div className="flex flex-col gap-2">
                 {bucketTodos.map((item, index) => {
@@ -124,8 +139,10 @@ export function StepAnalysis({
           {/* 버킷을 위한 루틴 (라디오 선택) */}
           <section className="flex flex-col gap-3">
             <div>
-              <h3 className="text-sm font-semibold">버킷을 위한 루틴</h3>
-              <p className="text-xs text-foreground/60">하나를 선택하면 반복 루틴으로 등록됩니다.</p>
+              <h3 className="text-sm font-semibold">{FEATURE_NAMES.BUCKET}을 위한 {FEATURE_NAMES.ROUTINE}</h3>
+              <p className="text-xs text-foreground/60">
+                하나를 선택하면 반복 {FEATURE_NAMES.ROUTINE}으로 등록됩니다.
+              </p>
             </div>
             <div className="flex flex-col gap-2">
               {lifeSceneAnalysis.suggestedRoutines.map((routine) => {
@@ -167,16 +184,29 @@ export function StepAnalysis({
       {!isAnalyzingLifeScene && !lifeSceneAnalysis && error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3">
           <p className="text-sm text-red-500">{error}</p>
-          <Button type="button" variant="secondary" className="mt-3 w-full" onClick={onRetryAnalysis}>
-            다시 시도
-          </Button>
+          <div className="mt-3 flex justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onRetryAnalysis}
+            >
+              다시 분석하기
+            </Button>
+          </div>
         </div>
       )}
 
       {error && lifeSceneAnalysis && <p className="text-sm text-red-500">{error}</p>}
 
       <div className="flex gap-2">
-        <Button type="button" variant="secondary" onClick={onBack} className="flex-1">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onBack}
+          className="flex-1"
+          disabled={isAnalyzingLifeScene}
+        >
           이전
         </Button>
         <Button
@@ -185,7 +215,7 @@ export function StepAnalysis({
           className="flex-1"
           disabled={isAnalyzingLifeScene || (!selectedDailyTodo && selectedRoutineTitles.length === 0)}
         >
-          다음
+          {isAnalyzingLifeScene ? "분석 중..." : "다음"}
         </Button>
       </div>
     </div>

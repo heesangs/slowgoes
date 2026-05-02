@@ -13,6 +13,7 @@ import {
   toggleDailyTodoAction,
   toggleRoutineCompletionAction,
 } from "@/app/(main)/dashboard/actions";
+import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type {
   ActionLogItemType,
@@ -186,9 +187,9 @@ export function ActionsContent({
         </div>
       )}
 
-      {/* 데일리투두 섹션 */}
+      {/* 데일리 투두 섹션 */}
       <section className="rounded-xl border border-foreground/10 px-4 py-4">
-        <p className="text-sm text-foreground/60">데일리투두</p>
+        <p className="text-sm text-foreground/60">{FEATURE_NAMES.DAILY_TODO}</p>
         <div className="mt-3 flex flex-col gap-2">
           {dailyTodos.length > 0 ? (
             dailyTodos.map((todo) => (
@@ -212,14 +213,14 @@ export function ActionsContent({
               </button>
             ))
           ) : (
-            <p className="text-sm text-foreground/60">이번 주 데일리투두가 없어요.</p>
+            <p className="text-sm text-foreground/60">이번 주 {FEATURE_NAMES.DAILY_TODO}가 없어요.</p>
           )}
         </div>
       </section>
 
       {/* 루틴 섹션 */}
       <section className="rounded-xl border border-foreground/10 px-4 py-4">
-        <p className="text-sm text-foreground/60">루틴</p>
+        <p className="text-sm text-foreground/60">{FEATURE_NAMES.ROUTINE}</p>
         <div className="mt-3 flex flex-col gap-2">
           {routines.length > 0 ? (
             routines.map((routine) => (
@@ -245,7 +246,7 @@ export function ActionsContent({
               </button>
             ))
           ) : (
-            <p className="text-sm text-foreground/60">등록된 루틴이 없어요.</p>
+            <p className="text-sm text-foreground/60">등록된 {FEATURE_NAMES.ROUTINE}이 없어요.</p>
           )}
         </div>
       </section>
@@ -277,7 +278,7 @@ export function ActionsContent({
                   : "border-green-200 bg-green-50 text-green-700"
               )}
             >
-              {selectedItem?.type === "daily_todo" ? "데일리투두" : "루틴"}
+              {selectedItem?.type === "daily_todo" ? FEATURE_NAMES.DAILY_TODO : FEATURE_NAMES.ROUTINE}
             </span>
             <span className="text-xs text-foreground/60">
               {selectedItem?.isCompleted ? "완료됨" : "진행 전"}

@@ -40,7 +40,6 @@ export type StrideLevel =
 // 버킷의 중심 발걸음 스코프 — 드롭다운에서 선택하는 값 (StrideLevel 풀과 동일)
 export type StrideScope = StrideLevel;
 export type BucketStatus = "not_started" | "in_progress" | "completed" | "paused";
-export type ChapterStatus = "active" | "completed" | "paused";
 export type TaskCondition = "light" | "normal" | "focused" | "tired";
 export type ItemSource = "onboarding" | "ai_generated" | "manual";
 export type DailyTodoStatus = "pending" | "completed";
@@ -183,25 +182,8 @@ export interface Bucket {
   completed_at: string | null;
 }
 
-export interface Chapter {
-  id: string;
-  user_id: string;
-  bucket_id: string | null;
-  title: string;
-  description: string | null;
-  status: ChapterStatus;
-  start_date: string | null; // ISO date "YYYY-MM-DD"
-  end_date: string | null; // ISO date "YYYY-MM-DD"
-  created_at: string;
-}
-
 export interface BucketWithRelations extends Bucket {
   life_area?: LifeArea | null;
-  chapters?: Chapter[];
-}
-
-export interface ChapterWithRelations extends Chapter {
-  bucket?: Bucket | null;
 }
 
 export interface DailyTodo {
@@ -320,12 +302,6 @@ export interface FirstStepPlanResult {
   subtasks: AISubtaskSuggestion[];
 }
 
-export interface BucketDecompositionSuggestion {
-  chapterTitle: string;
-  chapterDescription: string;
-  firstAction: string;
-}
-
 export interface OnboardingV2SavePayload {
   sceneText: string;
   lifeArea: string;
@@ -411,7 +387,6 @@ export interface DashboardV2Data {
   profile: Profile;
   buckets: Array<Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at">>;
   selectedBucket: Bucket | null;
-  activeChapters: Chapter[];
   dailyTodos: DailyTodo[];
   routines: RoutineWithCompletion[];
   stridePlan: StridePlan | null;

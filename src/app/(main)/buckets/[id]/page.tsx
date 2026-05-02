@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BucketDetailContent } from "@/components/buckets/bucket-detail-content";
-import type { Bucket, Chapter, LifeArea } from "@/types";
+import { getStridePlan } from "@/lib/dashboard/queries";
+import type { Bucket, LifeArea, StridePlan } from "@/types";
 
 type BucketRow = Bucket & {
   life_area?: Pick<LifeArea, "id" | "name"> | null;
@@ -23,37 +24,32 @@ export default async function BucketDetailPage({ params }: BucketDetailPageProps
     redirect("/login");
   }
 
-  const [bucketResult, chaptersResult] = await Promise.all([
-    supabase
-      .from("buckets")
-      .select("*, life_area:life_areas(id, name)")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("chapters")
-      .select("*")
-      .eq("bucket_id", id)
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false }),
-  ]);
+  const { data: bucketData, error: bucketError } = await supabase
+    .from("buckets")
+    .select("*, life_area:life_areas(id, name)")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  if (bucketResult.error || !bucketResult.data) {
+  if (bucketError || !bucketData) {
     notFound();
   }
 
-  const bucket = bucketResult.data as BucketRow;
-  const chapters = (chaptersResult.data as Chapter[] | null) ?? [];
+  const bucket = bucketData as BucketRow;
 
+  // stride_plan은 실패해도 페이지 자체는 렌더 (없을 수도 있음)
+  let stridePlan: StridePlan | null = null;
   let fetchError: string | undefined;
-  if (chaptersResult.error) {
-    fetchError = "챕터 데이터를 불러오는 중 일부 오류가 발생했습니다.";
+  try {
+    stridePlan = await getStridePlan(supabase, user.id, bucket.id);
+  } catch {
+    fetchError = "발걸음 정보를 불러오는 중 일부 오류가 발생했습니다.";
   }
 
   return (
     <BucketDetailContent
       bucket={bucket}
-      initialChapters={chapters}
+      stridePlan={stridePlan}
       fetchError={fetchError}
     />
   );

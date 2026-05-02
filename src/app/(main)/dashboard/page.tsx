@@ -101,7 +101,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     profile,
     buckets,
     selectedBucket,
-    activeChapters: [],
     dailyTodos,
     routines,
     stridePlan,

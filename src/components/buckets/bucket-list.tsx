@@ -15,7 +15,6 @@ import {
   deleteBucketAction,
   updateBucketAction,
 } from "@/app/(main)/buckets/actions";
-import { FEATURE_NAMES } from "@/lib/constants";
 import type { Bucket, StrideScope, BucketStatus, LifeArea } from "@/types";
 
 type BucketRow = Bucket & {
@@ -229,7 +228,7 @@ export function BucketList({
                           onChange={(event) => setEditLifeAreaId(event.target.value)}
                           className="rounded-lg border border-foreground/20 bg-transparent px-3 py-2.5 text-sm min-h-[44px] focus:outline-none focus:ring-2 focus:ring-foreground/20"
                         >
-                          <option value="">{FEATURE_NAMES.LIFE_AREA} 없음</option>
+                          <option value="">영역 없음</option>
                           {lifeAreas.map((area) => (
                             <option key={area.id} value={area.id}>
                               {area.name}
@@ -296,7 +295,7 @@ export function BucketList({
                           {statusLabel(bucket.status)}
                         </span>
                         <span className="rounded-full border border-foreground/20 px-2 py-1">
-                          {bucket.life_area?.name ?? `${FEATURE_NAMES.LIFE_AREA} 없음`}
+                          {bucket.life_area?.name ?? `$영역 없음`}
                         </span>
                       </div>
 

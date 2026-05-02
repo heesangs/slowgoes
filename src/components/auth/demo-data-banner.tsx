@@ -3,6 +3,7 @@
 // 체험판 데이터 안심 배너 — 회원가입 페이지에서 체험 데이터가 보관 중임을 안내
 
 import { useEffect, useState } from "react";
+import { FEATURE_NAMES } from "@/lib/constants";
 import {
   getDemoOnboardingBackupData,
   getDemoOnboardingData,
@@ -29,7 +30,7 @@ export function DemoDataBanner() {
       </p>
       {(todoCount > 0 || routineCount > 0) && (
         <p className="mt-1 text-foreground/60">
-          데일리투두 {todoCount}개, 루틴 {routineCount}개가 보관 중이에요.
+          {FEATURE_NAMES.DAILY_TODO} {todoCount}개, {FEATURE_NAMES.ROUTINE} {routineCount}개가 보관 중이에요.
         </p>
       )}
       <p className="mt-1 text-foreground/60">
