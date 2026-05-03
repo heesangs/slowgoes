@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
   analyzeLifeScene,
-  generateActionTip,
   generateSingleNextStep,
   generateWeeklyItems,
   regenerateSingleStride,
@@ -22,7 +21,6 @@ import {
   STRIDE_ERRORS,
 } from "@/lib/constants";
 import type {
-  ActionLogItemType,
   Gender,
   ItemSource,
   PersonalityType,
@@ -68,10 +66,6 @@ async function getAuthContext() {
   return { supabase, userId: user.id };
 }
 
-function normalizeItemType(itemType: string): ActionLogItemType {
-  return itemType === "routine" ? "routine" : "daily_todo";
-}
-
 function normalizeSource(source: ItemSource | undefined): ItemSource {
   if (source === "manual" || source === "ai_generated" || source === "onboarding") {
     return source;
@@ -98,7 +92,7 @@ export async function toggleDailyTodoAction(todoId: string): Promise<{
 
     const { data: todo, error: todoError } = await supabase
       .from("daily_todos")
-      .select("id, title, status, action_tip, bucket_id")
+      .select("id, title, status, bucket_id")
       .eq("id", todoId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -127,7 +121,7 @@ export async function toggleDailyTodoAction(todoId: string): Promise<{
         item_type: "daily_todo",
         item_id: todo.id,
         title: todo.title,
-        ai_advice: todo.action_tip ?? null,
+        ai_advice: null,
         completed_at: completedAt,
       });
 
@@ -177,7 +171,7 @@ export async function toggleRoutineCompletionAction(routineId: string): Promise<
 
     const { data: routine, error: routineError } = await supabase
       .from("routines")
-      .select("id, title, action_tip, bucket_id")
+      .select("id, title, bucket_id")
       .eq("id", routineId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -253,7 +247,7 @@ export async function toggleRoutineCompletionAction(routineId: string): Promise<
       item_type: "routine",
       item_id: routine.id,
       title: routine.title,
-      ai_advice: routine.action_tip ?? null,
+      ai_advice: null,
       completed_at: completedAt,
     });
 
@@ -269,135 +263,6 @@ export async function toggleRoutineCompletionAction(routineId: string): Promise<
     return {
       success: false,
       error: toClientErrorMessage(error, ROUTINE_ERRORS.COMPLETE_FAILED),
-    };
-  }
-}
-
-export async function generateActionTipAction(
-  itemId: string,
-  itemType: ActionLogItemType
-): Promise<{ success: boolean; data?: { tip: string }; error?: string }> {
-  try {
-    const { supabase, userId } = await getAuthContext();
-    const normalizedType = normalizeItemType(itemType);
-
-    if (normalizedType === "daily_todo") {
-      const { data: todo, error: todoError } = await supabase
-        .from("daily_todos")
-        .select("id, title, action_tip, bucket_id")
-        .eq("id", itemId)
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (todoError || !todo) {
-        throw new Error(TODO_ERRORS.NOT_FOUND);
-      }
-
-      if (todo.action_tip?.trim()) {
-        return { success: true, data: { tip: todo.action_tip } };
-      }
-
-      const [bucketResult, profileResult] = await Promise.all([
-        todo.bucket_id
-          ? supabase
-              .from("buckets")
-              .select("title, life_area:life_areas(name)")
-              .eq("id", todo.bucket_id)
-              .maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
-        supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      ]);
-
-      if (bucketResult.error) throw bucketResult.error;
-      if (profileResult.error) throw profileResult.error;
-
-      const lifeAreaRaw = (bucketResult.data as { life_area?: { name?: string } | { name?: string }[] | null } | null)
-        ?.life_area;
-      const lifeArea = Array.isArray(lifeAreaRaw)
-        ? lifeAreaRaw[0]?.name ?? null
-        : lifeAreaRaw?.name ?? null;
-      const bucketTitle = (bucketResult.data as { title?: string } | null)?.title ?? null;
-
-      const tip = await generateActionTip({
-        itemTitle: todo.title,
-        itemType: "daily_todo",
-        bucketTitle,
-        lifeArea,
-        profile: (profileResult.data as Profile | null) ?? null,
-      });
-
-      const { error: updateError } = await supabase
-        .from("daily_todos")
-        .update({ action_tip: tip, action_tip_generated_at: new Date().toISOString() })
-        .eq("id", todo.id)
-        .eq("user_id", userId);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      return { success: true, data: { tip } };
-    }
-
-    const { data: routine, error: routineError } = await supabase
-      .from("routines")
-      .select("id, title, action_tip, bucket_id")
-      .eq("id", itemId)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (routineError || !routine) {
-      throw new Error(ROUTINE_ERRORS.NOT_FOUND);
-    }
-
-    if (routine.action_tip?.trim()) {
-      return { success: true, data: { tip: routine.action_tip } };
-    }
-
-    const [bucketResult, profileResult] = await Promise.all([
-      routine.bucket_id
-        ? supabase
-            .from("buckets")
-            .select("title, life_area:life_areas(name)")
-            .eq("id", routine.bucket_id)
-            .maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-    ]);
-
-    if (bucketResult.error) throw bucketResult.error;
-    if (profileResult.error) throw profileResult.error;
-
-    const lifeAreaRaw = (bucketResult.data as { life_area?: { name?: string } | { name?: string }[] | null } | null)
-      ?.life_area;
-    const lifeArea = Array.isArray(lifeAreaRaw)
-      ? lifeAreaRaw[0]?.name ?? null
-      : lifeAreaRaw?.name ?? null;
-    const bucketTitle = (bucketResult.data as { title?: string } | null)?.title ?? null;
-
-    const tip = await generateActionTip({
-      itemTitle: routine.title,
-      itemType: "routine",
-      bucketTitle,
-      lifeArea,
-      profile: (profileResult.data as Profile | null) ?? null,
-    });
-
-    const { error: updateError } = await supabase
-      .from("routines")
-      .update({ action_tip: tip, action_tip_generated_at: new Date().toISOString() })
-      .eq("id", routine.id)
-      .eq("user_id", userId);
-
-    if (updateError) {
-      throw updateError;
-    }
-
-    return { success: true, data: { tip } };
-  } catch (error) {
-    return {
-      success: false,
-      error: toClientErrorMessage(error, AI_ERRORS.ACTION_TIP_FAILED),
     };
   }
 }

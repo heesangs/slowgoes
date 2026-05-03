@@ -19,7 +19,6 @@ interface ActionLogRow {
   id: string;
   item_type: "daily_todo" | "routine";
   title: string;
-  ai_advice: string | null;
   completed_at: string;
   bucket?:
     | {
@@ -106,7 +105,6 @@ function toRecentItem(action: ActionLogRow): ReviewRecentItem {
     title: action.title,
     completedAt: action.completed_at,
     itemType: action.item_type,
-    aiAdvice: action.ai_advice,
     estimatedMinutes: null,
     actualMinutes: null,
     difficultyBefore: null,
@@ -120,14 +118,13 @@ function toRecentItem(action: ActionLogRow): ReviewRecentItem {
 function buildReviewSummary(actions: ActionLogRow[], insight: string | null): ReviewSummary | null {
   if (actions.length === 0) return null;
 
-  const latest = actions[0];
   return {
     completedCount: actions.length,
     recentEstimatedMinutes: null,
     recentActualMinutes: null,
     recentDifficultyBefore: null,
     recentDifficultyAfter: null,
-    recentMemo: latest.ai_advice,
+    recentMemo: null,
     insight,
   };
 }
@@ -195,7 +192,7 @@ export async function getReviewPageData(
 ): Promise<ReviewPageData | null> {
   const { data, error } = await supabase
     .from("action_logs")
-    .select("id, item_type, title, ai_advice, completed_at, bucket:buckets(title, life_area:life_areas(name))")
+    .select("id, item_type, title, completed_at, bucket:buckets(title, life_area:life_areas(name))")
     .eq("user_id", userId)
     .order("completed_at", { ascending: false })
     .limit(REVIEW_ACTION_LIMIT);

@@ -45,12 +45,6 @@ export type ItemSource = "onboarding" | "ai_generated" | "manual";
 export type DailyTodoStatus = "pending" | "completed";
 export type RoutineRepeatUnit = "daily" | "weekly";
 export type ActionLogItemType = "daily_todo" | "routine";
-export type PaceAdjustOption =
-  | "lighter"
-  | "more_specific"
-  | "once_per_week"
-  | "start_this_week"
-  | "start_today";
 
 export interface Profile {
   id: string;
@@ -112,13 +106,6 @@ export interface Subtask {
   status: TaskStatus;
   created_at: string;
   completed_at: string | null;
-}
-
-// AI 응답용 하위 과제 제안 타입
-export interface AISubtaskSuggestion {
-  title: string;
-  difficulty: Difficulty;
-  estimated_minutes: number;
 }
 
 // 과제 + 하위 과제 조인 타입
@@ -193,8 +180,6 @@ export interface DailyTodo {
   title: string;
   status: DailyTodoStatus;
   source: ItemSource;
-  action_tip: string | null;
-  action_tip_generated_at: string | null;
   week_start: string;
   sort_order: number;
   created_at: string;
@@ -209,8 +194,6 @@ export interface Routine {
   source: ItemSource;
   repeat_unit: RoutineRepeatUnit;
   repeat_value: number;
-  action_tip: string | null;
-  action_tip_generated_at: string | null;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -296,12 +279,6 @@ export interface LifeSceneAnalysisResult {
   suggestedRoutines: SuggestedRoutine[];
 }
 
-export interface FirstStepPlanResult {
-  estimatedMinutes: number;
-  difficulty: Difficulty;
-  subtasks: AISubtaskSuggestion[];
-}
-
 export interface OnboardingV2SavePayload {
   sceneText: string;
   lifeArea: string;
@@ -317,9 +294,8 @@ export interface OnboardingV2SavePayload {
     repeatValue: number;
     source?: ItemSource;
   }>;
-  // legacy 필드 (점진 전환)
+  // legacy 필드 (점진 전환) — 구 v1 payload가 들어왔을 때 daily todo로 승격
   selectedWeeklyAction?: string;
-  plan?: FirstStepPlanResult;
 }
 
 // 대시보드 v2 타입
@@ -359,7 +335,6 @@ export interface ReviewRecentItem {
   title: string;
   completedAt: string;
   itemType?: ActionLogItemType;
-  aiAdvice?: string | null;
   estimatedMinutes: number | null;
   actualMinutes: number | null;
   difficultyBefore: Difficulty | null;

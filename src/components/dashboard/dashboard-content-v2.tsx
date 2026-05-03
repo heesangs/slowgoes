@@ -11,7 +11,6 @@ import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import {
-  generateActionTipAction,
   regenerateStrideItemAction,
   regenerateStridePlanAction,
   toggleDailyTodoAction,
@@ -40,7 +39,6 @@ interface ActionSheetItem {
   title: string;
   type: ActionLogItemType;
   isCompleted: boolean;
-  actionTip: string | null;
   bucketTitle: string | null;
 }
 
@@ -70,8 +68,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [findMeSheetOpen, setFindMeSheetOpen] = useState(false);
 
   const [selectedActionItem, setSelectedActionItem] = useState<ActionSheetItem | null>(null);
-  const [actionTip, setActionTip] = useState<string | null>(null);
-  const [isTipLoading, setIsTipLoading] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   // "한걸음 더" 시트 (NextStepSheet)
   const [nextStepSheetOpen, setNextStepSheetOpen] = useState(false);
@@ -121,60 +117,26 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     }
   }, [fetchError, toast]);
 
-  async function openDailyTodoSheet(todo: DailyTodo) {
-    const nextItem: ActionSheetItem = {
+  function openDailyTodoSheet(todo: DailyTodo) {
+    setSelectedActionItem({
       id: todo.id,
       title: todo.title,
       type: "daily_todo",
       isCompleted: todo.status === "completed",
-      actionTip: todo.action_tip,
       bucketTitle: data.selectedBucket?.title ?? null,
-    };
-
-    setSelectedActionItem(nextItem);
-    setActionTip(todo.action_tip ?? null);
+    });
     setActionSheetOpen(true);
-
-    if (todo.action_tip?.trim()) {
-      return;
-    }
-
-    setIsTipLoading(true);
-    const result = await generateActionTipAction(todo.id, "daily_todo");
-    if (result.success && result.data?.tip) {
-      setActionTip(result.data.tip);
-    } else if (!result.success) {
-      toast(result.error ?? "행동 조언을 불러오지 못했습니다.", "error");
-    }
-    setIsTipLoading(false);
   }
 
-  async function openRoutineSheet(routine: RoutineWithCompletion) {
-    const nextItem: ActionSheetItem = {
+  function openRoutineSheet(routine: RoutineWithCompletion) {
+    setSelectedActionItem({
       id: routine.id,
       title: routine.title,
       type: "routine",
       isCompleted: Boolean(routine.is_completed_this_week),
-      actionTip: routine.action_tip,
       bucketTitle: data.selectedBucket?.title ?? null,
-    };
-
-    setSelectedActionItem(nextItem);
-    setActionTip(routine.action_tip ?? null);
+    });
     setActionSheetOpen(true);
-
-    if (routine.action_tip?.trim()) {
-      return;
-    }
-
-    setIsTipLoading(true);
-    const result = await generateActionTipAction(routine.id, "routine");
-    if (result.success && result.data?.tip) {
-      setActionTip(result.data.tip);
-    } else if (!result.success) {
-      toast(result.error ?? "행동 조언을 불러오지 못했습니다.", "error");
-    }
-    setIsTipLoading(false);
   }
 
   async function handleToggleFromSheet() {
@@ -199,7 +161,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
 
     setActionSheetOpen(false);
     setSelectedActionItem(null);
-    setActionTip(null);
     setIsToggling(false);
     router.refresh();
   }
@@ -354,8 +315,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         onClose={() => {
           setActionSheetOpen(false);
           setSelectedActionItem(null);
-          setActionTip(null);
-          setIsTipLoading(false);
         }}
         title={selectedActionItem?.title ?? "행동하기"}
         footer={
@@ -381,17 +340,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
               <p className="mt-0.5 text-sm font-medium">{selectedActionItem.title}</p>
               {selectedActionItem.bucketTitle && (
                 <p className="mt-1 text-xs text-foreground/55">버킷: {selectedActionItem.bucketTitle}</p>
-              )}
-            </div>
-
-            <div className="rounded-lg border border-foreground/10 px-3 py-3">
-              <p className="text-xs text-foreground/60">AI 조언</p>
-              {isTipLoading ? (
-                <p className="mt-2 text-sm text-foreground/60">행동 조언을 만드는 중이에요...</p>
-              ) : actionTip ? (
-                <p className="mt-2 text-sm leading-relaxed">{actionTip}</p>
-              ) : (
-                <p className="mt-2 text-sm text-foreground/60">아직 조언이 준비되지 않았어요.</p>
               )}
             </div>
           </div>
