@@ -195,10 +195,6 @@ export function ReviewPageContent({
                   {item.bucketTitle ?? "버킷 미연결"}
                 </p>
               )}
-
-              {item.aiAdvice && (
-                <p className="mt-2 text-xs text-foreground/65">AI 조언: &quot;{item.aiAdvice}&quot;</p>
-              )}
             </article>
           ))}
         </div>

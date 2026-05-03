@@ -9,7 +9,6 @@ import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import {
-  generateActionTipAction,
   toggleDailyTodoAction,
   toggleRoutineCompletionAction,
 } from "@/app/(main)/dashboard/actions";
@@ -34,7 +33,6 @@ interface ActionSheetItem {
   title: string;
   type: ActionLogItemType;
   isCompleted: boolean;
-  actionTip: string | null;
 }
 
 function formatRoutineRepeat(unit: "daily" | "weekly", value: number) {
@@ -55,60 +53,28 @@ export function ActionsContent({
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ActionSheetItem | null>(null);
-  const [actionTip, setActionTip] = useState<string | null>(null);
-  const [isTipLoading, setIsTipLoading] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
   // 바텀시트 열기 — 데일리투두
-  async function openDailyTodoSheet(todo: DailyTodo) {
-    const item: ActionSheetItem = {
+  function openDailyTodoSheet(todo: DailyTodo) {
+    setSelectedItem({
       id: todo.id,
       title: todo.title,
       type: "daily_todo",
       isCompleted: todo.status === "completed",
-      actionTip: todo.action_tip,
-    };
-
-    setSelectedItem(item);
-    setActionTip(todo.action_tip ?? null);
+    });
     setSheetOpen(true);
-
-    if (todo.action_tip?.trim()) return;
-
-    setIsTipLoading(true);
-    const result = await generateActionTipAction(todo.id, "daily_todo");
-    if (result.success && result.data?.tip) {
-      setActionTip(result.data.tip);
-    } else if (!result.success) {
-      toast(result.error ?? "행동 조언을 불러오지 못했습니다.", "error");
-    }
-    setIsTipLoading(false);
   }
 
   // 바텀시트 열기 — 루틴
-  async function openRoutineSheet(routine: RoutineWithCompletion) {
-    const item: ActionSheetItem = {
+  function openRoutineSheet(routine: RoutineWithCompletion) {
+    setSelectedItem({
       id: routine.id,
       title: routine.title,
       type: "routine",
       isCompleted: Boolean(routine.is_completed_this_week),
-      actionTip: routine.action_tip,
-    };
-
-    setSelectedItem(item);
-    setActionTip(routine.action_tip ?? null);
+    });
     setSheetOpen(true);
-
-    if (routine.action_tip?.trim()) return;
-
-    setIsTipLoading(true);
-    const result = await generateActionTipAction(routine.id, "routine");
-    if (result.success && result.data?.tip) {
-      setActionTip(result.data.tip);
-    } else if (!result.success) {
-      toast(result.error ?? "행동 조언을 불러오지 못했습니다.", "error");
-    }
-    setIsTipLoading(false);
   }
 
   // 완료 토글
@@ -134,7 +100,6 @@ export function ActionsContent({
 
     setSheetOpen(false);
     setSelectedItem(null);
-    setActionTip(null);
     setIsToggling(false);
     router.refresh();
   }
@@ -142,8 +107,6 @@ export function ActionsContent({
   function closeSheet() {
     setSheetOpen(false);
     setSelectedItem(null);
-    setActionTip(null);
-    setIsTipLoading(false);
   }
 
   return (
@@ -285,17 +248,6 @@ export function ActionsContent({
             </span>
           </div>
 
-          {/* AI 행동 조언 */}
-          <div className="rounded-lg border border-foreground/10 bg-foreground/[0.02] px-3 py-3">
-            <p className="mb-1 text-xs font-medium text-foreground/60">AI 행동 조언</p>
-            {isTipLoading ? (
-              <p className="text-sm text-foreground/50 animate-pulse">조언을 생성하고 있어요...</p>
-            ) : actionTip ? (
-              <p className="text-sm text-foreground/80 leading-relaxed">{actionTip}</p>
-            ) : (
-              <p className="text-sm text-foreground/50">아직 행동 조언이 없어요.</p>
-            )}
-          </div>
         </div>
       </BottomSheet>
     </div>
