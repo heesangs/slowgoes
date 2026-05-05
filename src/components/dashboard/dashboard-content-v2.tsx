@@ -17,7 +17,9 @@ import {
   regenerateStridePlanAction,
   toggleDailyTodoAction,
   toggleRoutineCompletionAction,
+  updateStrideItemAction,
 } from "@/app/(main)/dashboard/actions";
+import { EditWithAISheet } from "@/components/ui/edit-with-ai-sheet";
 import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { cn } from "@/lib/utils";
 import { FEATURE_NAMES } from "@/lib/constants";
@@ -28,6 +30,7 @@ import type {
   Gender,
   PersonalityType,
   RoutineWithCompletion,
+  StrideItem,
   StrideLevel,
   SuggestedRoutine,
 } from "@/types";
@@ -78,6 +81,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   // 발걸음 재생성 진행 상태 (StrideSection으로 전달)
   const [regeneratingLevel, setRegeneratingLevel] = useState<StrideLevel | null>(null);
   const [isRegenAll, setIsRegenAll] = useState(false);
+  // PR 9 — 발걸음 카드 ⋮ → 수정 시트 상태
+  const [editingStride, setEditingStride] = useState<StrideItem | null>(null);
 
   const firstDailyTodo = data.dailyTodos[0] ?? null;
   const firstRoutine = data.routines[0] ?? null;
@@ -174,21 +179,52 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     router.refresh();
   }
 
-  // 개별 발걸음 단계 재생성 — StrideSection의 단건 ↻ 버튼에서 호출
-  async function handleRegenerateOne(level: StrideLevel) {
-    if (!data.selectedBucket?.id) return;
-    setRegeneratingLevel(level);
-    const result = await regenerateStrideItemAction(data.selectedBucket.id, level);
-    if (result.success && result.item) {
-      toast(`${result.item.label} 단계를 새로 추천했어요.`, "success");
-      router.refresh();
-    } else if (!result.success) {
-      toast(result.error ?? "단계 재추천에 실패했습니다.", "error");
-    }
-    setRegeneratingLevel(null);
+  // PR 9 — ⋮ "수정" 클릭 시 시트 진입
+  function handleEditOpen(item: StrideItem) {
+    setEditingStride(item);
   }
 
-  // 전체 발걸음 재생성 — StrideSection 헤더의 ↻ 전체 새로고침 버튼에서 호출
+  // PR 9 — EditWithAISheet 확인 → 사용자 입력으로 stride action 업데이트
+  async function handleEditConfirm(value: string) {
+    if (!editingStride || !data.selectedBucket?.id) return;
+    const result = await updateStrideItemAction(
+      data.selectedBucket.id,
+      editingStride.level,
+      value
+    );
+    if (result.success) {
+      toast(`${editingStride.label} 단계를 수정했어요.`, "success");
+      setEditingStride(null);
+      router.refresh();
+    } else {
+      toast(result.error ?? "수정에 실패했어요.", "error");
+    }
+  }
+
+  // PR 9 — EditWithAISheet "AI 생성" 클릭 → 기존 단건 재생성 액션 재사용 → 새 action 반환
+  async function handleEditAIGenerate(): Promise<string> {
+    if (!editingStride || !data.selectedBucket?.id) {
+      throw new Error("수정 대상이 없습니다.");
+    }
+    setRegeneratingLevel(editingStride.level);
+    try {
+      const result = await regenerateStrideItemAction(
+        data.selectedBucket.id,
+        editingStride.level
+      );
+      if (!result.success || !result.item) {
+        throw new Error(result.error ?? "AI 추천에 실패했어요.");
+      }
+      // editingStride의 action도 업데이트 (시트 닫고 다시 열어도 최신 값 유지)
+      setEditingStride({ ...editingStride, action: result.item.action });
+      router.refresh();
+      return result.item.action;
+    } finally {
+      setRegeneratingLevel(null);
+    }
+  }
+
+  // 전체 발걸음 재생성 — 실행계획 섹션 푸터 버튼에서 호출
   async function handleRegenerateAll() {
     if (!data.selectedBucket?.id) return;
     if (typeof window !== "undefined" && !window.confirm("전체 발걸음을 새로 추천받을까요?")) {
@@ -219,17 +255,13 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         <>
           <DirectionSection
             items={strideGroups.direction}
-            onRegenerateLevel={(level) => {
-              void handleRegenerateOne(level);
-            }}
+            onEditLevel={handleEditOpen}
             isRegenAll={isRegenAll}
             regeneratingLevel={regeneratingLevel}
           />
           <ExecutionPlanSection
             items={strideGroups.execution}
-            onRegenerateLevel={(level) => {
-              void handleRegenerateOne(level);
-            }}
+            onEditLevel={handleEditOpen}
             onRegenerateAll={() => {
               void handleRegenerateAll();
             }}
@@ -401,6 +433,21 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         onClose={() => setNextStepSheetOpen(false)}
         bucketId={data.selectedBucket?.id ?? null}
         onApplied={() => router.refresh()}
+      />
+
+      {/* PR 9 — 발걸음 카드 ⋮ "수정" 진입 시트 */}
+      <EditWithAISheet
+        open={!!editingStride}
+        onClose={() => setEditingStride(null)}
+        title={editingStride ? `${editingStride.label} 단계 수정` : "수정"}
+        initialValue={editingStride?.action ?? ""}
+        description="직접 입력하거나 AI로 새로 추천받을 수 있어요."
+        placeholder="이 단계의 행동을 한 문장으로 적어주세요"
+        onConfirm={(value) => {
+          void handleEditConfirm(value);
+        }}
+        onAIGenerate={handleEditAIGenerate}
+        confirmLabel="저장"
       />
     </div>
   );

@@ -1,26 +1,32 @@
 "use client";
 
-// 지향점 섹션 — 발걸음 3섹션 중 두 번째 (PR 8 신설)
+// 지향점 섹션 — 발걸음 3섹션 중 두 번째
 //
 // 표시 내용: 언젠가 + 1년 안 카드 (큰 시간 지평)
-// 카드 액션: PR 8에서는 기존 "↻ 다시" 버튼 유지. PR 9에서 ⋮ 메뉴로 교체.
+// 카드 액션 (PR 9):
+// - "↻ 다시" 버튼 → ⋮ 더보기 메뉴로 교체
+// - 메뉴 액션:
+//   - "수정" → EditWithAISheet 열기 (현재 타이틀 prefill, AI 생성 = 기존 regenerateStrideItemAction)
 
+import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { FEATURE_NAMES } from "@/lib/constants";
-import { cn } from "@/lib/utils";
 import type { StrideItem, StrideLevel } from "@/types";
 
 interface DirectionSectionProps {
   items: StrideItem[];
-  onRegenerateLevel: (level: StrideLevel) => void;
-  isRegenAll: boolean;
+  /** "수정" 클릭 → EditWithAISheet 진입. dashboard-content-v2가 시트를 띄움. */
+  onEditLevel: (item: StrideItem) => void;
+  /** 현재 AI 재생성 진행 중인 레벨 (수정 버튼 disable용) */
   regeneratingLevel: StrideLevel | null;
+  /** 전체 재생성 진행 중 (수정 버튼 disable용) */
+  isRegenAll: boolean;
 }
 
 export function DirectionSection({
   items,
-  onRegenerateLevel,
-  isRegenAll,
+  onEditLevel,
   regeneratingLevel,
+  isRegenAll,
 }: DirectionSectionProps) {
   if (items.length === 0) return null;
 
@@ -30,7 +36,7 @@ export function DirectionSection({
 
       <div className="mt-3 flex flex-col gap-2">
         {items.map((item, index) => {
-          const isRegenThis = regeneratingLevel === item.level;
+          const busy = regeneratingLevel === item.level || isRegenAll;
           return (
             <article
               key={`direction-${item.level}-${index}`}
@@ -38,18 +44,16 @@ export function DirectionSection({
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="text-xs font-medium text-foreground/55">{item.label}</p>
-                <button
-                  type="button"
-                  onClick={() => onRegenerateLevel(item.level)}
-                  disabled={isRegenThis || isRegenAll}
-                  className={cn(
-                    "inline-flex min-h-[28px] items-center rounded-md border border-foreground/15 px-2 text-[11px] transition-colors hover:bg-foreground/5",
-                    "disabled:opacity-40"
-                  )}
-                  aria-label={`${item.label} 단계 다시 추천`}
-                >
-                  {isRegenThis ? "추천 중…" : "↻ 다시"}
-                </button>
+                <MoreActionsMenu
+                  ariaLabel={`${item.label} 더보기`}
+                  actions={[
+                    {
+                      label: "수정",
+                      onClick: () => onEditLevel(item),
+                      disabled: busy,
+                    },
+                  ]}
+                />
               </div>
               <p className="mt-1 text-sm">{item.action}</p>
             </article>

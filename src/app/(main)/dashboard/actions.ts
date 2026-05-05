@@ -964,3 +964,60 @@ export async function regenerateStrideItemAction(
     };
   }
 }
+
+/**
+ * 특정 stride 항목의 action을 사용자 입력 텍스트로 업데이트 (PR 9)
+ * EditWithAISheet의 "확인" 버튼에서 호출. AI 재생성은 regenerateStrideItemAction이 담당.
+ */
+export async function updateStrideItemAction(
+  bucketId: string,
+  targetLevel: StrideLevel,
+  newAction: string
+): Promise<{ success: boolean; item?: StrideItem; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    if (!STRIDE_ORDER.includes(targetLevel)) {
+      throw new Error(STRIDE_ERRORS.LEVEL_INVALID_ALT);
+    }
+    const trimmed = newAction.trim();
+    if (!trimmed) {
+      throw new Error(STRIDE_ERRORS.ITEM_TITLE_EMPTY);
+    }
+
+    const plan = await loadStridePlanForBucket(supabase, userId, bucketId);
+    const existingStrides = Array.isArray(plan.strides) ? plan.strides : [];
+    const existing = existingStrides.find((item) => item.level === targetLevel);
+    if (!existing) {
+      throw new Error(STRIDE_ERRORS.LEVEL_NOT_IN_PLAN);
+    }
+
+    const updatedItem: StrideItem = {
+      level: existing.level,
+      label: existing.label,
+      action: trimmed,
+    };
+    const updatedStrides = existingStrides.map((item) =>
+      item.level === targetLevel ? updatedItem : item
+    );
+
+    const { error } = await supabase
+      .from("stride_plans")
+      .update({
+        strides: updatedStrides,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("bucket_id", bucketId)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    revalidatePath("/dashboard");
+    return { success: true, item: updatedItem };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, "발걸음 수정에 실패했습니다."),
+    };
+  }
+}
