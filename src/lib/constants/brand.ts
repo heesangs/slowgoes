@@ -17,6 +17,11 @@ export const FEATURE_NAMES = {
   ROUTINE: "루틴",
   MY_CLOCK: "나의 시간",
   FIND_ME: "숨은 나 찾기",
+  // 발걸음 3섹션 라벨 (PR 6 신설, PR 8에서 컴포넌트 분리 시 사용)
+  INSIGHT: "인사이트", // 구 "공감 메시지"
+  DIRECTION: "지향점", // 구 "방향" — 언젠가 + 1년 안
+  EXECUTION_PLAN: "실행계획", // 구 "기간" — 이번 시즌/이번 달/이번 주/오늘
+  STRIDE_DETAIL: "한걸음 상세", // 구 "오늘의 한걸음 상세"
 } as const;
 
 // 레거시 챕터 RPC 입력용 기본 제목 헬퍼 — 현재 챕터 UI는 제거되었지만 DB RPC는 chapter_title을 요구.

@@ -114,7 +114,7 @@ export function ActionsContent({
       {/* 헤더 */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">오늘의 한걸음 상세</h1>
+          <h1 className="text-xl font-bold">{FEATURE_NAMES.STRIDE_DETAIL}</h1>
           <p className="text-sm text-foreground/60">
             총 {dailyTodos.length + routines.length}개 (데일리 {dailyTodos.length} · 루틴{" "}
             {routines.length})
