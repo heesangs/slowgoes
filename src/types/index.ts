@@ -173,6 +173,10 @@ export interface BucketWithRelations extends Bucket {
   life_area?: LifeArea | null;
 }
 
+// 실행계획 카드 4개와 일치하는 stride_level 부분집합 (DB CHECK 제약과 동일)
+// 지향점 레벨(someday/this_year/...)은 daily_todos가 아닌 stride_plan에 표현됨.
+export type DailyTodoStrideLevel = "today" | "this_week" | "this_month" | "this_season";
+
 export interface DailyTodo {
   id: string;
   user_id: string;
@@ -180,6 +184,8 @@ export interface DailyTodo {
   title: string;
   status: DailyTodoStatus;
   source: ItemSource;
+  /** PR 10: 실행계획 카드 그룹핑 — DB DEFAULT 'today' */
+  stride_level: DailyTodoStrideLevel;
   week_start: string;
   sort_order: number;
   created_at: string;

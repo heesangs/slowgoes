@@ -83,6 +83,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [isRegenAll, setIsRegenAll] = useState(false);
   // PR 9 — 발걸음 카드 ⋮ → 수정 시트 상태
   const [editingStride, setEditingStride] = useState<StrideItem | null>(null);
+  // PR 10 — 실행계획 카드 안 투두 토글 진행 중 ID (중복 클릭 방지)
+  const [togglingExecTodoId, setTogglingExecTodoId] = useState<string | null>(null);
 
   const firstDailyTodo = data.dailyTodos[0] ?? null;
   const firstRoutine = data.routines[0] ?? null;
@@ -224,6 +226,19 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     }
   }
 
+  // PR 10 — 실행계획 카드 안 투두 클릭 시 완료 토글
+  async function handleToggleTodoFromCard(todoId: string) {
+    if (togglingExecTodoId) return;
+    setTogglingExecTodoId(todoId);
+    const result = await toggleDailyTodoAction(todoId);
+    if (result.success) {
+      router.refresh();
+    } else {
+      toast(result.error ?? "상태 변경에 실패했어요.", "error");
+    }
+    setTogglingExecTodoId(null);
+  }
+
   // 전체 발걸음 재생성 — 실행계획 섹션 푸터 버튼에서 호출
   async function handleRegenerateAll() {
     if (!data.selectedBucket?.id) return;
@@ -261,12 +276,17 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           />
           <ExecutionPlanSection
             items={strideGroups.execution}
+            dailyTodos={data.dailyTodos}
             onEditLevel={handleEditOpen}
+            onToggleTodo={(todoId) => {
+              void handleToggleTodoFromCard(todoId);
+            }}
             onRegenerateAll={() => {
               void handleRegenerateAll();
             }}
             isRegenAll={isRegenAll}
             regeneratingLevel={regeneratingLevel}
+            togglingTodoId={togglingExecTodoId}
           />
         </>
       )}
