@@ -55,6 +55,9 @@ const STRIDE_BOUNDARY_INDEX = STRIDE_ORDER.indexOf("this_month"); // 2
  * strides 배열을 "발걸음 카드"(this_month 이상)와 "버킷 투두"(today/this_week)로 분리
  * - displayStrides: 긴→짧은 순 (someday 먼저)
  * - bucketTodos: 짧은→긴 순
+ *
+ * 사용처 (PR 8 이전): StrideSection의 단일 카드 리스트 + 한걸음 더 시트.
+ * PR 8 이후: 발걸음 3섹션 분리(splitStridesByGroup)로 대체. 한걸음 더 시트만 유지.
  */
 export function partitionStrides(strides: StrideItem[]): {
   displayStrides: StrideItem[];
@@ -79,6 +82,46 @@ export function partitionStrides(strides: StrideItem[]): {
   );
   return { displayStrides: display, bucketTodos: todos };
 }
+
+// 발걸음 3섹션 분류 (PR 8) — 인사이트는 별도 처리(empathy_message), strides는 지향점/실행계획으로 분류
+const DIRECTION_LEVELS = new Set<StrideLevel>(["someday", "this_year"]);
+const EXECUTION_LEVELS = new Set<StrideLevel>(["this_season", "this_month", "this_week", "today"]);
+
+/**
+ * strides를 "지향점"(direction: someday + 1년 안)과 "실행계획"(execution: 시즌/달/주/오늘)으로 분류
+ * - direction: 긴→짧은 순 (언젠가 먼저)
+ * - execution: 긴→짧은 순 (시즌 먼저)
+ * - 그 외 레벨(this_month 외 중간 단계 등)은 가장 가까운 그룹에 매핑:
+ *   - five_years/decade → direction
+ *
+ * PR 8에서 신설. PR 8 이후 dashboard-content-v2의 3섹션 컴포넌트가 이 함수를 사용.
+ */
+export function splitStridesByGroup(strides: StrideItem[]): {
+  direction: StrideItem[];
+  execution: StrideItem[];
+} {
+  const direction: StrideItem[] = [];
+  const execution: StrideItem[] = [];
+  for (const s of strides) {
+    if (EXECUTION_LEVELS.has(s.level)) {
+      execution.push(s);
+    } else {
+      // someday, this_year, five_years, decade → direction
+      direction.push(s);
+    }
+  }
+  // 둘 다 긴 → 짧은 순 (사용자 인지 자연스러움: 더 큰 그림부터)
+  direction.sort(
+    (a, b) => STRIDE_ORDER.indexOf(b.level) - STRIDE_ORDER.indexOf(a.level)
+  );
+  execution.sort(
+    (a, b) => STRIDE_ORDER.indexOf(b.level) - STRIDE_ORDER.indexOf(a.level)
+  );
+  return { direction, execution };
+}
+
+// DIRECTION_LEVELS/EXECUTION_LEVELS은 외부에서도 분류 일관성 위해 노출
+export { DIRECTION_LEVELS, EXECUTION_LEVELS };
 
 // 버킷 스코프 힌트 주변 범위 — someday 항상 포함 + 짧은 단계(today/this_week) 포함
 const SCOPE_SUGGESTED_RANGE: Record<StrideScope, StrideLevel[]> = {
