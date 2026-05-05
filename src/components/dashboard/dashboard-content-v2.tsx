@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { DirectionSection } from "@/components/dashboard/direction-section";
+import { ExecutionPlanSection } from "@/components/dashboard/execution-plan-section";
 import { FindMeSheet } from "@/components/dashboard/find-me-sheet";
+import { InsightSection } from "@/components/dashboard/insight-section";
 import { LifeClockHeader } from "@/components/dashboard/life-clock-header";
 import { NextStepSheet } from "@/components/dashboard/next-step-sheet";
-import { StrideSection } from "@/components/dashboard/stride-section";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -16,6 +18,7 @@ import {
   toggleDailyTodoAction,
   toggleRoutineCompletionAction,
 } from "@/app/(main)/dashboard/actions";
+import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { cn } from "@/lib/utils";
 import { FEATURE_NAMES } from "@/lib/constants";
 import type {
@@ -80,6 +83,12 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const firstRoutine = data.routines[0] ?? null;
   const totalItemsCount = data.dailyTodos.length + data.routines.length;
   const extraMergedCount = data.extraDailyTodoCount + data.extraRoutineCount;
+
+  // 발걸음 3섹션 분류 (PR 8) — strides가 바뀔 때만 재계산
+  const strideGroups = useMemo(
+    () => splitStridesByGroup(data.stridePlan?.strides ?? []),
+    [data.stridePlan]
+  );
 
   // 탐색 바텀시트용 프로필 데이터 구성
   const prefillProfile = useMemo(() => {
@@ -200,18 +209,41 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     <div className="flex flex-col gap-4 pb-24">
       <LifeClockHeader age={data.profile.life_clock_age} />
 
-      <StrideSection
+      {/* 발걸음 3섹션 (PR 8): 인사이트 → 지향점 → 실행계획 */}
+      <InsightSection
         bucketTitle={data.selectedBucket?.title ?? null}
-        stridePlan={data.stridePlan}
-        onRegenerateAll={() => {
-          void handleRegenerateAll();
-        }}
-        onRegenerateLevel={(level) => {
-          void handleRegenerateOne(level);
-        }}
-        isRegenAll={isRegenAll}
-        regeneratingLevel={regeneratingLevel}
+        empathyMessage={data.stridePlan?.empathy_message ?? null}
       />
+
+      {data.stridePlan && (
+        <>
+          <DirectionSection
+            items={strideGroups.direction}
+            onRegenerateLevel={(level) => {
+              void handleRegenerateOne(level);
+            }}
+            isRegenAll={isRegenAll}
+            regeneratingLevel={regeneratingLevel}
+          />
+          <ExecutionPlanSection
+            items={strideGroups.execution}
+            onRegenerateLevel={(level) => {
+              void handleRegenerateOne(level);
+            }}
+            onRegenerateAll={() => {
+              void handleRegenerateAll();
+            }}
+            isRegenAll={isRegenAll}
+            regeneratingLevel={regeneratingLevel}
+          />
+        </>
+      )}
+
+      {!data.stridePlan && (
+        <p className="rounded-xl border border-foreground/10 px-4 py-4 text-sm text-foreground/60">
+          아직 {FEATURE_NAMES.MY_STRIDES}이 없어요. 우측 하단 + 버튼으로 새 장면을 탐색해보세요.
+        </p>
+      )}
 
       <section className="rounded-xl border border-foreground/10 px-4 py-4">
         <div className="mb-3 flex items-center justify-between gap-2">
