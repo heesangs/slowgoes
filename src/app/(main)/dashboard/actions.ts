@@ -21,6 +21,7 @@ import {
   STRIDE_ERRORS,
 } from "@/lib/constants";
 import type {
+  DailyTodoStrideLevel,
   Gender,
   ItemSource,
   PersonalityType,
@@ -552,7 +553,7 @@ export async function generateNextStepPreviewAction(
 export async function applyNextStepAction(
   bucketId: string,
   payload: {
-    daily?: { title: string } | null;
+    daily?: { title: string; strideLevel: DailyTodoStrideLevel } | null;
     routine?: {
       title: string;
       repeatUnit: RoutineRepeatUnit;
@@ -572,6 +573,12 @@ export async function applyNextStepAction(
       throw new Error("적용할 항목을 선택해 주세요.");
     }
 
+    // PR 12: stride_level 검증 (CHECK 제약과 일치)
+    const allowedLevels: DailyTodoStrideLevel[] = ["today", "this_week", "this_month", "this_season"];
+    if (payload.daily && !allowedLevels.includes(payload.daily.strideLevel)) {
+      throw new Error("기간 선택이 올바르지 않습니다.");
+    }
+
     const ctx = await loadNextStepContext(bucketId);
 
     const dailyStartSortOrder =
@@ -582,13 +589,14 @@ export async function applyNextStepAction(
     let addedDailyTodos = 0;
     let addedRoutines = 0;
 
-    if (dailyTitle) {
+    if (dailyTitle && payload.daily) {
       const { error } = await ctx.supabase.from("daily_todos").insert({
         user_id: ctx.userId,
         bucket_id: ctx.bucket.id,
         title: dailyTitle,
         status: "pending",
         source: "ai_generated" as const,
+        stride_level: payload.daily.strideLevel,
         week_start: ctx.weekStart,
         sort_order: dailyStartSortOrder,
       });
