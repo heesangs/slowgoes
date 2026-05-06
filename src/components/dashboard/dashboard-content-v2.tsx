@@ -19,6 +19,7 @@ import { EditWithAISheet } from "@/components/ui/edit-with-ai-sheet";
 import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { FEATURE_NAMES } from "@/lib/constants";
 import type {
+  DailyTodoStrideLevel,
   DashboardV2Data,
   Gender,
   PersonalityType,
@@ -40,8 +41,11 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   // 시트 안에서 "내 버킷 (전환)" / "새 장면 탐색" 모드 스위칭.
   const [findMeSheetOpen, setFindMeSheetOpen] = useState(false);
 
-  // "한걸음 더" 시트 (NextStepSheet) — 실행계획 섹션 헤더의 "한걸음 더" 버튼에서 진입
+  // "한걸음 더" 시트 (NextStepSheet)
+  // - 헤더 버튼 진입 → defaultPeriod=null (사용자가 시트 안에서 모든 단계 선택)
+  // - 카드 ⋮ "추가" 진입 → defaultPeriod=카드의 stride_level (PR 12)
   const [nextStepSheetOpen, setNextStepSheetOpen] = useState(false);
+  const [nextStepDefaultPeriod, setNextStepDefaultPeriod] = useState<DailyTodoStrideLevel | null>(null);
 
   // 발걸음 재생성 진행 상태
   const [regeneratingLevel, setRegeneratingLevel] = useState<StrideLevel | null>(null);
@@ -206,6 +210,20 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
                 toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
                 return;
               }
+              setNextStepDefaultPeriod(null);
+              setNextStepSheetOpen(true);
+            }}
+            onAddToLevel={(item) => {
+              if (!data.selectedBucket?.id) {
+                toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
+                return;
+              }
+              // PR 12: 카드 ⋮ "추가" → 카드의 stride_level prefill로 한걸음 더 진입
+              const allowed: DailyTodoStrideLevel[] = ["today", "this_week", "this_month", "this_season"];
+              const period = allowed.includes(item.level as DailyTodoStrideLevel)
+                ? (item.level as DailyTodoStrideLevel)
+                : null;
+              setNextStepDefaultPeriod(period);
               setNextStepSheetOpen(true);
             }}
             strideDetailHref={detailHref}
@@ -245,12 +263,13 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         }}
       />
 
-      {/* "한걸음 더" 시트 — StrideSection 푸터 버튼에서 진입 */}
+      {/* "한걸음 더" 시트 — 실행계획 헤더의 "한걸음 더" 버튼 또는 카드 ⋮ "추가"에서 진입 */}
       <NextStepSheet
         open={nextStepSheetOpen}
         onClose={() => setNextStepSheetOpen(false)}
         bucketId={data.selectedBucket?.id ?? null}
         onApplied={() => router.refresh()}
+        defaultPeriod={nextStepDefaultPeriod}
       />
 
       {/* PR 9 — 발걸음 카드 ⋮ "수정" 진입 시트 */}
