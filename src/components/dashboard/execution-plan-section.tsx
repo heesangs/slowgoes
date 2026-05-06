@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { getDaysLeftLabel, getPeriodProgress } from "@/lib/utils/period";
 import type { DailyTodo, DailyTodoStrideLevel, StrideItem, StrideLevel } from "@/types";
 
 interface ExecutionPlanSectionProps {
@@ -97,17 +98,41 @@ export function ExecutionPlanSection({
         {items.map((item, index) => {
           const busy = regeneratingLevel === item.level || isRegenAll;
           // PR 10: 카드의 stride_level과 일치하는 투두만 추출
-          const cardTodos = isExecutionLevel(item.level)
-            ? dailyTodos.filter((todo) => todo.stride_level === item.level)
+          // PR 14: 같은 narrowing으로 잔여 기간 + 진행도 계산
+          const execLevel: DailyTodoStrideLevel | null = isExecutionLevel(item.level)
+            ? item.level
+            : null;
+          const cardTodos = execLevel
+            ? dailyTodos.filter((todo) => todo.stride_level === execLevel)
             : [];
+          const periodLabel = execLevel ? getDaysLeftLabel(execLevel) : null;
+          const progress = execLevel ? getPeriodProgress(execLevel) : 0;
 
           return (
             <article
               key={`execution-${item.level}-${index}`}
-              className="rounded-lg border border-foreground/10 bg-foreground/[0.02] px-3 py-2.5"
+              className="relative overflow-hidden rounded-lg border border-foreground/10 bg-foreground/[0.02] px-3 py-2.5"
             >
+              {/* PR 14: 카드 상단 게이지 바 (저채도, 얇게) */}
+              {execLevel && (
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-foreground/5"
+                  aria-hidden
+                >
+                  <div
+                    className="h-full bg-foreground/30 transition-[width]"
+                    style={{ width: `${Math.round(progress * 100)}%` }}
+                  />
+                </div>
+              )}
+
               <div className="flex items-start justify-between gap-2">
-                <p className="text-xs font-medium text-foreground/55">{item.label}</p>
+                <div className="flex items-baseline gap-1.5">
+                  <p className="text-xs font-medium text-foreground/55">{item.label}</p>
+                  {periodLabel && (
+                    <span className="text-[10px] text-foreground/40">{periodLabel}</span>
+                  )}
+                </div>
                 <MoreActionsMenu
                   ariaLabel={`${item.label} 더보기`}
                   actions={[
