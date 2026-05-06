@@ -38,6 +38,12 @@ interface EditWithAISheetProps {
   aiButtonLabel?: string;
   /** 시트 헤더 아래 보조 설명 */
   description?: string;
+  /**
+   * PR 15: 과거 타이틀 picker (선택). 최근 → 과거 순서로 전달.
+   * 시트는 최대 5개까지 표시하고 클릭 시 textfield를 해당 값으로 채움.
+   * (저장 안 함 — 사용자가 추가 수정 후 "확인" 클릭해야 적용)
+   */
+  history?: string[];
 }
 
 export function EditWithAISheet({
@@ -51,6 +57,7 @@ export function EditWithAISheet({
   confirmLabel = "확인",
   aiButtonLabel = "✨ AI 생성",
   description,
+  history,
 }: EditWithAISheetProps) {
   const [value, setValue] = useState(initialValue);
   const [isAILoading, setIsAILoading] = useState(false);
@@ -149,6 +156,33 @@ export function EditWithAISheet({
 
         {aiError && (
           <p className="text-xs text-red-500">{aiError}</p>
+        )}
+
+        {/* PR 15: 과거 타이틀 picker — 최근 5개 */}
+        {history && history.length > 0 && (
+          <div className="mt-1 flex flex-col gap-1.5">
+            <p className="text-xs text-foreground/60">예전 추천</p>
+            <ul className="flex flex-col gap-1">
+              {history.slice(0, 5).map((past, index) => (
+                <li key={`hist-${index}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValue(past);
+                      if (aiError) setAIError(null);
+                    }}
+                    disabled={isAILoading || isConfirming}
+                    className={cn(
+                      "w-full rounded-md border border-foreground/10 bg-foreground/[0.02] px-2.5 py-1.5 text-left text-xs text-foreground/70 transition-colors",
+                      "hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
+                    )}
+                  >
+                    {past}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </BottomSheet>

@@ -224,6 +224,18 @@ export interface SuggestedRoutine {
   repeatValue: number;
 }
 
+// PR 15: 발걸음 카드 ⋮ 수정 시트의 이력 picker용
+export interface StrideTitleHistoryEntry {
+  /** 과거 시점에 카드에 표시되었던 action 텍스트 */
+  title: string;
+  /** ISO 타임스탬프 — 그 타이틀이 history에 push된 시각 */
+  generated_at: string;
+  /** "ai" = AI 재생성으로 교체된 이전 값, "manual" = 사용자 직접 수정으로 교체된 이전 값 */
+  source: "ai" | "manual";
+}
+
+export type StrideTitleHistory = Partial<Record<StrideLevel, StrideTitleHistoryEntry[]>>;
+
 export interface StridePlan {
   id: string;
   user_id: string;
@@ -232,6 +244,8 @@ export interface StridePlan {
   empathy_message: string;
   strides: StrideItem[];
   suggested_routines: SuggestedRoutine[];
+  /** PR 15: 단계별 과거 타이틀 이력 (마이그레이션 DEFAULT '{}') */
+  title_history?: StrideTitleHistory;
   created_at: string;
   updated_at: string;
 }

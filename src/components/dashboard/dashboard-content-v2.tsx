@@ -272,7 +272,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         defaultPeriod={nextStepDefaultPeriod}
       />
 
-      {/* PR 9 — 발걸음 카드 ⋮ "수정" 진입 시트 */}
+      {/* PR 9 — 발걸음 카드 ⋮ "수정" 진입 시트
+          PR 15 — title_history에서 해당 레벨의 과거 타이틀을 picker로 노출 */}
       <EditWithAISheet
         open={!!editingStride}
         onClose={() => setEditingStride(null)}
@@ -285,6 +286,13 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         }}
         onAIGenerate={handleEditAIGenerate}
         confirmLabel="저장"
+        history={
+          editingStride
+            ? (data.stridePlan?.title_history?.[editingStride.level] ?? []).map(
+                (entry) => entry.title
+              )
+            : undefined
+        }
       />
     </div>
   );

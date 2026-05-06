@@ -31,6 +31,8 @@ import type {
   StrideLevel,
   StridePlan,
   StrideScope,
+  StrideTitleHistory,
+  StrideTitleHistoryEntry,
 } from "@/types";
 
 function toClientErrorMessage(error: unknown, fallback: string): string {
@@ -917,8 +919,23 @@ export async function regenerateStridePlanAction(
   }
 }
 
+// PR 15: 단계별 타이틀 이력에 prepend (최대 20개까지 누적, 시트 picker는 최근 5개만 표시)
+const TITLE_HISTORY_MAX = 20;
+
+function prependHistory(
+  current: StrideTitleHistory | null | undefined,
+  level: StrideLevel,
+  entry: StrideTitleHistoryEntry
+): StrideTitleHistory {
+  const next: StrideTitleHistory = { ...(current ?? {}) };
+  const prev = next[level] ?? [];
+  next[level] = [entry, ...prev].slice(0, TITLE_HISTORY_MAX);
+  return next;
+}
+
 /**
  * 특정 stride 항목만 재생성 — 각 행의 "🔄" 버튼
+ * PR 15: 교체 시 기존 타이틀을 title_history에 prepend (source: "ai")
  */
 export async function regenerateStrideItemAction(
   bucketId: string,
@@ -937,7 +954,8 @@ export async function regenerateStrideItemAction(
     ]);
 
     const existingStrides = Array.isArray(plan.strides) ? plan.strides : [];
-    if (!existingStrides.some((item) => item.level === targetLevel)) {
+    const existing = existingStrides.find((item) => item.level === targetLevel);
+    if (!existing) {
       throw new Error(STRIDE_ERRORS.LEVEL_NOT_IN_PLAN);
     }
 
@@ -951,11 +969,18 @@ export async function regenerateStrideItemAction(
     const updatedStrides = existingStrides.map((item) =>
       item.level === targetLevel ? newItem : item
     );
+    // PR 15: 기존 타이틀을 title_history에 prepend (source: "ai")
+    const nextHistory = prependHistory(plan.title_history, targetLevel, {
+      title: existing.action,
+      generated_at: new Date().toISOString(),
+      source: "ai",
+    });
 
     const { error } = await supabase
       .from("stride_plans")
       .update({
         strides: updatedStrides,
+        title_history: nextHistory,
         updated_at: new Date().toISOString(),
       })
       .eq("bucket_id", bucketId)
@@ -1009,12 +1034,23 @@ export async function updateStrideItemAction(
       item.level === targetLevel ? updatedItem : item
     );
 
+    const updatePayload: Record<string, unknown> = {
+      strides: updatedStrides,
+      updated_at: new Date().toISOString(),
+    };
+
+    // PR 15: 새 값이 기존과 다를 때만 title_history에 prepend (source: "manual")
+    if (existing.action !== trimmed) {
+      updatePayload.title_history = prependHistory(plan.title_history, targetLevel, {
+        title: existing.action,
+        generated_at: new Date().toISOString(),
+        source: "manual",
+      });
+    }
+
     const { error } = await supabase
       .from("stride_plans")
-      .update({
-        strides: updatedStrides,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("bucket_id", bucketId)
       .eq("user_id", userId);
 
