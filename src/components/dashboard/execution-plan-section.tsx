@@ -6,8 +6,10 @@
 // 카드 액션:
 // - PR 9: ⋮ 더보기 메뉴 (수정 → EditWithAISheet, 추가는 PR 12 연결 예정)
 // - PR 10: 카드 본문에 해당 stride_level 투두 리스트 + 클릭 시 완료 토글
+// - PR 11: 헤더 우측에 "한걸음 더" 버튼 + "한걸음 상세" 링크 흡수 (구 "오늘의 한걸음" 섹션 폐기)
 // - PR 14: 잔여 기간 + 게이지 바 추가 예정
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { FEATURE_NAMES } from "@/lib/constants";
@@ -32,6 +34,14 @@ interface ExecutionPlanSectionProps {
   isRegenAll: boolean;
   /** PR 10: 현재 토글 진행 중인 투두 ID (중복 클릭 방지) */
   togglingTodoId: string | null;
+  /** PR 11: "한걸음 더" 버튼 클릭 (구 오늘의 한걸음 섹션 헤더에서 이동) */
+  onOpenNextStep: () => void;
+  /** PR 11: "한걸음 상세" 페이지 링크 (extraCount > 0일 때만 노출) */
+  strideDetailHref: string;
+  /** PR 11: 한걸음 상세 페이지로 가야 보이는 추가 항목 개수 — 0이면 더보기 링크 숨김 */
+  extraCount: number;
+  /** PR 11: 한걸음 더 버튼 disabled 여부 (버킷 미선택 시 등) */
+  isNextStepDisabled?: boolean;
 }
 
 // stride_level은 4개 값만 가능 (DailyTodoStrideLevel)
@@ -50,12 +60,38 @@ export function ExecutionPlanSection({
   regeneratingLevel,
   isRegenAll,
   togglingTodoId,
+  onOpenNextStep,
+  strideDetailHref,
+  extraCount,
+  isNextStepDisabled = false,
 }: ExecutionPlanSectionProps) {
   if (items.length === 0) return null;
 
   return (
     <section className="rounded-xl border border-foreground/10 px-4 py-4">
-      <p className="text-sm font-medium text-foreground/70">{FEATURE_NAMES.EXECUTION_PLAN}</p>
+      {/* 헤더: 라벨 + 우측에 한걸음 더 + 더보기 (PR 11에서 흡수) */}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-foreground/70">{FEATURE_NAMES.EXECUTION_PLAN}</p>
+
+        <div className="flex items-center gap-2">
+          {extraCount > 0 && (
+            <Link
+              href={strideDetailHref}
+              className="inline-flex min-h-[28px] items-center rounded-md border border-foreground/15 px-2 text-[11px] text-foreground/70 transition-colors hover:bg-foreground/5"
+            >
+              더보기 +{extraCount}
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={onOpenNextStep}
+            disabled={isNextStepDisabled}
+            className="inline-flex min-h-[28px] items-center rounded-md border border-foreground/20 bg-foreground/[0.04] px-2 text-[11px] font-medium transition-colors hover:bg-foreground/[0.08] disabled:opacity-40"
+          >
+            한걸음 더
+          </button>
+        </div>
+      </div>
 
       <div className="mt-3 flex flex-col gap-2">
         {items.map((item, index) => {
