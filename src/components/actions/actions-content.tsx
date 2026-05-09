@@ -224,16 +224,20 @@ export function ActionsContent({
                   disabled={isToggling}
                   aria-pressed={isCompleted}
                   className={cn(
-                    "flex w-full items-start gap-3 rounded-lg border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-left transition-colors hover:bg-foreground/5",
-                    "disabled:opacity-60"
+                    "flex w-full items-start gap-3 rounded-lg border px-3 py-3 text-left transition-all duration-200",
+                    "disabled:opacity-60",
+                    // PR 21: 미완료는 옅음, 완료는 배경 채움 + 강조 (투두의 line-through와 다른 효과)
+                    isCompleted
+                      ? "border-foreground/30 bg-foreground/[0.08]"
+                      : "border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/5"
                   )}
                 >
                   <span
                     className={cn(
-                      "mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                      "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
                       isCompleted
                         ? "border-foreground bg-foreground text-background"
-                        : "border-foreground/30"
+                        : "border-foreground/25"
                     )}
                     aria-hidden
                   >
@@ -244,10 +248,20 @@ export function ActionsContent({
                     )}
                   </span>
                   <div className="flex-1">
-                    <p className={cn("text-sm font-medium", isCompleted && "line-through text-foreground/45")}>
+                    <p
+                      className={cn(
+                        "text-sm transition-all duration-200",
+                        isCompleted ? "font-semibold text-foreground" : "font-medium text-foreground/65"
+                      )}
+                    >
                       {routine.title}
                     </p>
-                    <p className="mt-1 text-xs text-foreground/60">
+                    <p
+                      className={cn(
+                        "mt-1 text-xs transition-colors duration-200",
+                        isCompleted ? "text-foreground/70" : "text-foreground/45"
+                      )}
+                    >
                       반복: {formatRoutineRepeat(routine.repeat_unit, routine.repeat_value)}
                     </p>
                   </div>
