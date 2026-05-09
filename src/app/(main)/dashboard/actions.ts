@@ -27,6 +27,7 @@ import type {
   PersonalityType,
   Profile,
   RoutineRepeatUnit,
+  RoutineTimeSlot,
   StrideItem,
   StrideLevel,
   StridePlan,
@@ -560,6 +561,8 @@ export async function applyNextStepAction(
       title: string;
       repeatUnit: RoutineRepeatUnit;
       repeatValue: number;
+      /** PR 19: 루틴 시간대. NULL 허용. */
+      timeSlot?: RoutineTimeSlot | null;
     } | null;
   }
 ): Promise<{
@@ -576,9 +579,17 @@ export async function applyNextStepAction(
     }
 
     // PR 18: stride_level은 'this_month'만 허용 (실행계획 단순화).
-    // type system이 이미 보장하지만 런타임 안전망으로 한 번 더 체크.
     if (payload.daily && payload.daily.strideLevel !== "this_month") {
       throw new Error("기간 선택이 올바르지 않습니다.");
+    }
+
+    // PR 19: time_slot 검증 (CHECK 제약과 일치)
+    const allowedTimeSlots: RoutineTimeSlot[] = ["morning", "afternoon", "evening", "night"];
+    if (
+      payload.routine?.timeSlot &&
+      !allowedTimeSlots.includes(payload.routine.timeSlot)
+    ) {
+      throw new Error("시간대 선택이 올바르지 않습니다.");
     }
 
     const ctx = await loadNextStepContext(bucketId);
@@ -614,6 +625,7 @@ export async function applyNextStepAction(
         source: "ai_generated" as const,
         repeat_unit: payload.routine.repeatUnit,
         repeat_value: payload.routine.repeatValue,
+        time_slot: payload.routine.timeSlot ?? null, // PR 19
         is_active: true,
         sort_order: routineStartSortOrder,
       });
