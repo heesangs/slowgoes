@@ -218,12 +218,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
                 toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
                 return;
               }
-              // PR 12: 카드 ⋮ "추가" → 카드의 stride_level prefill로 한걸음 더 진입
-              const allowed: DailyTodoStrideLevel[] = ["today", "this_week", "this_month", "this_season"];
-              const period = allowed.includes(item.level as DailyTodoStrideLevel)
-                ? (item.level as DailyTodoStrideLevel)
-                : null;
-              setNextStepDefaultPeriod(period);
+              // PR 18: 실행계획은 this_month 1개만. 카드 어떤 level이든 this_month로 prefill.
+              void item; // 카드별 분기 불필요 — union이 단일 값으로 축소됨
+              setNextStepDefaultPeriod("this_month");
               setNextStepSheetOpen(true);
             }}
             strideDetailHref={detailHref}
