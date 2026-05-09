@@ -8,6 +8,7 @@ import { FindMeSheet } from "@/components/dashboard/find-me-sheet";
 import { InsightSection } from "@/components/dashboard/insight-section";
 import { LifeClockHeader } from "@/components/dashboard/life-clock-header";
 import { NextStepSheet } from "@/components/dashboard/next-step-sheet";
+import { RoutineCalendarSheet } from "@/components/dashboard/routine-calendar-sheet";
 import { useToast } from "@/components/ui/toast";
 import {
   regenerateStrideItemAction,
@@ -24,6 +25,7 @@ import type {
   DashboardV2Data,
   Gender,
   PersonalityType,
+  RoutineWithCompletion,
   StrideItem,
   StrideLevel,
 } from "@/types";
@@ -57,6 +59,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [togglingExecTodoId, setTogglingExecTodoId] = useState<string | null>(null);
   // PR 20 — 실행계획 카드 안 루틴 토글 진행 중 ID
   const [togglingExecRoutineId, setTogglingExecRoutineId] = useState<string | null>(null);
+  // PR 22 — 루틴 캘린더 시트 상태
+  const [calendarRoutine, setCalendarRoutine] = useState<RoutineWithCompletion | null>(null);
 
   const extraMergedCount = data.extraDailyTodoCount + data.extraRoutineCount;
 
@@ -219,6 +223,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             onToggleRoutine={(routineId) => {
               void handleToggleRoutineFromCard(routineId);
             }}
+            onOpenRoutineCalendar={(routine) => {
+              setCalendarRoutine(routine);
+            }}
             onRegenerateAll={() => {
               void handleRegenerateAll();
             }}
@@ -311,6 +318,14 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
               )
             : undefined
         }
+      />
+
+      {/* PR 22: 루틴 달성 캘린더 시트 */}
+      <RoutineCalendarSheet
+        open={calendarRoutine !== null}
+        onClose={() => setCalendarRoutine(null)}
+        routineId={calendarRoutine?.id ?? null}
+        routineTitle={calendarRoutine?.title ?? null}
       />
     </div>
   );

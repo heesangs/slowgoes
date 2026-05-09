@@ -144,6 +144,15 @@ export async function getDailyTodos(
   }
 }
 
+// PR 22: 오늘 날짜를 "YYYY-MM-DD" 로컬 기준
+function getTodayDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export async function getRoutinesWithCompletions(
   supabase: DashboardSupabase,
   userId: string,
@@ -151,6 +160,7 @@ export async function getRoutinesWithCompletions(
 ): Promise<RoutineWithCompletion[]> {
   if (!bucketId) return [];
 
+  const today = getTodayDateString();
   const weekStart = getCurrentWeekStartDate();
 
   try {
@@ -163,11 +173,13 @@ export async function getRoutinesWithCompletions(
         .eq("is_active", true)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true }),
+      // PR 22: 일 단위로 변경됐지만 "이번 주에 한 번이라도" 정보도 유지
+      // → 이번 주 범위 내 완료 모두 조회 후 today / week 분리
       supabase
         .from("routine_completions")
         .select("*")
         .eq("user_id", userId)
-        .eq("week_start", weekStart),
+        .gte("completion_date", weekStart),
     ]);
 
     if (routinesResult.error) throw routinesResult.error;
@@ -176,17 +188,23 @@ export async function getRoutinesWithCompletions(
     const routines = (routinesResult.data as RoutineWithCompletion[] | null) ?? [];
     const completions = (completionsResult.data as RoutineCompletion[] | null) ?? [];
 
-    const completionByRoutineId = new Map<string, RoutineCompletion>();
-    for (const completion of completions) {
-      completionByRoutineId.set(completion.routine_id, completion);
+    // 루틴별로 today 완료 / 이번 주 완료 둘 다 분류
+    const todayByRoutineId = new Map<string, RoutineCompletion>();
+    const weekByRoutineId = new Map<string, RoutineCompletion>();
+    for (const c of completions) {
+      if (c.completion_date === today) todayByRoutineId.set(c.routine_id, c);
+      // 이번 주 안 어느 날이든 한 번이라도 있으면 기록 (최근 것 우선)
+      if (!weekByRoutineId.has(c.routine_id)) weekByRoutineId.set(c.routine_id, c);
     }
 
     return routines.map((routine) => {
-      const completion = completionByRoutineId.get(routine.id) ?? null;
+      const todayCompletion = todayByRoutineId.get(routine.id) ?? null;
+      const weekCompletion = weekByRoutineId.get(routine.id) ?? null;
       return {
         ...routine,
-        completion,
-        is_completed_this_week: Boolean(completion),
+        completion: todayCompletion ?? weekCompletion,
+        is_completed_today: Boolean(todayCompletion),
+        is_completed_this_week: Boolean(weekCompletion),
       };
     });
   } catch (error) {

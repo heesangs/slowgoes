@@ -164,6 +164,15 @@ export async function toggleDailyTodoAction(todoId: string): Promise<{
   }
 }
 
+// PR 22: 오늘 날짜를 "YYYY-MM-DD" 로컬 기준으로 반환 (UTC 변환 없이)
+function getTodayDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export async function toggleRoutineCompletionAction(routineId: string): Promise<{
   success: boolean;
   data?: { completed: boolean };
@@ -171,6 +180,8 @@ export async function toggleRoutineCompletionAction(routineId: string): Promise<
 }> {
   try {
     const { supabase, userId } = await getAuthContext();
+    // PR 22: 일 단위 토글로 변경. week_start는 호환성 위해 함께 저장.
+    const today = getTodayDateString();
     const weekStart = getCurrentWeekStartDate();
 
     const { data: routine, error: routineError } = await supabase
@@ -189,7 +200,7 @@ export async function toggleRoutineCompletionAction(routineId: string): Promise<
       .select("id")
       .eq("routine_id", routine.id)
       .eq("user_id", userId)
-      .eq("week_start", weekStart)
+      .eq("completion_date", today)
       .maybeSingle();
 
     if (completionError) {
@@ -237,7 +248,8 @@ export async function toggleRoutineCompletionAction(routineId: string): Promise<
       .insert({
         routine_id: routine.id,
         user_id: userId,
-        week_start: weekStart,
+        completion_date: today,
+        week_start: weekStart, // 호환성 유지
         completed_at: completedAt,
       });
 
@@ -1074,6 +1086,50 @@ export async function updateStrideItemAction(
     return {
       success: false,
       error: toClientErrorMessage(error, "발걸음 수정에 실패했습니다."),
+    };
+  }
+}
+
+/**
+ * PR 22: 특정 루틴의 월별 완료 일자 조회 (캘린더 시트용).
+ * 반환: ["YYYY-MM-DD", ...] — 해당 월에 완료된 날짜 배열.
+ */
+export async function getRoutineCompletionsForMonthAction(
+  routineId: string,
+  year: number,
+  month: number // 1-12 (사용자 친화적으로)
+): Promise<{ success: boolean; dates?: string[]; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    // month는 1-12로 받지만 Date 생성 시는 0-11로 변환
+    const monthIndex = month - 1;
+    if (monthIndex < 0 || monthIndex > 11) {
+      throw new Error("월 값이 올바르지 않습니다.");
+    }
+
+    // 월의 시작/끝 ("YYYY-MM-DD" 형식)
+    const start = new Date(year, monthIndex, 1);
+    const end = new Date(year, monthIndex + 1, 1); // 다음 달 1일 (exclusive)
+    const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
+    const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-01`;
+
+    const { data, error } = await supabase
+      .from("routine_completions")
+      .select("completion_date")
+      .eq("routine_id", routineId)
+      .eq("user_id", userId)
+      .gte("completion_date", startStr)
+      .lt("completion_date", endStr);
+
+    if (error) throw error;
+
+    const dates = (data ?? []).map((row) => row.completion_date as string);
+    return { success: true, dates };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, "달성 기록을 불러오지 못했습니다."),
     };
   }
 }
