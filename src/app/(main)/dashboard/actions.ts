@@ -575,9 +575,9 @@ export async function applyNextStepAction(
       throw new Error("적용할 항목을 선택해 주세요.");
     }
 
-    // PR 12: stride_level 검증 (CHECK 제약과 일치)
-    const allowedLevels: DailyTodoStrideLevel[] = ["today", "this_week", "this_month", "this_season"];
-    if (payload.daily && !allowedLevels.includes(payload.daily.strideLevel)) {
+    // PR 18: stride_level은 'this_month'만 허용 (실행계획 단순화).
+    // type system이 이미 보장하지만 런타임 안전망으로 한 번 더 체크.
+    if (payload.daily && payload.daily.strideLevel !== "this_month") {
       throw new Error("기간 선택이 올바르지 않습니다.");
     }
 

@@ -83,18 +83,19 @@ export function partitionStrides(strides: StrideItem[]): {
   return { displayStrides: display, bucketTodos: todos };
 }
 
-// 발걸음 3섹션 분류 (PR 8) — 인사이트는 별도 처리(empathy_message), strides는 지향점/실행계획으로 분류
-const DIRECTION_LEVELS = new Set<StrideLevel>(["someday", "this_year"]);
-const EXECUTION_LEVELS = new Set<StrideLevel>(["this_season", "this_month", "this_week", "today"]);
+// 발걸음 3섹션 분류 (PR 8 → PR 18 단순화)
+// - 지향점: someday + this_year + (five_years/decade는 fallback으로 포함)
+// - 실행계획: this_month 한 가지만 (PR 18 단순화 — 인지부하 ↓)
+//   - today/this_week/this_season은 stride_plan에 데이터가 있어도 화면에 표시하지 않음
+//     (실행계획은 daily_todos가 일주일/한 달 단위 행동을 담당)
+const DIRECTION_LEVELS = new Set<StrideLevel>(["someday", "this_year", "five_years", "decade"]);
+const EXECUTION_LEVELS = new Set<StrideLevel>(["this_month"]);
 
 /**
- * strides를 "지향점"(direction: someday + 1년 안)과 "실행계획"(execution: 시즌/달/주/오늘)으로 분류
+ * strides를 "지향점"(direction)과 "실행계획"(execution: this_month)으로 분류.
  * - direction: 긴→짧은 순 (언젠가 먼저)
- * - execution: 긴→짧은 순 (시즌 먼저)
- * - 그 외 레벨(this_month 외 중간 단계 등)은 가장 가까운 그룹에 매핑:
- *   - five_years/decade → direction
- *
- * PR 8에서 신설. PR 8 이후 dashboard-content-v2의 3섹션 컴포넌트가 이 함수를 사용.
+ * - execution: this_month 1개만 (PR 18)
+ * - today/this_week/this_season 레벨은 둘 다 아닌 상태 → 화면에서 제외
  */
 export function splitStridesByGroup(strides: StrideItem[]): {
   direction: StrideItem[];
@@ -105,16 +106,13 @@ export function splitStridesByGroup(strides: StrideItem[]): {
   for (const s of strides) {
     if (EXECUTION_LEVELS.has(s.level)) {
       execution.push(s);
-    } else {
-      // someday, this_year, five_years, decade → direction
+    } else if (DIRECTION_LEVELS.has(s.level)) {
       direction.push(s);
     }
+    // 그 외 (today/this_week/this_season) — PR 18 단순화로 카드 표시 안 함
   }
-  // 둘 다 긴 → 짧은 순 (사용자 인지 자연스러움: 더 큰 그림부터)
+  // 직관적 순서: 지향점은 긴→짧은 (언젠가 먼저). 실행계획은 1개라 정렬 불필요.
   direction.sort(
-    (a, b) => STRIDE_ORDER.indexOf(b.level) - STRIDE_ORDER.indexOf(a.level)
-  );
-  execution.sort(
     (a, b) => STRIDE_ORDER.indexOf(b.level) - STRIDE_ORDER.indexOf(a.level)
   );
   return { direction, execution };
