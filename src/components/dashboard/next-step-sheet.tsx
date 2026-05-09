@@ -1,19 +1,20 @@
 "use client";
 
-// "한걸음 더" 시트 (PR 18 단순화)
+// "한걸음 더" 시트 (PR 19 — 루틴에 시간대 단계 추가)
 //
 // 진입점:
 // - 실행계획 섹션 헤더 우측 "한걸음 더" 버튼 (대시보드)
 // - 실행계획 카드 ⋮ → "추가" 메뉴
 //
-// 흐름 (2단계 — PR 12에선 3단계였으나 PR 18에서 기간 단계 자동 skip):
+// 흐름:
 // 1) 모드 선택 — 데일리 투두 / 루틴
-// 2) 입력 — EditWithAISheet (직접 입력 + AI 생성 버튼 + 저장)
+// 2) (루틴 모드만) 시간대 선택 — 아침 / 점심 / 저녁 / 밤
+// 3) 입력 — EditWithAISheet (직접 입력 + AI 생성 버튼 + 저장)
 //
-// 데일리 투두는 무조건 stride_level="this_month"로 저장 (실행계획 카드 1개로 단순화).
-// 루틴은 stride_level 컬럼 없음 (PR 19+에서 별도 time_slot 추가 예정).
+// 데일리 투두는 무조건 stride_level="this_month"로 저장 (PR 18 단순화).
+// 루틴은 time_slot 컬럼에 사용자가 선택한 시간대 저장 (PR 19 신설).
 //
-// 안정성: AI 호출은 단일 type만 (구 "둘 다" 모드의 race 위험 제거).
+// 안정성: AI 호출은 단일 type만.
 
 import { useEffect, useState } from "react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
@@ -24,9 +25,18 @@ import {
   generateNextStepPreviewAction,
 } from "@/app/(main)/dashboard/actions";
 import { FEATURE_NAMES } from "@/lib/constants";
-import type { DailyTodoStrideLevel } from "@/types";
+import type { DailyTodoStrideLevel, RoutineTimeSlot } from "@/types";
 
 type NextStepMode = "daily_todo" | "routine";
+
+const TIME_SLOT_LABELS: Record<RoutineTimeSlot, string> = {
+  morning: "아침",
+  afternoon: "점심",
+  evening: "저녁",
+  night: "밤",
+};
+
+const TIME_SLOT_ORDER: RoutineTimeSlot[] = ["morning", "afternoon", "evening", "night"];
 
 interface NextStepSheetProps {
   open: boolean;
@@ -51,8 +61,9 @@ export function NextStepSheet({
 }: NextStepSheetProps) {
   const { toast } = useToast();
 
-  // 단계 진행: mode 선택 → edit (기간 단계는 PR 18에서 자동 skip)
+  // 단계 진행: mode → (루틴이면) timeSlot → edit
   const [mode, setMode] = useState<NextStepMode | null>(null);
+  const [timeSlot, setTimeSlot] = useState<RoutineTimeSlot | null>(null);
   // 루틴 AI 추천 결과의 repeat 정보 (직접 입력일 땐 기본값 weekly/1)
   const [routineRepeat, setRoutineRepeat] = useState<{
     repeatUnit: "daily" | "weekly";
@@ -63,15 +74,24 @@ export function NextStepSheet({
   useEffect(() => {
     if (open) {
       setMode(null);
+      setTimeSlot(null);
       setRoutineRepeat(null);
     } else {
       setMode(null);
+      setTimeSlot(null);
       setRoutineRepeat(null);
     }
   }, [open]);
 
-  // 단계 판단 (mode 선택되면 바로 edit)
-  const step: "mode" | "edit" = !mode ? "mode" : "edit";
+  // 단계 판단:
+  // - mode 미선택: mode 단계
+  // - 루틴이고 timeSlot 미선택: timeSlot 단계
+  // - 그 외: edit 단계 (데일리 투두는 timeSlot 불필요, 바로 edit)
+  const step: "mode" | "timeSlot" | "edit" = !mode
+    ? "mode"
+    : mode === "routine" && !timeSlot
+      ? "timeSlot"
+      : "edit";
 
   // EditWithAISheet의 AI 생성 버튼 → preview action 호출 → textfield에 채움
   async function handleAIGenerate(): Promise<string> {
@@ -97,13 +117,17 @@ export function NextStepSheet({
 
     const payload =
       mode === "daily_todo"
-        ? { daily: { title: value, strideLevel: "this_month" as const }, routine: null }
+        ? {
+            daily: { title: value, strideLevel: "this_month" as const },
+            routine: null,
+          }
         : {
             daily: null,
             routine: {
               title: value,
               repeatUnit: routineRepeat?.repeatUnit ?? ("weekly" as const),
               repeatValue: routineRepeat?.repeatValue ?? 1,
+              timeSlot, // PR 19: 사용자가 선택한 시간대 저장
             },
           };
 
@@ -118,14 +142,20 @@ export function NextStepSheet({
     onClose();
   }
 
-  // 단계 1 (모드 선택) 시트
+  // 단계 1·2 시트 (BottomSheet 공통)
   const stepSheet = (
-    <BottomSheet open={open && step === "mode"} onClose={onClose} title="한걸음 더">
-      <ModeSelectStep onSelect={(m) => setMode(m)} />
+    <BottomSheet open={open && step !== "edit"} onClose={onClose} title="한걸음 더">
+      {step === "mode" && <ModeSelectStep onSelect={(m) => setMode(m)} />}
+      {step === "timeSlot" && (
+        <TimeSlotSelectStep
+          onBack={() => setMode(null)}
+          onSelect={(t) => setTimeSlot(t)}
+        />
+      )}
     </BottomSheet>
   );
 
-  // 단계 2 — EditWithAISheet
+  // 단계 3 — EditWithAISheet
   const editSheet =
     step === "edit" && mode ? (
       <EditWithAISheet
@@ -134,17 +164,19 @@ export function NextStepSheet({
         title={
           mode === "daily_todo"
             ? `${FEATURE_NAMES.DAILY_TODO} 추가`
-            : `${FEATURE_NAMES.ROUTINE} 추가`
+            : `${FEATURE_NAMES.ROUTINE} 추가${timeSlot ? ` (${TIME_SLOT_LABELS[timeSlot]})` : ""}`
         }
         description={
           mode === "daily_todo"
             ? `이번 달 ${FEATURE_NAMES.EXECUTION_PLAN} 카드에 추가될 행동입니다.`
-            : "직접 입력하거나 AI로 추천받을 수 있어요."
+            : timeSlot
+              ? `${TIME_SLOT_LABELS[timeSlot]} 시간대에 반복할 행동입니다.`
+              : "직접 입력하거나 AI로 추천받을 수 있어요."
         }
         placeholder={
           mode === "daily_todo"
             ? "예: 5분 산책하기"
-            : "예: 매일 아침 물 한 잔"
+            : "예: 매일 물 한 잔"
         }
         onConfirm={(value) => {
           void handleConfirm(value);
@@ -210,5 +242,42 @@ function ModeCard({ icon, title, desc, onClick }: ModeCardProps) {
         <p className="mt-0.5 text-xs text-foreground/60">{desc}</p>
       </div>
     </button>
+  );
+}
+
+// ─── 시간대 선택 (루틴 전용) ───────────────────────────────────────────
+
+interface TimeSlotSelectStepProps {
+  onBack: () => void;
+  onSelect: (slot: RoutineTimeSlot) => void;
+}
+
+function TimeSlotSelectStep({ onBack, onSelect }: TimeSlotSelectStepProps) {
+  return (
+    <div className="flex flex-col gap-3 py-1">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex w-fit items-center gap-1 text-xs text-foreground/60 transition-colors hover:text-foreground"
+      >
+        <span aria-hidden>←</span>
+        <span>다른 종류 선택</span>
+      </button>
+
+      <p className="text-sm text-foreground/70">언제 실천하실 건가요?</p>
+
+      <div className="grid grid-cols-2 gap-2">
+        {TIME_SLOT_ORDER.map((slot) => (
+          <button
+            key={slot}
+            type="button"
+            onClick={() => onSelect(slot)}
+            className="rounded-lg border border-foreground/10 px-4 py-4 text-center text-sm font-medium transition-colors hover:bg-foreground/[0.04]"
+          >
+            {TIME_SLOT_LABELS[slot]}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

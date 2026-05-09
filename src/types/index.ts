@@ -44,6 +44,8 @@ export type TaskCondition = "light" | "normal" | "focused" | "tired";
 export type ItemSource = "onboarding" | "ai_generated" | "manual";
 export type DailyTodoStatus = "pending" | "completed";
 export type RoutineRepeatUnit = "daily" | "weekly";
+// PR 19: 루틴 시간대 (DB CHECK 제약과 동일)
+export type RoutineTimeSlot = "morning" | "afternoon" | "evening" | "night";
 export type ActionLogItemType = "daily_todo" | "routine";
 
 export interface Profile {
@@ -201,6 +203,8 @@ export interface Routine {
   source: ItemSource;
   repeat_unit: RoutineRepeatUnit;
   repeat_value: number;
+  /** PR 19: 루틴 실행 시간대 (선택). 기존 row는 null. */
+  time_slot: RoutineTimeSlot | null;
   is_active: boolean;
   sort_order: number;
   created_at: string;
