@@ -235,7 +235,7 @@ export function ExecutionPlanSection({
                 </ul>
               )}
 
-              {/* PR 20: 루틴 리스트 — 클릭 시 완료 토글 (PR 21에서 시각 효과 차별화) */}
+              {/* PR 20: 루틴 리스트 — PR 21: 완료 시 선명·채움 효과 (PDF "2.c") */}
               {cardRoutines.length > 0 && (
                 <ul className="mt-2 flex flex-col gap-1 border-t border-foreground/10 pt-2">
                   {cardRoutines.map((routine) => {
@@ -251,18 +251,20 @@ export function ExecutionPlanSection({
                           aria-pressed={isCompleted}
                           aria-label={`${routine.title} ${isCompleted ? "이번 주 완료 취소" : "이번 주 완료"}`}
                           className={cn(
-                            "flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm transition-colors",
-                            "hover:bg-foreground/5 disabled:opacity-60",
-                            // PR 20: 미완료는 살짝 옅게, 완료는 더 선명하게 (PR 21에서 강조)
-                            isCompleted ? "text-foreground" : "text-foreground/75"
+                            "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-all duration-200",
+                            "disabled:opacity-60",
+                            // PR 21: 미완료는 옅음, 완료는 배경 채움 + 강조
+                            isCompleted
+                              ? "bg-foreground/[0.08] text-foreground"
+                              : "text-foreground/55 hover:bg-foreground/5"
                           )}
                         >
                           <span
                             className={cn(
-                              "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                              "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
                               isCompleted
                                 ? "border-foreground bg-foreground text-background"
-                                : "border-foreground/30 bg-transparent"
+                                : "border-foreground/25 bg-transparent"
                             )}
                             aria-hidden
                           >
@@ -273,8 +275,22 @@ export function ExecutionPlanSection({
                             )}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className={cn("truncate", isCompleted && "font-medium")}>{routine.title}</p>
-                            <p className="text-[10px] text-foreground/45">🔁 {meta}</p>
+                            <p
+                              className={cn(
+                                "truncate transition-all duration-200",
+                                isCompleted ? "font-semibold" : "font-normal"
+                              )}
+                            >
+                              {routine.title}
+                            </p>
+                            <p
+                              className={cn(
+                                "text-[10px] transition-colors duration-200",
+                                isCompleted ? "text-foreground/65" : "text-foreground/35"
+                              )}
+                            >
+                              🔁 {meta}
+                            </p>
                           </div>
                         </button>
                       </li>
