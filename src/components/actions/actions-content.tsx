@@ -1,11 +1,11 @@
 "use client";
 
-// 한걸음 상세 페이지 (PR 13)
+// 한걸음 상세 페이지 (PR 13 → PR 22 일 단위)
 // - 진행중 / 완료 탭으로 분리
-//   - 진행중: pending 데일리투두 + 이번 주 미완료 루틴
-//   - 완료: completed 데일리투두 + 이번 주 완료 루틴
-// - 항목 클릭 → 즉시 완료 토글 (PR 10 대시보드 카드와 일관)
-// - 구 BottomSheet 제거 (불필요한 인터랙션 단계)
+//   - 진행중: pending 데일리투두 + 오늘 미완료 루틴
+//   - 완료: completed 데일리투두 + 오늘 완료 루틴
+// - 데일리: 클릭 → 토글 (체크박스/본문 통합)
+// - 루틴: 좌측 체크박스 = 토글, 본문 = 캘린더 시트 (PR 22)
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -15,6 +15,7 @@ import {
   toggleDailyTodoAction,
   toggleRoutineCompletionAction,
 } from "@/app/(main)/dashboard/actions";
+import { RoutineCalendarSheet } from "@/components/dashboard/routine-calendar-sheet";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type {
@@ -51,8 +52,10 @@ export function ActionsContent({
   const [activeTab, setActiveTab] = useState<TabKey>("active");
   // 토글 진행 중 ID (중복 클릭 방지)
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  // PR 22: 루틴 캘린더 시트 상태
+  const [calendarRoutine, setCalendarRoutine] = useState<RoutineWithCompletion | null>(null);
 
-  // 탭별 필터링
+  // 탭별 필터링 (PR 22: 루틴은 일 단위 — is_completed_today)
   const { activeDaily, completedDaily, activeRoutine, completedRoutine } = useMemo(() => {
     const activeDaily: DailyTodo[] = [];
     const completedDaily: DailyTodo[] = [];
@@ -63,11 +66,15 @@ export function ActionsContent({
     const activeRoutine: RoutineWithCompletion[] = [];
     const completedRoutine: RoutineWithCompletion[] = [];
     for (const routine of routines) {
-      if (routine.is_completed_this_week) completedRoutine.push(routine);
+      if (routine.is_completed_today) completedRoutine.push(routine);
       else activeRoutine.push(routine);
     }
     return { activeDaily, completedDaily, activeRoutine, completedRoutine };
   }, [dailyTodos, routines]);
+
+  function openRoutineCalendar(routine: RoutineWithCompletion) {
+    setCalendarRoutine(routine);
+  }
 
   const visibleDaily = activeTab === "active" ? activeDaily : completedDaily;
   const visibleRoutine = activeTab === "active" ? activeRoutine : completedRoutine;
@@ -212,42 +219,54 @@ export function ActionsContent({
         <div className="mt-3 flex flex-col gap-2">
           {visibleRoutine.length > 0 ? (
             visibleRoutine.map((routine) => {
-              const isCompleted = Boolean(routine.is_completed_this_week);
+              // PR 22: 일 단위 토글로 변경
+              const isCompleted = Boolean(routine.is_completed_today);
               const isToggling = togglingId === routine.id;
               return (
-                <button
+                <div
                   key={routine.id}
-                  type="button"
-                  onClick={() => {
-                    void toggleRoutine(routine.id);
-                  }}
-                  disabled={isToggling}
-                  aria-pressed={isCompleted}
                   className={cn(
                     "flex w-full items-start gap-3 rounded-lg border px-3 py-3 text-left transition-all duration-200",
-                    "disabled:opacity-60",
-                    // PR 21: 미완료는 옅음, 완료는 배경 채움 + 강조 (투두의 line-through와 다른 효과)
                     isCompleted
                       ? "border-foreground/30 bg-foreground/[0.08]"
-                      : "border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/5"
+                      : "border-foreground/10 bg-foreground/[0.02]"
                   )}
                 >
-                  <span
-                    className={cn(
-                      "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
-                      isCompleted
-                        ? "border-foreground bg-foreground text-background"
-                        : "border-foreground/25"
-                    )}
-                    aria-hidden
+                  {/* PR 22: 체크박스 = 토글 영역 */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void toggleRoutine(routine.id);
+                    }}
+                    disabled={isToggling}
+                    aria-pressed={isCompleted}
+                    aria-label={`${routine.title} ${isCompleted ? "오늘 완료 취소" : "오늘 완료"}`}
+                    className="mt-0.5 shrink-0 disabled:opacity-60"
                   >
-                    {isCompleted && (
-                      <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </span>
-                  <div className="flex-1">
+                    <span
+                      className={cn(
+                        "inline-flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all duration-200",
+                        isCompleted
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-foreground/25"
+                      )}
+                      aria-hidden
+                    >
+                      {isCompleted && (
+                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                  </button>
+
+                  {/* PR 22: 본문 = 캘린더 진입 영역 */}
+                  <button
+                    type="button"
+                    onClick={() => openRoutineCalendar(routine)}
+                    aria-label={`${routine.title} 달성 기록 보기`}
+                    className="flex-1 text-left transition-colors hover:bg-foreground/5 rounded px-1 -mx-1"
+                  >
                     <p
                       className={cn(
                         "text-sm transition-all duration-200",
@@ -264,8 +283,8 @@ export function ActionsContent({
                     >
                       반복: {formatRoutineRepeat(routine.repeat_unit, routine.repeat_value)}
                     </p>
-                  </div>
-                </button>
+                  </button>
+                </div>
               );
             })
           ) : (
@@ -275,6 +294,14 @@ export function ActionsContent({
           )}
         </div>
       </section>
+
+      {/* PR 22: 루틴 달성 캘린더 시트 */}
+      <RoutineCalendarSheet
+        open={calendarRoutine !== null}
+        onClose={() => setCalendarRoutine(null)}
+        routineId={calendarRoutine?.id ?? null}
+        routineTitle={calendarRoutine?.title ?? null}
+      />
     </div>
   );
 }

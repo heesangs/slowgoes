@@ -214,12 +214,18 @@ export interface RoutineCompletion {
   id: string;
   routine_id: string;
   user_id: string;
+  /** PR 22: 일 단위 완료 일자 (date "YYYY-MM-DD"). UNIQUE (routine_id, completion_date). */
+  completion_date: string;
+  /** PR 22: 호환성 위해 유지 — 향후 cleanup PR로 제거 가능 */
   week_start: string;
   completed_at: string;
 }
 
 export interface RoutineWithCompletion extends Routine {
   completion?: RoutineCompletion | null;
+  /** PR 22: "오늘 완료됨" — 일 단위 토글 기준 */
+  is_completed_today?: boolean;
+  /** PR 22: "이번 주 안에 한 번이라도 완료" — 호환성 위해 유지 */
   is_completed_this_week?: boolean;
 }
 

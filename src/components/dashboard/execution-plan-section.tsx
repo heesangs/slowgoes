@@ -59,8 +59,10 @@ interface ExecutionPlanSectionProps {
   onAddToLevel?: (item: StrideItem) => void;
   /** PR 10: 투두 클릭 → 완료 토글 */
   onToggleTodo: (todoId: string) => void;
-  /** PR 20: 루틴 클릭 → 완료 토글 (이번 주 단위) */
+  /** PR 20: 루틴 좌측 체크박스 클릭 → 완료 토글 (PR 22: 일 단위로 변경) */
   onToggleRoutine: (routineId: string) => void;
+  /** PR 22: 루틴 본문 클릭 → 캘린더 시트 진입 */
+  onOpenRoutineCalendar: (routine: RoutineWithCompletion) => void;
   /** 발걸음 전체 다시 추천 */
   onRegenerateAll: () => void;
   /** 현재 AI 재생성 진행 중인 레벨 */
@@ -95,6 +97,7 @@ export function ExecutionPlanSection({
   onAddToLevel,
   onToggleTodo,
   onToggleRoutine,
+  onOpenRoutineCalendar,
   onRegenerateAll,
   regeneratingLevel,
   isRegenAll,
@@ -235,46 +238,60 @@ export function ExecutionPlanSection({
                 </ul>
               )}
 
-              {/* PR 20: 루틴 리스트 — PR 21: 완료 시 선명·채움 효과 (PDF "2.c") */}
+              {/* PR 20+21+22: 루틴 리스트
+                  - 좌측 체크박스 = 일 단위 토글 (PR 22)
+                  - 본문 영역 = 캘린더 시트 진입 (PR 22)
+                  - 완료 시 선명·채움 효과 (PR 21) */}
               {cardRoutines.length > 0 && (
                 <ul className="mt-2 flex flex-col gap-1 border-t border-foreground/10 pt-2">
                   {cardRoutines.map((routine) => {
-                    const isCompleted = Boolean(routine.is_completed_this_week);
+                    // PR 22: 일 단위로 의미 변경 — "오늘 완료됨"
+                    const isCompleted = Boolean(routine.is_completed_today);
                     const isToggling = togglingRoutineId === routine.id;
                     const meta = formatRoutineMeta(routine);
                     return (
                       <li key={routine.id}>
-                        <button
-                          type="button"
-                          onClick={() => onToggleRoutine(routine.id)}
-                          disabled={isToggling}
-                          aria-pressed={isCompleted}
-                          aria-label={`${routine.title} ${isCompleted ? "이번 주 완료 취소" : "이번 주 완료"}`}
+                        <div
                           className={cn(
-                            "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-all duration-200",
-                            "disabled:opacity-60",
-                            // PR 21: 미완료는 옅음, 완료는 배경 채움 + 강조
+                            "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-all duration-200",
                             isCompleted
                               ? "bg-foreground/[0.08] text-foreground"
-                              : "text-foreground/55 hover:bg-foreground/5"
+                              : "text-foreground/55"
                           )}
                         >
-                          <span
-                            className={cn(
-                              "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
-                              isCompleted
-                                ? "border-foreground bg-foreground text-background"
-                                : "border-foreground/25 bg-transparent"
-                            )}
-                            aria-hidden
+                          {/* 체크박스 = 토글 영역 */}
+                          <button
+                            type="button"
+                            onClick={() => onToggleRoutine(routine.id)}
+                            disabled={isToggling}
+                            aria-pressed={isCompleted}
+                            aria-label={`${routine.title} ${isCompleted ? "오늘 완료 취소" : "오늘 완료"}`}
+                            className="shrink-0 disabled:opacity-60"
                           >
-                            {isCompleted && (
-                              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </span>
-                          <div className="flex-1 min-w-0">
+                            <span
+                              className={cn(
+                                "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
+                                isCompleted
+                                  ? "border-foreground bg-foreground text-background"
+                                  : "border-foreground/25 bg-transparent"
+                              )}
+                              aria-hidden
+                            >
+                              {isCompleted && (
+                                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </span>
+                          </button>
+
+                          {/* 본문 = 캘린더 진입 영역 */}
+                          <button
+                            type="button"
+                            onClick={() => onOpenRoutineCalendar(routine)}
+                            aria-label={`${routine.title} 달성 기록 보기`}
+                            className="flex-1 min-w-0 text-left transition-colors hover:bg-foreground/5 rounded px-1 -mx-1"
+                          >
                             <p
                               className={cn(
                                 "truncate transition-all duration-200",
@@ -291,8 +308,8 @@ export function ExecutionPlanSection({
                             >
                               🔁 {meta}
                             </p>
-                          </div>
-                        </button>
+                          </button>
+                        </div>
                       </li>
                     );
                   })}
