@@ -29,14 +29,17 @@ import type { DailyTodoStrideLevel } from "@/types";
 
 type NextStepMode = "daily_todo" | "routine";
 
-const PERIOD_LABELS: Record<DailyTodoStrideLevel, string> = {
+// PR 16: "이번 시즌"은 실행계획에서 이미 제외됐으므로 한걸음 더 흐름의 선택지에서도 제거.
+// (DailyTodoStrideLevel union 자체는 PR 18에서 단순화 예정)
+type SelectablePeriod = Exclude<DailyTodoStrideLevel, "this_season">;
+
+const PERIOD_LABELS: Record<SelectablePeriod, string> = {
   today: "오늘",
   this_week: "이번 주",
   this_month: "이번 달",
-  this_season: "이번 시즌",
 };
 
-const PERIOD_ORDER: DailyTodoStrideLevel[] = ["today", "this_week", "this_month", "this_season"];
+const PERIOD_ORDER: SelectablePeriod[] = ["today", "this_week", "this_month"];
 
 interface NextStepSheetProps {
   open: boolean;
@@ -59,7 +62,11 @@ export function NextStepSheet({
 
   // 단계 진행: mode 선택 → period 선택 → edit
   const [mode, setMode] = useState<NextStepMode | null>(null);
-  const [period, setPeriod] = useState<DailyTodoStrideLevel | null>(null);
+  const [period, setPeriod] = useState<SelectablePeriod | null>(null);
+  // PR 16: 기존 카드에 stride_level="this_season" 데이터가 남아있을 수 있어
+  // defaultPeriod가 this_season이면 null로 fallback (사용자가 직접 선택하도록).
+  const safeDefaultPeriod: SelectablePeriod | null =
+    defaultPeriod && defaultPeriod !== "this_season" ? defaultPeriod : null;
   // 루틴 AI 추천 결과의 repeat 정보 (직접 입력일 땐 기본값 weekly/1)
   const [routineRepeat, setRoutineRepeat] = useState<{
     repeatUnit: "daily" | "weekly";
@@ -69,7 +76,7 @@ export function NextStepSheet({
   // 시트 열릴 때 prefill 적용 / 닫힐 때 리셋
   useEffect(() => {
     if (open) {
-      setPeriod(defaultPeriod);
+      setPeriod(safeDefaultPeriod);
       setMode(null);
       setRoutineRepeat(null);
     } else {
@@ -77,7 +84,7 @@ export function NextStepSheet({
       setPeriod(null);
       setRoutineRepeat(null);
     }
-  }, [open, defaultPeriod]);
+  }, [open, safeDefaultPeriod]);
 
   // 현재 단계 판단
   const step: "mode" | "period" | "edit" = !mode
@@ -137,8 +144,8 @@ export function NextStepSheet({
       {step === "mode" && (
         <ModeSelectStep
           onSelect={(m) => setMode(m)}
-          isPeriodPrefilled={defaultPeriod !== null}
-          periodLabel={defaultPeriod ? PERIOD_LABELS[defaultPeriod] : null}
+          isPeriodPrefilled={safeDefaultPeriod !== null}
+          periodLabel={safeDefaultPeriod ? PERIOD_LABELS[safeDefaultPeriod] : null}
         />
       )}
       {step === "period" && mode && (
@@ -250,7 +257,7 @@ function ModeCard({ icon, title, desc, onClick }: ModeCardProps) {
 interface PeriodSelectStepProps {
   mode: NextStepMode;
   onBack: () => void;
-  onSelect: (period: DailyTodoStrideLevel) => void;
+  onSelect: (period: SelectablePeriod) => void;
 }
 
 function PeriodSelectStep({ mode, onBack, onSelect }: PeriodSelectStepProps) {
