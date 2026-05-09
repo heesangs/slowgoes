@@ -13,6 +13,7 @@ import {
   regenerateStrideItemAction,
   regenerateStridePlanAction,
   toggleDailyTodoAction,
+  toggleRoutineCompletionAction,
   updateStrideItemAction,
 } from "@/app/(main)/dashboard/actions";
 import { EditWithAISheet } from "@/components/ui/edit-with-ai-sheet";
@@ -54,6 +55,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [editingStride, setEditingStride] = useState<StrideItem | null>(null);
   // PR 10 — 실행계획 카드 안 투두 토글 진행 중 ID (중복 클릭 방지)
   const [togglingExecTodoId, setTogglingExecTodoId] = useState<string | null>(null);
+  // PR 20 — 실행계획 카드 안 루틴 토글 진행 중 ID
+  const [togglingExecRoutineId, setTogglingExecRoutineId] = useState<string | null>(null);
 
   const extraMergedCount = data.extraDailyTodoCount + data.extraRoutineCount;
 
@@ -157,6 +160,19 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     setTogglingExecTodoId(null);
   }
 
+  // PR 20 — 실행계획 카드 안 루틴 클릭 시 완료 토글 (이번 주 단위)
+  async function handleToggleRoutineFromCard(routineId: string) {
+    if (togglingExecRoutineId) return;
+    setTogglingExecRoutineId(routineId);
+    const result = await toggleRoutineCompletionAction(routineId);
+    if (result.success) {
+      router.refresh();
+    } else {
+      toast(result.error ?? "상태 변경에 실패했어요.", "error");
+    }
+    setTogglingExecRoutineId(null);
+  }
+
   // 전체 발걸음 재생성 — 실행계획 섹션 푸터 버튼에서 호출
   async function handleRegenerateAll() {
     if (!data.selectedBucket?.id) return;
@@ -195,9 +211,13 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           <ExecutionPlanSection
             items={strideGroups.execution}
             dailyTodos={data.dailyTodos}
+            routines={data.routines}
             onEditLevel={handleEditOpen}
             onToggleTodo={(todoId) => {
               void handleToggleTodoFromCard(todoId);
+            }}
+            onToggleRoutine={(routineId) => {
+              void handleToggleRoutineFromCard(routineId);
             }}
             onRegenerateAll={() => {
               void handleRegenerateAll();
@@ -205,6 +225,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             isRegenAll={isRegenAll}
             regeneratingLevel={regeneratingLevel}
             togglingTodoId={togglingExecTodoId}
+            togglingRoutineId={togglingExecRoutineId}
             onOpenNextStep={() => {
               if (!data.selectedBucket?.id) {
                 toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");

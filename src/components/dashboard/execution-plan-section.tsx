@@ -2,12 +2,15 @@
 
 // 실행계획 섹션 — 발걸음 3섹션 중 세 번째
 //
-// 표시 내용: 이번 시즌 + 이번 달 + 이번 주 + 오늘 카드 (짧은 시간 지평)
+// 표시 내용: 이번 달 카드 (PR 18에서 4개 → 1개로 단순화)
 // 카드 액션:
-// - PR 9: ⋮ 더보기 메뉴 (수정 → EditWithAISheet, 추가는 PR 12 연결 예정)
+// - PR 9: ⋮ 더보기 메뉴 (수정 → EditWithAISheet, 추가 → 한걸음 더)
 // - PR 10: 카드 본문에 해당 stride_level 투두 리스트 + 클릭 시 완료 토글
-// - PR 11: 헤더 우측에 "한걸음 더" 버튼 + "한걸음 상세" 링크 흡수 (구 "오늘의 한걸음" 섹션 폐기)
-// - PR 14: 잔여 기간 + 게이지 바 추가 예정
+// - PR 11: 헤더 우측에 "한걸음 더" 버튼 + "한걸음 상세" 링크 흡수
+// - PR 14: 잔여 기간 + 게이지 바
+// - PR 20: 카드 본문에 루틴 리스트도 함께 표시 (this_month 카드에만)
+//   - 루틴: title + 주기(매일/매주) + 시간대(있으면)
+//   - 클릭 → 완료 토글 (PR 21에서 시각 효과 차별화 예정)
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -15,18 +18,49 @@ import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { getDaysLeftLabel, getPeriodProgress } from "@/lib/utils/period";
-import type { DailyTodo, DailyTodoStrideLevel, StrideItem, StrideLevel } from "@/types";
+import type {
+  DailyTodo,
+  DailyTodoStrideLevel,
+  RoutineTimeSlot,
+  RoutineWithCompletion,
+  StrideItem,
+  StrideLevel,
+} from "@/types";
+
+const TIME_SLOT_LABELS: Record<RoutineTimeSlot, string> = {
+  morning: "아침",
+  afternoon: "점심",
+  evening: "저녁",
+  night: "밤",
+};
+
+function formatRoutineMeta(routine: RoutineWithCompletion): string {
+  const parts: string[] = [];
+  if (routine.repeat_unit === "daily") {
+    parts.push(routine.repeat_value <= 1 ? "매일" : `${routine.repeat_value}일마다`);
+  } else {
+    parts.push(routine.repeat_value <= 1 ? "매주" : `${routine.repeat_value}주마다`);
+  }
+  if (routine.time_slot) {
+    parts.push(TIME_SLOT_LABELS[routine.time_slot]);
+  }
+  return parts.join(" · ");
+}
 
 interface ExecutionPlanSectionProps {
   items: StrideItem[];
   /** PR 10: 현재 버킷의 모든 데일리 투두. 카드별로 stride_level 일치하는 것만 표시 */
   dailyTodos: DailyTodo[];
+  /** PR 20: 현재 버킷의 모든 루틴. this_month 카드에만 표시. */
+  routines: RoutineWithCompletion[];
   /** "수정" 클릭 → EditWithAISheet 진입 */
   onEditLevel: (item: StrideItem) => void;
-  /** "추가" 클릭 → PR 12의 한걸음 더 흐름과 연결 예정 */
+  /** "추가" 클릭 → 한걸음 더 흐름과 연결 (PR 12) */
   onAddToLevel?: (item: StrideItem) => void;
   /** PR 10: 투두 클릭 → 완료 토글 */
   onToggleTodo: (todoId: string) => void;
+  /** PR 20: 루틴 클릭 → 완료 토글 (이번 주 단위) */
+  onToggleRoutine: (routineId: string) => void;
   /** 발걸음 전체 다시 추천 */
   onRegenerateAll: () => void;
   /** 현재 AI 재생성 진행 중인 레벨 */
@@ -35,6 +69,8 @@ interface ExecutionPlanSectionProps {
   isRegenAll: boolean;
   /** PR 10: 현재 토글 진행 중인 투두 ID (중복 클릭 방지) */
   togglingTodoId: string | null;
+  /** PR 20: 현재 토글 진행 중인 루틴 ID (중복 클릭 방지) */
+  togglingRoutineId: string | null;
   /** PR 11: "한걸음 더" 버튼 클릭 (구 오늘의 한걸음 섹션 헤더에서 이동) */
   onOpenNextStep: () => void;
   /** PR 11: "한걸음 상세" 페이지 링크 (extraCount > 0일 때만 노출) */
@@ -54,13 +90,16 @@ function isExecutionLevel(level: StrideLevel): level is DailyTodoStrideLevel {
 export function ExecutionPlanSection({
   items,
   dailyTodos,
+  routines,
   onEditLevel,
   onAddToLevel,
   onToggleTodo,
+  onToggleRoutine,
   onRegenerateAll,
   regeneratingLevel,
   isRegenAll,
   togglingTodoId,
+  togglingRoutineId,
   onOpenNextStep,
   strideDetailHref,
   extraCount,
@@ -105,6 +144,8 @@ export function ExecutionPlanSection({
           const cardTodos = execLevel
             ? dailyTodos.filter((todo) => todo.stride_level === execLevel)
             : [];
+          // PR 20: 루틴은 stride_level 개념이 없으므로 this_month 카드에만 모두 표시
+          const cardRoutines = execLevel === "this_month" ? routines : [];
           const periodLabel = execLevel ? getDaysLeftLabel(execLevel) : null;
           const progress = execLevel ? getPeriodProgress(execLevel) : 0;
 
@@ -151,7 +192,7 @@ export function ExecutionPlanSection({
               </div>
               <p className="mt-1 text-sm">{item.action}</p>
 
-              {/* PR 10: 투두 리스트 — 클릭 시 완료 토글 */}
+              {/* PR 10: 투두 리스트 — 클릭 시 완료 토글 (지움 효과) */}
               {cardTodos.length > 0 && (
                 <ul className="mt-2 flex flex-col gap-1 border-t border-foreground/10 pt-2">
                   {cardTodos.map((todo) => {
@@ -187,6 +228,54 @@ export function ExecutionPlanSection({
                             )}
                           </span>
                           <span className={cn("flex-1", isCompleted && "line-through")}>{todo.title}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+
+              {/* PR 20: 루틴 리스트 — 클릭 시 완료 토글 (PR 21에서 시각 효과 차별화) */}
+              {cardRoutines.length > 0 && (
+                <ul className="mt-2 flex flex-col gap-1 border-t border-foreground/10 pt-2">
+                  {cardRoutines.map((routine) => {
+                    const isCompleted = Boolean(routine.is_completed_this_week);
+                    const isToggling = togglingRoutineId === routine.id;
+                    const meta = formatRoutineMeta(routine);
+                    return (
+                      <li key={routine.id}>
+                        <button
+                          type="button"
+                          onClick={() => onToggleRoutine(routine.id)}
+                          disabled={isToggling}
+                          aria-pressed={isCompleted}
+                          aria-label={`${routine.title} ${isCompleted ? "이번 주 완료 취소" : "이번 주 완료"}`}
+                          className={cn(
+                            "flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm transition-colors",
+                            "hover:bg-foreground/5 disabled:opacity-60",
+                            // PR 20: 미완료는 살짝 옅게, 완료는 더 선명하게 (PR 21에서 강조)
+                            isCompleted ? "text-foreground" : "text-foreground/75"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                              isCompleted
+                                ? "border-foreground bg-foreground text-background"
+                                : "border-foreground/30 bg-transparent"
+                            )}
+                            aria-hidden
+                          >
+                            {isCompleted && (
+                              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className={cn("truncate", isCompleted && "font-medium")}>{routine.title}</p>
+                            <p className="text-[10px] text-foreground/45">🔁 {meta}</p>
+                          </div>
                         </button>
                       </li>
                     );
