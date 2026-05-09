@@ -298,6 +298,31 @@ function buildFallbackStrides(
 }
 
 // AI 응답 → StrideItem[] 정규화 (3~6개, 짧은→긴 정렬, 중복 제거, someday 필수)
+/**
+ * PR 17: AI가 만든 stride action 텍스트의 어조를 가볍게 normalize.
+ * 어색한 강제 변환은 피하고, 명백한 어미 약속어/구두점만 정리.
+ */
+function normalizeStrideAction(level: StrideLevel, raw: string): string {
+  let result = raw.trim();
+
+  // 흔한 약속어 어미 → 평서형 (단정적 진술)
+  // 예: "산책할 것이다." → "산책한다"
+  result = result
+    .replace(/할\s*것이다\.?$/u, "한다")
+    .replace(/할\s*거야\.?$/u, "한다")
+    .replace(/할\s*예정이다\.?$/u, "한다")
+    .replace(/하기로\s*한다\.?$/u, "한다");
+
+  // 마침표 정리 (연속 마침표 → 한 개)
+  result = result.replace(/\.{2,}$/u, ".");
+
+  // someday/this_year에서 "~하고 싶다" 류는 그대로 두되, "~하기" → "~하는 사람"
+  // 너무 강제적이라 보류 — 추후 필요 시 활성화
+  void level; // 현재는 level별 분기 없이 공통 normalize만
+
+  return result;
+}
+
 function normalizeStrides(
   rawStrides: unknown,
   sceneText: string,
@@ -331,7 +356,8 @@ function normalizeStrides(
   const items: StrideItem[] = orderedLevels.map((level) => ({
     level,
     label: STRIDE_LABELS[level],
-    action: perLevel.get(level)![0],
+    // PR 17: 어조 normalize 적용
+    action: normalizeStrideAction(level, perLevel.get(level)![0]),
   }));
 
   // someday가 없으면 fallback에서 보충
@@ -554,10 +580,14 @@ ${lifeAreaHintLine}
 규칙:
 - 문장은 한국어로 작성
 - 공감 메시지는 짧고 따뜻하게 1문장
-- someday의 action은 "~하는 사람이 되고 싶다" 같은 비전 문장
-- 중간 단계는 해당 기간에 맞는 구체 목표/마일스톤
-- 짧은 단계(today/this_week)의 action은 지금 바로 시작 가능한 구체 행동
 - suggestedRoutines는 정확히 2개, 서로 다른 성격의 루틴
+
+어조 가이드 (PR 17):
+- "언젠가"(someday): 비전 문장. 어미는 "~한 사람이 되어 있다", "~을 즐기는 사람", "~의 길을 걸어가고 있다" 등 정체성 진술 형식.
+- "1년 안"(this_year): 마일스톤 문장. 어미는 "~한 모습으로 자리 잡는다", "~의 토대를 마련한다" 등 도달 상태 진술.
+- "이번 시즌/이번 달"(this_season/this_month): 시기 선언 문장. "이번 (시즌|달)은 ~을 하는 (시즌|달)이다", "~의 (시즌|달)이다" 형식 권장.
+- "이번 주/오늘"(this_week/today): 즉시 실행 가능한 구체 행동. "~을 실행한다", "~한다", "~을 시작한다" 등 능동적 어미.
+- 일관성: 어색하면 자연스러운 한국어 표현을 우선. 강제하지 말 것.
 
 아래 JSON 객체만 응답하세요:
 {
@@ -880,8 +910,14 @@ ${existingSummary || "- 정보 없음"}
 규칙:
 - 다른 단계는 건드리지 말고, 대상 레벨 1개의 action만 새로 제안
 - 한국어 1문장
-- ${isShortest ? "짧은 단계이므로 지금 당장 실행 가능한 구체 행동" : "긴 단계이므로 지향점을 나타내는 간결한 문장"}
 - 기존 action과 중복 금지
+
+어조 가이드 (PR 17, 대상 레벨에 따라):
+- someday: "~한 사람이 되어 있다" / "~을 즐기는 사람" / "~의 길을 걸어가고 있다" (정체성 진술)
+- this_year: "~한 모습으로 자리 잡는다" / "~의 토대를 마련한다" (도달 상태)
+- this_season / this_month: "이번 (시즌|달)은 ~을 하는 (시즌|달)이다" / "~의 (시즌|달)이다" (시기 선언)
+- this_week / today: "~을 실행한다" / "~한다" / "~을 시작한다" (능동적 즉시 실행)
+- 어색하면 자연스러운 한국어 우선. 강제하지 말 것.
 
 아래 JSON 객체만 응답하세요:
 { "level": "${targetLevel}", "label": "${targetLabel}", "action": "..." }`;
@@ -907,6 +943,7 @@ ${existingSummary || "- 정보 없음"}
   return {
     level: targetLevel,
     label: targetLabel,
-    action,
+    // PR 17: 어조 normalize 적용
+    action: normalizeStrideAction(targetLevel, action),
   };
 }
