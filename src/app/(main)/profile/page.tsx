@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileContent } from "@/components/profile/profile-content";
 import { getTaskStats } from "@/lib/stats";
-import type { Profile, TaskStats } from "@/types";
+import type { TaskStats } from "@/types";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -17,10 +17,10 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  // 프로필 조회
+  // 프로필 조회 (프로필 화면에 필요한 필드만 조회)
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("id, display_name, created_at")
     .eq("id", user.id)
     .single();
 
@@ -47,7 +47,7 @@ export default async function ProfilePage() {
 
   return (
     <ProfileContent
-      profile={profile as Profile}
+      profile={profile}
       email={user.email ?? ""}
       stats={stats}
     />

@@ -51,10 +51,6 @@ export type ActionLogItemType = "daily_todo" | "routine";
 export interface Profile {
   id: string;
   display_name: string | null;
-  grade: string | null;
-  subjects: string[] | null;
-  self_level: SelfLevel;
-  user_context: UserContext[];
   life_clock_age?: number | null;
   gender?: Gender | null;
   personality_type?: PersonalityType | null;

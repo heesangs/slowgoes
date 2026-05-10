@@ -73,7 +73,6 @@ export function DemoDataMigrator({ children }: DemoDataMigratorProps) {
         personalityType: demoData.personalityType,
         paceType: demoData.paceType,
         displayName: demoData.displayName || "slowgoes 사용자",
-        selfLevel: demoData.selfLevel,
         chapterTitle: demoData.chapterTitle,
         stridePlan: demoData.stridePlan,
         selectedDailyTodos: demoData.selectedDailyTodos,
