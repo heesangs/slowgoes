@@ -17,16 +17,6 @@ const STRONGEST_BAND_LABEL: Record<ReviewTimeBand, string> = {
   night: "야행형",
 };
 
-function tendencyMessage(tendency: "easier" | "harder" | "neutral") {
-  if (tendency === "easier") {
-    return "조금 더 가벼운 계획에서 실행이 잘 이어지는 경향";
-  }
-  if (tendency === "harder") {
-    return "조금 더 도전적인 계획에서 몰입이 생기는 경향";
-  }
-  return "난이도 조정 데이터가 쌓이는 중";
-}
-
 function shortDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
@@ -117,7 +107,8 @@ export function ReviewPageContent({
         </section>
       )}
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {/* PR 23: 평균 예상/실제 시간 위젯 제거 (DB에 측정 데이터 없음 → 항상 '-') */}
+      <section className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-foreground/10 px-4 py-4">
           <p className="text-xs text-foreground/60">누적 완료 행동</p>
           <p className="mt-1 text-xl font-semibold">{data.completedCount}개</p>
@@ -125,14 +116,6 @@ export function ReviewPageContent({
         <div className="rounded-xl border border-foreground/10 px-4 py-4">
           <p className="text-xs text-foreground/60">최근 14일 완료</p>
           <p className="mt-1 text-xl font-semibold">{data.completedInLast14Days}개</p>
-        </div>
-        <div className="rounded-xl border border-foreground/10 px-4 py-4">
-          <p className="text-xs text-foreground/60">평균 예상 시간</p>
-          <p className="mt-1 text-xl font-semibold">-</p>
-        </div>
-        <div className="rounded-xl border border-foreground/10 px-4 py-4">
-          <p className="text-xs text-foreground/60">평균 실제 시간</p>
-          <p className="mt-1 text-xl font-semibold">-</p>
         </div>
       </section>
 
@@ -164,15 +147,7 @@ export function ReviewPageContent({
         </div>
       </section>
 
-      <section className="rounded-xl border border-foreground/10 px-4 py-4">
-        <p className="mb-2 text-sm text-foreground/60">난이도 학습</p>
-        <p className="text-sm text-foreground/85">{tendencyMessage(data.learning.tendency)}</p>
-        <p className="mt-2 text-xs text-foreground/50">
-          샘플 {data.learning.sampleSize}건
-          {" · "}
-          시간 배율 {data.learning.averageTimeMultiplier ? `${data.learning.averageTimeMultiplier}x` : "-"}
-        </p>
-      </section>
+      {/* PR 23: 난이도 학습 섹션 제거 (DB에 난이도 측정 데이터 없음 → 항상 neutral) */}
 
       <section className="rounded-xl border border-foreground/10 px-4 py-4">
         <p className="mb-3 text-sm text-foreground/60">최근회고 기록</p>

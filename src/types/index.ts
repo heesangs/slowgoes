@@ -337,13 +337,9 @@ export interface LifeBalanceInsight {
   message: string;
 }
 
+// PR 23: 평균 시간/난이도 측정 데이터가 DB에 없어 항상 null이던 dead 필드 제거
 export interface ReviewSummary {
   completedCount: number;
-  recentEstimatedMinutes: number | null;
-  recentActualMinutes: number | null;
-  recentDifficultyBefore: Difficulty | null;
-  recentDifficultyAfter: Difficulty | null;
-  recentMemo: string | null;
   insight: string | null;
 }
 
@@ -355,22 +351,11 @@ export interface ReviewTimeBandStat {
   count: number;
 }
 
-export interface DifficultyLearningSummary {
-  tendency: "easier" | "harder" | "neutral";
-  sampleSize: number;
-  averageTimeMultiplier: number | null;
-}
-
 export interface ReviewRecentItem {
   id: string;
   title: string;
   completedAt: string;
   itemType?: ActionLogItemType;
-  estimatedMinutes: number | null;
-  actualMinutes: number | null;
-  difficultyBefore: Difficulty | null;
-  difficultyAfter: Difficulty | null;
-  memo: string | null;
   bucketTitle: string | null;
   lifeAreaName: string | null;
 }
@@ -378,12 +363,8 @@ export interface ReviewRecentItem {
 export interface ReviewPageData {
   completedCount: number;
   completedInLast14Days: number;
-  averageEstimatedMinutes: number | null;
-  averageActualMinutes: number | null;
-  averageGapMinutes: number | null;
   strongestBand: ReviewTimeBand | null;
   timeBandStats: ReviewTimeBandStat[];
-  learning: DifficultyLearningSummary;
   insight: string | null;
   summary: ReviewSummary | null;
   recent: ReviewRecentItem[];
