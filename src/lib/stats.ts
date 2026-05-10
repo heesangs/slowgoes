@@ -1,7 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { getCurrentWeekStartDate } from "@/lib/utils";
 import type {
-  DifficultyLearningSummary,
   ReviewPageData,
   ReviewRecentItem,
   ReviewSummary,
@@ -64,14 +63,6 @@ function resolveTimeBand(dateIso: string): ReviewTimeBand {
   return "night";
 }
 
-function buildLearningSummary(): DifficultyLearningSummary {
-  return {
-    tendency: "neutral",
-    sampleSize: 0,
-    averageTimeMultiplier: null,
-  };
-}
-
 function buildReviewInsight(
   completedCount: number,
   strongestBand: ReviewTimeBand | null,
@@ -105,26 +96,17 @@ function toRecentItem(action: ActionLogRow): ReviewRecentItem {
     title: action.title,
     completedAt: action.completed_at,
     itemType: action.item_type,
-    estimatedMinutes: null,
-    actualMinutes: null,
-    difficultyBefore: null,
-    difficultyAfter: null,
-    memo: null,
     bucketTitle: bucket?.title ?? null,
     lifeAreaName: lifeArea?.name ?? null,
   };
 }
 
+// PR 23: 평균 시간 / 난이도 측정 데이터가 DB에 없어 항상 null이던 ReviewSummary는
+// completedCount + insight만 의미 있음. 단순화.
 function buildReviewSummary(actions: ActionLogRow[], insight: string | null): ReviewSummary | null {
   if (actions.length === 0) return null;
-
   return {
     completedCount: actions.length,
-    recentEstimatedMinutes: null,
-    recentActualMinutes: null,
-    recentDifficultyBefore: null,
-    recentDifficultyAfter: null,
-    recentMemo: null,
     insight,
   };
 }
@@ -233,18 +215,13 @@ export async function getReviewPageData(
   const strongestBand =
     strongestBandStat && strongestBandStat.count > 0 ? strongestBandStat.band : null;
 
-  const learning = buildLearningSummary();
   const insight = buildReviewInsight(actions.length, strongestBand, completedInLast14Days);
 
   return {
     completedCount: actions.length,
     completedInLast14Days,
-    averageEstimatedMinutes: null,
-    averageActualMinutes: null,
-    averageGapMinutes: null,
     strongestBand,
     timeBandStats,
-    learning,
     insight,
     summary: buildReviewSummary(actions, insight),
     recent: actions.slice(0, REVIEW_RECENT_LIMIT).map(toRecentItem),
