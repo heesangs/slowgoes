@@ -99,7 +99,10 @@ export function useOnboardingSubmit({
           selectedRoutines,
           savedAt: new Date().toISOString(),
         });
-        router.push("/demo/complete");
+        // PR 28: 체험판 단계 축소 — 요약 페이지(/demo/complete) 폐기.
+        // 회원가입 후 /onboarding 진입 시 DemoDataMigrator가 localStorage를
+        // 자동으로 DB로 마이그레이션. 사용자는 회원가입만 하면 됨.
+        router.push("/signup?from=demo");
         return;
       }
 
