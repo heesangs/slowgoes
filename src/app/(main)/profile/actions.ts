@@ -12,70 +12,17 @@ import {
   ACCOUNT_DELETE_CONFIRM_TEXT,
 } from "@/lib/constants";
 
-const VALID_SELF_LEVELS = ["low", "medium", "high"] as const;
-type SelfLevel = (typeof VALID_SELF_LEVELS)[number];
-
-const VALID_USER_CONTEXTS = ["student", "university", "work", "personal"] as const;
-type UserContext = (typeof VALID_USER_CONTEXTS)[number];
 
 export async function updateProfileAction(formData: FormData) {
   const displayName = formData.get("display_name") as string;
-  const grade = formData.get("grade") as string | null;
-  const subjectsRaw = formData.get("subjects") as string | null;
-  const selfLevel = formData.get("self_level") as string;
-  const userContextRaw = formData.get("user_context") as string | null;
 
-  if (!displayName || !selfLevel) {
-    return { success: false, error: PROFILE_ERRORS.DISPLAY_NAME_SELF_LEVEL_REQUIRED };
+  if (!displayName) {
+    return { success: false, error: PROFILE_ERRORS.DISPLAY_NAME_INVALID };
   }
 
   const normalizedDisplayName = displayName.trim();
   if (!normalizedDisplayName) {
     return { success: false, error: PROFILE_ERRORS.DISPLAY_NAME_INVALID };
-  }
-
-  // user_context 파싱 및 검증
-  let userContext: UserContext[] = [];
-  if (userContextRaw) {
-    let parsedCtx: unknown;
-    try {
-      parsedCtx = JSON.parse(userContextRaw);
-    } catch {
-      return { success: false, error: PROFILE_ERRORS.USER_CONTEXT_FORMAT_INVALID };
-    }
-    if (!Array.isArray(parsedCtx)) {
-      return { success: false, error: PROFILE_ERRORS.USER_CONTEXT_FORMAT_INVALID };
-    }
-    if (!parsedCtx.every((c) => VALID_USER_CONTEXTS.includes(c as UserContext))) {
-      return { success: false, error: PROFILE_ERRORS.USER_CONTEXT_VALUE_INVALID };
-    }
-    userContext = parsedCtx as UserContext[];
-  }
-
-  // subjects 파싱 (optional)
-  let subjects: string[] = [];
-  if (subjectsRaw) {
-    let parsedSubjects: unknown;
-    try {
-      parsedSubjects = JSON.parse(subjectsRaw);
-    } catch {
-      return { success: false, error: PROFILE_ERRORS.SUBJECTS_FORMAT_INVALID };
-    }
-    if (
-      !Array.isArray(parsedSubjects) ||
-      parsedSubjects.some((s) => typeof s !== "string")
-    ) {
-      return { success: false, error: PROFILE_ERRORS.SUBJECTS_FORMAT_INVALID };
-    }
-    subjects = [...new Set(
-      parsedSubjects
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-    )];
-  }
-
-  if (!VALID_SELF_LEVELS.includes(selfLevel as SelfLevel)) {
-    return { success: false, error: PROFILE_ERRORS.SELF_LEVEL_INVALID };
   }
 
   const supabase = await createClient();
@@ -87,16 +34,10 @@ export async function updateProfileAction(formData: FormData) {
     redirect("/login");
   }
 
-  const normalizedGrade = grade?.trim() || null;
-
   const { error } = await supabase
     .from("profiles")
     .update({
       display_name: normalizedDisplayName,
-      grade: normalizedGrade,
-      subjects,
-      self_level: selfLevel as SelfLevel,
-      user_context: userContext,
     })
     .eq("id", user.id);
 

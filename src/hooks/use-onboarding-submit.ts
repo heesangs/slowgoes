@@ -130,10 +130,6 @@ export function useOnboardingSubmit({
       // - standalone 모드 (/onboarding 페이지): redirect 액션 사용 → 대시보드로 이동
       const payload = {
         displayName: "slowgoes 사용자",
-        selfLevel: "medium" as const,
-        userContext: ["personal" as const],
-        grade: "",
-        subjects: [],
         sceneText: selectedSceneText,
         selectedWeeklyAction: selectedDailyTodo,
         lifeArea: lifeSceneAnalysis.lifeArea,

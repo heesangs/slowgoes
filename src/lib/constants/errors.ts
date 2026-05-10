@@ -19,12 +19,7 @@ export const AUTH_ERRORS = {
 } as const;
 
 export const PROFILE_ERRORS = {
-  DISPLAY_NAME_SELF_LEVEL_REQUIRED: "닉네임과 속도를 입력해주세요.",
   DISPLAY_NAME_INVALID: "닉네임을 올바르게 입력해주세요.",
-  USER_CONTEXT_FORMAT_INVALID: "사용 목적 형식이 올바르지 않습니다.",
-  USER_CONTEXT_VALUE_INVALID: "사용 목적 값이 올바르지 않습니다.",
-  SUBJECTS_FORMAT_INVALID: "분야 정보 형식이 올바르지 않습니다.",
-  SELF_LEVEL_INVALID: "속도 값이 올바르지 않습니다.",
   SAVE_FAILED: "프로필 저장에 실패했습니다. 다시 시도해주세요.",
 } as const;
 

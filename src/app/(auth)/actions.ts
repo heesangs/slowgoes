@@ -29,11 +29,6 @@ import type {
   Gender,
 } from "@/types";
 
-const VALID_SELF_LEVELS = ["low", "medium", "high"] as const;
-type SelfLevel = (typeof VALID_SELF_LEVELS)[number];
-
-const VALID_USER_CONTEXTS = ["student", "university", "work", "personal"] as const;
-type UserContext = (typeof VALID_USER_CONTEXTS)[number];
 const VALID_GENDERS = ["male", "female"] as const;
 const VALID_PERSONALITY_TYPES = [
   "ISTJ", "ISFJ", "INFJ", "INTJ",
@@ -230,99 +225,8 @@ export async function signOutAction() {
   redirect("/");
 }
 
-export async function saveProfileAction(formData: FormData) {
-  const displayName = formData.get("display_name") as string;
-  const grade = formData.get("grade") as string | null;
-  const subjectsRaw = formData.get("subjects") as string | null;
-  const selfLevel = formData.get("self_level") as string;
-  const userContextRaw = formData.get("user_context") as string | null;
-
-  if (!displayName || !selfLevel) {
-    return { error: PROFILE_ERRORS.DISPLAY_NAME_SELF_LEVEL_REQUIRED };
-  }
-
-  const normalizedDisplayName = displayName.trim();
-  if (!normalizedDisplayName) {
-    return { error: PROFILE_ERRORS.DISPLAY_NAME_INVALID };
-  }
-
-  // user_context 파싱 및 검증
-  let userContext: UserContext[] = [];
-  if (userContextRaw) {
-    let parsedCtx: unknown;
-    try {
-      parsedCtx = JSON.parse(userContextRaw);
-    } catch {
-      return { error: PROFILE_ERRORS.USER_CONTEXT_FORMAT_INVALID };
-    }
-    if (!Array.isArray(parsedCtx)) {
-      return { error: PROFILE_ERRORS.USER_CONTEXT_FORMAT_INVALID };
-    }
-    if (!parsedCtx.every((c) => VALID_USER_CONTEXTS.includes(c as UserContext))) {
-      return { error: PROFILE_ERRORS.USER_CONTEXT_VALUE_INVALID };
-    }
-    userContext = parsedCtx as UserContext[];
-  }
-
-  // subjects 파싱 (optional)
-  let subjects: string[] = [];
-  if (subjectsRaw) {
-    let parsedSubjects: unknown;
-    try {
-      parsedSubjects = JSON.parse(subjectsRaw);
-    } catch {
-      return { error: PROFILE_ERRORS.SUBJECTS_FORMAT_INVALID };
-    }
-    if (
-      !Array.isArray(parsedSubjects) ||
-      parsedSubjects.some((s) => typeof s !== "string")
-    ) {
-      return { error: PROFILE_ERRORS.SUBJECTS_FORMAT_INVALID };
-    }
-    subjects = [...new Set(
-      parsedSubjects
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-    )];
-  }
-
-  if (!VALID_SELF_LEVELS.includes(selfLevel as SelfLevel)) {
-    return { error: PROFILE_ERRORS.SELF_LEVEL_INVALID };
-  }
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const normalizedGrade = grade?.trim() || null;
-
-  const { error } = await supabase.from("profiles").upsert({
-    id: user.id,
-    display_name: normalizedDisplayName,
-    grade: normalizedGrade,
-    subjects,
-    self_level: selfLevel as SelfLevel,
-    user_context: userContext,
-  });
-
-  if (error) {
-    return { error: PROFILE_ERRORS.SAVE_FAILED };
-  }
-
-  redirect("/dashboard");
-}
-
 type SaveOnboardingV2Input = OnboardingV2SavePayload & {
   displayName?: string;
-  selfLevel: SelfLevel;
-  userContext?: UserContext[];
-  grade?: string | null;
-  subjects?: string[];
   chapterTitle?: string;
 };
 
@@ -360,23 +264,6 @@ async function saveOnboardingV2Internal(
   if (!VALID_PACE_TYPES.includes(data.paceType as ProfilePaceType)) {
     return { success: false, error: VALIDATION_ERRORS.PACE_TYPE_INVALID };
   }
-  if (!VALID_SELF_LEVELS.includes(data.selfLevel)) {
-    return { success: false, error: PROFILE_ERRORS.SELF_LEVEL_INVALID };
-  }
-
-  const normalizedUserContext = (data.userContext ?? ["personal"]).filter((ctx, index, arr) =>
-    VALID_USER_CONTEXTS.includes(ctx) && arr.indexOf(ctx) === index
-  );
-  if (normalizedUserContext.length === 0) {
-    normalizedUserContext.push("personal");
-  }
-
-  const normalizedSubjects = [...new Set(
-    (data.subjects ?? [])
-      .map((subject) => subject.trim())
-      .filter((subject) => subject.length > 0)
-  )];
-
   const normalizedDailyTodos = (data.selectedDailyTodos ?? [])
     .map((item) => ({
       title: item.title?.trim() ?? "",
@@ -448,10 +335,6 @@ async function saveOnboardingV2Internal(
   const { error } = await supabase.rpc("save_onboarding_journey", {
     p_user_id: user.id,
     p_display_name: displayName,
-    p_self_level: data.selfLevel,
-    p_user_context: normalizedUserContext,
-    p_grade: data.grade?.trim() || null,
-    p_subjects: normalizedSubjects,
     p_life_clock_age: data.age,
     p_gender: data.gender as Gender,
     p_personality_type: data.personalityType as PersonalityType,
