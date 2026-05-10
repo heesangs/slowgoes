@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DirectionSection } from "@/components/dashboard/direction-section";
 import { ExecutionPlanSection } from "@/components/dashboard/execution-plan-section";
@@ -21,6 +21,7 @@ import { EditWithAISheet } from "@/components/ui/edit-with-ai-sheet";
 import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { FEATURE_NAMES } from "@/lib/constants";
 import type {
+  DailyTodo,
   DailyTodoStrideLevel,
   DashboardV2Data,
   Gender,
@@ -55,12 +56,32 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [isRegenAll, setIsRegenAll] = useState(false);
   // PR 9 — 발걸음 카드 ⋮ → 수정 시트 상태
   const [editingStride, setEditingStride] = useState<StrideItem | null>(null);
-  // PR 10 — 실행계획 카드 안 투두 토글 진행 중 ID (중복 클릭 방지)
-  const [togglingExecTodoId, setTogglingExecTodoId] = useState<string | null>(null);
-  // PR 20 — 실행계획 카드 안 루틴 토글 진행 중 ID
-  const [togglingExecRoutineId, setTogglingExecRoutineId] = useState<string | null>(null);
   // PR 22 — 루틴 캘린더 시트 상태
   const [calendarRoutine, setCalendarRoutine] = useState<RoutineWithCompletion | null>(null);
+
+  // PR 25 — Optimistic UI: 토글 즉시 반영, 실패 시 자동 rollback
+  const [, startTransition] = useTransition();
+  const [optimisticDailyTodos, applyOptimisticDaily] = useOptimistic(
+    data.dailyTodos,
+    (state: DailyTodo[], todoId: string) =>
+      state.map((t) =>
+        t.id === todoId
+          ? {
+              ...t,
+              status: t.status === "completed" ? "pending" : "completed",
+            }
+          : t
+      )
+  );
+  const [optimisticRoutines, applyOptimisticRoutine] = useOptimistic(
+    data.routines,
+    (state: RoutineWithCompletion[], routineId: string) =>
+      state.map((r) =>
+        r.id === routineId
+          ? { ...r, is_completed_today: !Boolean(r.is_completed_today) }
+          : r
+      )
+  );
 
   const extraMergedCount = data.extraDailyTodoCount + data.extraRoutineCount;
 
@@ -151,30 +172,30 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     }
   }
 
-  // PR 10 — 실행계획 카드 안 투두 클릭 시 완료 토글
-  async function handleToggleTodoFromCard(todoId: string) {
-    if (togglingExecTodoId) return;
-    setTogglingExecTodoId(todoId);
-    const result = await toggleDailyTodoAction(todoId);
-    if (result.success) {
+  // PR 25 — 실행계획 카드 안 투두 토글: useOptimistic으로 즉시 반영
+  function handleToggleTodoFromCard(todoId: string) {
+    startTransition(async () => {
+      applyOptimisticDaily(todoId);
+      const result = await toggleDailyTodoAction(todoId);
+      if (!result.success) {
+        toast(result.error ?? "상태 변경에 실패했어요.", "error");
+      }
+      // 성공 여부와 무관하게 server data로 정합성 복구
+      // useOptimistic은 transition 종료 시 base state로 자동 reset → router.refresh로 새 데이터
       router.refresh();
-    } else {
-      toast(result.error ?? "상태 변경에 실패했어요.", "error");
-    }
-    setTogglingExecTodoId(null);
+    });
   }
 
-  // PR 20 — 실행계획 카드 안 루틴 클릭 시 완료 토글 (이번 주 단위)
-  async function handleToggleRoutineFromCard(routineId: string) {
-    if (togglingExecRoutineId) return;
-    setTogglingExecRoutineId(routineId);
-    const result = await toggleRoutineCompletionAction(routineId);
-    if (result.success) {
+  // PR 25 — 실행계획 카드 안 루틴 토글 (오늘 단위, 일 단위)
+  function handleToggleRoutineFromCard(routineId: string) {
+    startTransition(async () => {
+      applyOptimisticRoutine(routineId);
+      const result = await toggleRoutineCompletionAction(routineId);
+      if (!result.success) {
+        toast(result.error ?? "상태 변경에 실패했어요.", "error");
+      }
       router.refresh();
-    } else {
-      toast(result.error ?? "상태 변경에 실패했어요.", "error");
-    }
-    setTogglingExecRoutineId(null);
+    });
   }
 
   // 전체 발걸음 재생성 — 실행계획 섹션 푸터 버튼에서 호출
@@ -214,15 +235,12 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           />
           <ExecutionPlanSection
             items={strideGroups.execution}
-            dailyTodos={data.dailyTodos}
-            routines={data.routines}
+            // PR 25: Optimistic — 토글 즉시 반영, transition 종료 시 server data로 정합성 복구
+            dailyTodos={optimisticDailyTodos}
+            routines={optimisticRoutines}
             onEditLevel={handleEditOpen}
-            onToggleTodo={(todoId) => {
-              void handleToggleTodoFromCard(todoId);
-            }}
-            onToggleRoutine={(routineId) => {
-              void handleToggleRoutineFromCard(routineId);
-            }}
+            onToggleTodo={handleToggleTodoFromCard}
+            onToggleRoutine={handleToggleRoutineFromCard}
             onOpenRoutineCalendar={(routine) => {
               setCalendarRoutine(routine);
             }}
@@ -231,8 +249,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             }}
             isRegenAll={isRegenAll}
             regeneratingLevel={regeneratingLevel}
-            togglingTodoId={togglingExecTodoId}
-            togglingRoutineId={togglingExecRoutineId}
+            // PR 25: Optimistic UI가 즉시 반영하므로 disable 불필요 (사용자 체감 0ms).
+            // 빠른 연속 클릭은 useTransition이 자동 큐잉.
+            togglingTodoId={null}
+            togglingRoutineId={null}
             onOpenNextStep={() => {
               if (!data.selectedBucket?.id) {
                 toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
