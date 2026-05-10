@@ -395,7 +395,9 @@ export interface ReviewPageData {
 export interface DashboardV2Data {
   profile: Profile;
   buckets: Array<Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at">>;
-  selectedBucket: Bucket | null;
+  // PR 27: selectedBucket은 buckets에서 추출 가능 (별도 RTT 절약).
+  // 컴포넌트가 id/title만 쓰므로 Pick으로 충분.
+  selectedBucket: Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at"> | null;
   dailyTodos: DailyTodo[];
   routines: RoutineWithCompletion[];
   stridePlan: StridePlan | null;

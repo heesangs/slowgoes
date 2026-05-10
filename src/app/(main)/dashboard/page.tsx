@@ -7,7 +7,6 @@ import {
   getStridePlan,
   getProfile,
   getRoutinesWithCompletions,
-  getSelectedBucket,
   getUserBuckets,
 } from "@/lib/dashboard";
 import type { DashboardV2Data } from "@/types";
@@ -69,18 +68,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ? selectedBucketQuery
       : defaultBucketId;
 
-  const [selectedBucketResult, dailyTodosResult, routinesResult, stridePlanResult] =
+  // PR 27: getSelectedBucket 제거 — buckets에서 직접 추출 (RTT -1)
+  const selectedBucket =
+    (selectedBucketId && buckets.find((b) => b.id === selectedBucketId)) || null;
+
+  const [dailyTodosResult, routinesResult, stridePlanResult] =
     await Promise.allSettled([
-      getSelectedBucket(supabase, user.id, selectedBucketId),
       getDailyTodos(supabase, user.id, selectedBucketId),
       getRoutinesWithCompletions(supabase, user.id, selectedBucketId),
       getStridePlan(supabase, user.id, selectedBucketId),
     ]);
-
-  const selectedBucket =
-    selectedBucketResult.status === "fulfilled"
-      ? selectedBucketResult.value
-      : (errors.push(toErrorMessage(selectedBucketResult.reason, "선택한 버킷을 불러오지 못했습니다.")), null);
 
   const dailyTodos =
     dailyTodosResult.status === "fulfilled"
