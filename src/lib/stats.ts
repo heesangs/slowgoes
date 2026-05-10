@@ -168,22 +168,48 @@ export async function getTaskStats(
   };
 }
 
+// PR 24: 요일 0=월, 1=화, ..., 6=일 (한국 기준)
+const WEEKDAY_LABELS_FULL = ["월", "화", "수", "목", "금", "토", "일"] as const;
+function getWeekdayIndex(dateIso: string): number {
+  // JS getDay(): 0=일, 1=월, ..., 6=토 → 한국식: 0=월, ..., 6=일
+  return (new Date(dateIso).getDay() + 6) % 7;
+}
+
 export async function getReviewPageData(
   supabase: SupabaseClient,
   userId: string
 ): Promise<ReviewPageData | null> {
-  const { data, error } = await supabase
-    .from("action_logs")
-    .select("id, item_type, title, completed_at, bucket:buckets(title, life_area:life_areas(name))")
-    .eq("user_id", userId)
-    .order("completed_at", { ascending: false })
-    .limit(REVIEW_ACTION_LIMIT);
+  // PR 24: action_logs + 활성 routines + 이번 주 routine_completions 병렬 조회
+  const weekStartStr = getCurrentWeekStartDate();
+  const weekEndDate = new Date(weekStartStr);
+  weekEndDate.setDate(weekEndDate.getDate() + 7);
+  const weekEndStr = weekEndDate.toISOString().slice(0, 10);
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  const [actionsResult, routinesResult, weekCompletionsResult] = await Promise.all([
+    supabase
+      .from("action_logs")
+      .select("id, item_type, title, completed_at, bucket:buckets(title, life_area:life_areas(name))")
+      .eq("user_id", userId)
+      .order("completed_at", { ascending: false })
+      .limit(REVIEW_ACTION_LIMIT),
+    supabase
+      .from("routines")
+      .select("id, repeat_unit, repeat_value")
+      .eq("user_id", userId)
+      .eq("is_active", true),
+    supabase
+      .from("routine_completions")
+      .select("id, routine_id, completion_date")
+      .eq("user_id", userId)
+      .gte("completion_date", weekStartStr)
+      .lt("completion_date", weekEndStr),
+  ]);
 
-  const actions = (data as ActionLogRow[] | null) ?? [];
+  if (actionsResult.error) throw new Error(actionsResult.error.message);
+  if (routinesResult.error) throw new Error(routinesResult.error.message);
+  if (weekCompletionsResult.error) throw new Error(weekCompletionsResult.error.message);
+
+  const actions = (actionsResult.data as ActionLogRow[] | null) ?? [];
   if (actions.length === 0) {
     return null;
   }
@@ -217,11 +243,42 @@ export async function getReviewPageData(
 
   const insight = buildReviewInsight(actions.length, strongestBand, completedInLast14Days);
 
+  // PR 24: 이번 주 루틴 달성률 — 이번 주 가능한 총 횟수 vs 실제 완료 횟수
+  // - daily 루틴: 7회 가능 (단순화: repeat_value 무시 — 개념적 1주 단위 달성률)
+  // - weekly 루틴: 1회 가능
+  const activeRoutines =
+    (routinesResult.data as Array<{ id: string; repeat_unit: "daily" | "weekly"; repeat_value: number }> | null) ?? [];
+  const weekCompletions =
+    (weekCompletionsResult.data as Array<{ id: string; routine_id: string; completion_date: string }> | null) ?? [];
+
+  const totalPossible = activeRoutines.reduce((sum, r) => sum + (r.repeat_unit === "daily" ? 7 : 1), 0);
+  const totalCompleted = weekCompletions.length;
+  const weeklyRoutineRate: ReviewPageData["weeklyRoutineRate"] = {
+    completed: totalCompleted,
+    total: totalPossible,
+    percentage: totalPossible > 0 ? Math.round((totalCompleted / totalPossible) * 100) : 0,
+  };
+
+  // PR 24: 최근 4주 요일별 완료 분포 (action_logs 기반)
+  const fourWeeksAgo = toUtcIsoDaysAgo(28);
+  const weekdayCounts = [0, 0, 0, 0, 0, 0, 0];
+  for (const action of actions) {
+    if (action.completed_at < fourWeeksAgo) continue;
+    weekdayCounts[getWeekdayIndex(action.completed_at)] += 1;
+  }
+  const weekdayCompletions = weekdayCounts.map((count, index) => ({
+    weekday: index,
+    label: WEEKDAY_LABELS_FULL[index],
+    count,
+  }));
+
   return {
     completedCount: actions.length,
     completedInLast14Days,
     strongestBand,
     timeBandStats,
+    weeklyRoutineRate,
+    weekdayCompletions,
     insight,
     summary: buildReviewSummary(actions, insight),
     recent: actions.slice(0, REVIEW_RECENT_LIMIT).map(toRecentItem),

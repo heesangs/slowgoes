@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { RoutineCompletionRing } from "@/components/review/routine-completion-ring";
+import { WeekdayPatternChart } from "@/components/review/weekday-pattern-chart";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { LifeBalanceInsight, ReviewPageData, ReviewTimeBand } from "@/types";
@@ -118,6 +120,12 @@ export function ReviewPageContent({
           <p className="mt-1 text-xl font-semibold">{data.completedInLast14Days}개</p>
         </div>
       </section>
+
+      {/* PR 24: 루틴 달성률 링 (Apple Watch 스타일) */}
+      <RoutineCompletionRing rate={data.weeklyRoutineRate} />
+
+      {/* PR 24: 요일별 수행 패턴 (최근 4주) */}
+      <WeekdayPatternChart data={data.weekdayCompletions} />
 
       <section className="rounded-xl border border-foreground/10 px-4 py-4">
         <p className="mb-2 text-sm text-foreground/60">이번 회고 인사이트</p>

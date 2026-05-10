@@ -360,11 +360,33 @@ export interface ReviewRecentItem {
   lifeAreaName: string | null;
 }
 
+// PR 24: 이번 주 루틴 달성률 (Apple Watch 스타일 링용)
+export interface WeeklyRoutineRate {
+  /** 이번 주 실제 완료 횟수 (routine_completions) */
+  completed: number;
+  /** 이번 주 가능한 총 완료 횟수 (daily=7, weekly=1) */
+  total: number;
+  /** 0~100 정수 */
+  percentage: number;
+}
+
+// PR 24: 요일별 완료 분포 (최근 4주)
+export interface WeekdayCompletion {
+  /** 0=월, 1=화, ..., 6=일 (한국 기준) */
+  weekday: number;
+  label: string;
+  count: number;
+}
+
 export interface ReviewPageData {
   completedCount: number;
   completedInLast14Days: number;
   strongestBand: ReviewTimeBand | null;
   timeBandStats: ReviewTimeBandStat[];
+  /** PR 24: 이번 주 루틴 달성률 */
+  weeklyRoutineRate: WeeklyRoutineRate;
+  /** PR 24: 최근 4주 요일별 완료 분포 (월~일 7개) */
+  weekdayCompletions: WeekdayCompletion[];
   insight: string | null;
   summary: ReviewSummary | null;
   recent: ReviewRecentItem[];
