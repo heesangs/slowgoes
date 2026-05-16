@@ -58,6 +58,9 @@ export function ActionsContent({
   // PR 22: 루틴 캘린더 시트 상태
   const [calendarRoutine, setCalendarRoutine] = useState<RoutineWithCompletion | null>(null);
 
+  // PR 32: 버킷 전환 즉각 시각 피드백
+  const [isBucketSwitching, startBucketSwitch] = useTransition();
+
   // PR 25 — Optimistic UI: 토글 즉시 반영, transition 종료 시 server data로 정합성 복구
   const [, startTransition] = useTransition();
   const [optimisticDailyTodos, applyOptimisticDaily] = useOptimistic(
@@ -142,24 +145,38 @@ export function ActionsContent({
         </Link>
       </div>
 
-      {/* 버킷 선택기 */}
+      {/* 버킷 선택기 — PR 32: Link → button + useTransition으로 즉시 시각 피드백 */}
       {buckets.length > 1 && (
         <div className="rounded-xl border border-foreground/10 px-4 py-4">
-          <p className="text-xs text-foreground/60">버킷</p>
+          <p className="text-xs text-foreground/60">{FEATURE_NAMES.BUCKET}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {buckets.map((bucket) => (
-              <Link
-                key={bucket.id}
-                href={`/actions?bucket=${bucket.id}`}
-                className={`inline-flex min-h-[36px] items-center rounded-full border px-3 text-xs ${
-                  selectedBucketId === bucket.id
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-foreground/20 hover:bg-foreground/5"
-                }`}
-              >
-                {bucket.title}
-              </Link>
-            ))}
+            {buckets.map((bucket) => {
+              const isCurrent = selectedBucketId === bucket.id;
+              return (
+                <button
+                  key={bucket.id}
+                  type="button"
+                  onClick={() => {
+                    if (isCurrent || isBucketSwitching) return;
+                    startBucketSwitch(() => {
+                      router.replace(`/actions?bucket=${bucket.id}`);
+                    });
+                  }}
+                  disabled={isBucketSwitching}
+                  aria-current={isCurrent ? "true" : undefined}
+                  aria-busy={isBucketSwitching && !isCurrent}
+                  className={cn(
+                    "inline-flex min-h-[36px] items-center rounded-full border px-3 text-xs transition-all",
+                    isCurrent
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-foreground/20 hover:bg-foreground/5",
+                    isBucketSwitching && !isCurrent && "opacity-50"
+                  )}
+                >
+                  {bucket.title}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
