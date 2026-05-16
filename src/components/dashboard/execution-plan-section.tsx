@@ -13,7 +13,6 @@
 //   - 클릭 → 완료 토글 (PR 21에서 시각 효과 차별화 예정)
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -63,12 +62,8 @@ interface ExecutionPlanSectionProps {
   onToggleRoutine: (routineId: string) => void;
   /** PR 22: 루틴 본문 클릭 → 캘린더 시트 진입 */
   onOpenRoutineCalendar: (routine: RoutineWithCompletion) => void;
-  /** 발걸음 전체 다시 추천 */
-  onRegenerateAll: () => void;
-  /** 현재 AI 재생성 진행 중인 레벨 */
+  /** 현재 AI 재생성 진행 중인 레벨 (PR 34: 전체 재생성 제거되어 단일 재생성만 남음) */
   regeneratingLevel: StrideLevel | null;
-  /** 전체 재생성 진행 중 */
-  isRegenAll: boolean;
   /** PR 10: 현재 토글 진행 중인 투두 ID (중복 클릭 방지) */
   togglingTodoId: string | null;
   /** PR 20: 현재 토글 진행 중인 루틴 ID (중복 클릭 방지) */
@@ -89,6 +84,7 @@ function isExecutionLevel(level: StrideLevel): level is DailyTodoStrideLevel {
   return level === "today" || level === "this_week" || level === "this_month" || level === "this_season";
 }
 
+// PR 34: 전체 다시 추천 기능 제거 — onRegenerateAll/isRegenAll prop 삭제, 푸터 버튼 제거.
 export function ExecutionPlanSection({
   items,
   dailyTodos,
@@ -98,9 +94,7 @@ export function ExecutionPlanSection({
   onToggleTodo,
   onToggleRoutine,
   onOpenRoutineCalendar,
-  onRegenerateAll,
   regeneratingLevel,
-  isRegenAll,
   togglingTodoId,
   togglingRoutineId,
   onOpenNextStep,
@@ -138,7 +132,7 @@ export function ExecutionPlanSection({
 
       <div className="mt-3 flex flex-col gap-2">
         {items.map((item, index) => {
-          const busy = regeneratingLevel === item.level || isRegenAll;
+          const busy = regeneratingLevel === item.level;
           // PR 10: 카드의 stride_level과 일치하는 투두만 추출
           // PR 14: 같은 narrowing으로 잔여 기간 + 진행도 계산
           const execLevel: DailyTodoStrideLevel | null = isExecutionLevel(item.level)
@@ -319,18 +313,6 @@ export function ExecutionPlanSection({
           );
         })}
       </div>
-
-      {/* 본문 가장 아래 — 발걸음 전체 다시 추천 */}
-      <Button
-        type="button"
-        variant="secondary"
-        className="mt-3 w-full"
-        onClick={onRegenerateAll}
-        isLoading={isRegenAll}
-        disabled={isRegenAll || regeneratingLevel !== null}
-      >
-        ↻ {FEATURE_NAMES.MY_STRIDES} 전체 다시 추천
-      </Button>
     </section>
   );
 }

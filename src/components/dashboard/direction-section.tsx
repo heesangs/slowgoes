@@ -18,15 +18,13 @@ interface DirectionSectionProps {
   onEditLevel: (item: StrideItem) => void;
   /** 현재 AI 재생성 진행 중인 레벨 (수정 버튼 disable용) */
   regeneratingLevel: StrideLevel | null;
-  /** 전체 재생성 진행 중 (수정 버튼 disable용) */
-  isRegenAll: boolean;
 }
 
+// PR 34: 전체 다시 추천 기능 제거 — isRegenAll prop 삭제, busy 조건 단순화
 export function DirectionSection({
   items,
   onEditLevel,
   regeneratingLevel,
-  isRegenAll,
 }: DirectionSectionProps) {
   if (items.length === 0) return null;
 
@@ -36,7 +34,7 @@ export function DirectionSection({
 
       <div className="mt-3 flex flex-col gap-2">
         {items.map((item, index) => {
-          const busy = regeneratingLevel === item.level || isRegenAll;
+          const busy = regeneratingLevel === item.level;
           return (
             <article
               key={`direction-${item.level}-${index}`}
