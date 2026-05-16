@@ -888,6 +888,47 @@ export async function updateStridePlanAction(
 // PR 34: regenerateStridePlanAction (전체 재생성) 제거 — UX 단순화.
 //   단일 발걸음 재생성(regenerateStrideItemAction)은 EditWithAISheet에서 계속 사용.
 
+/**
+ * PR 36: 버킷 삭제 — 한걸음 상세 페이지 ⋮ 메뉴에서 호출.
+ *
+ * CASCADE 설정으로 자동 정리되는 자식 레코드:
+ *   stride_plans / daily_todos / routines / chapters (모두 bucket_id ON DELETE CASCADE)
+ *   routine_completions (routine_id ON DELETE CASCADE → routines 통해 연쇄)
+ * 유지되는 자식 레코드:
+ *   action_logs (bucket_id ON DELETE SET NULL — 회고/통계 데이터 보존)
+ *
+ * 권한: user_id 매칭 확인 (RLS도 있지만 명시적 가드).
+ */
+export async function deleteBucketAction(
+  bucketId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const trimmed = bucketId?.trim();
+    if (!trimmed) {
+      return { success: false, error: BUCKET_ERRORS.NOT_FOUND_OR_ACCESS_DENIED };
+    }
+
+    const { error } = await supabase
+      .from("buckets")
+      .delete()
+      .eq("id", trimmed)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    revalidatePath("/dashboard");
+    revalidatePath("/actions");
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, BUCKET_ERRORS.DELETE_ERROR),
+    };
+  }
+}
+
 // PR 15: 단계별 타이틀 이력에 prepend (최대 20개까지 누적, 시트 picker는 최근 5개만 표시)
 const TITLE_HISTORY_MAX = 20;
 

@@ -1,28 +1,38 @@
 "use client";
 
-// 한걸음 상세 페이지 (PR 13 → PR 22 일 단위 → PR 25 Optimistic UI)
+// 한걸음 상세 페이지 (PR 13 → PR 22 일 단위 → PR 25 Optimistic UI → PR 36 메뉴/삭제/칩)
 // - 진행중 / 완료 탭으로 분리
 //   - 진행중: pending 데일리투두 + 오늘 미완료 루틴
 //   - 완료: completed 데일리투두 + 오늘 완료 루틴
 // - 데일리: 클릭 → 토글 (체크박스/본문 통합)
 // - 루틴: 좌측 체크박스 = 토글, 본문 = 캘린더 시트 (PR 22)
 // - PR 25: 토글은 useOptimistic으로 즉시 반영, 실패 시 자동 rollback
+// - PR 36:
+//   - 헤더 "대시보드로" Link → ⋮ 더보기 메뉴 (대시보드로 이동 / 버킷 삭제)
+//   - 버킷 칩 리스트 끝에 "+" 칩 → FindMeSheet '새 장면 탐색' 탭
+//   - 버킷 삭제 후 라우팅: 다른 버킷 → 그쪽 /actions, 없으면 /dashboard
 
-import Link from "next/link";
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import {
+  deleteBucketAction,
   toggleDailyTodoAction,
   toggleRoutineCompletionAction,
 } from "@/app/(main)/dashboard/actions";
+import { FindMeSheet } from "@/components/dashboard/find-me-sheet";
 import { RoutineCalendarSheet } from "@/components/dashboard/routine-calendar-sheet";
+import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { useTrackLastViewedBucket } from "@/hooks/use-track-last-viewed-bucket";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type {
   Bucket,
   DailyTodo,
+  Gender,
+  PaceType,
+  PersonalityType,
+  Profile,
   RoutineWithCompletion,
 } from "@/types";
 
@@ -33,6 +43,8 @@ interface ActionsContentProps {
   routines: RoutineWithCompletion[];
   buckets: Pick<Bucket, "id" | "title">[];
   selectedBucketId: string | null;
+  /** PR 36: '+ 칩' 클릭 시 열리는 FindMeSheet의 prefillProfile 공급용 */
+  profile: Profile | null;
 }
 
 function formatRoutineRepeat(unit: "daily" | "weekly", value: number) {
@@ -47,6 +59,7 @@ export function ActionsContent({
   routines,
   buckets,
   selectedBucketId,
+  profile,
 }: ActionsContentProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -60,6 +73,58 @@ export function ActionsContent({
 
   // PR 32: 버킷 전환 즉각 시각 피드백
   const [isBucketSwitching, startBucketSwitch] = useTransition();
+
+  // PR 36: + 칩 → FindMeSheet '새 장면 탐색' 탭
+  const [findMeSheetOpen, setFindMeSheetOpen] = useState(false);
+  // PR 36: ⋮ 메뉴 '버킷 삭제' 진행 상태 (UI disable + 중복 클릭 방지)
+  const [isDeleting, startDelete] = useTransition();
+
+  // PR 36: 대시보드와 동일한 prefillProfile 도출 — 사용자가 온보딩 정보 재입력 안 하도록.
+  const prefillProfile = useMemo(() => {
+    if (!profile) return null;
+    const { life_clock_age, gender, personality_type, pace_type } = profile;
+    if (
+      life_clock_age != null &&
+      (gender === "male" || gender === "female") &&
+      personality_type != null
+    ) {
+      return {
+        age: life_clock_age,
+        gender: gender as Gender,
+        personalityType: personality_type as PersonalityType,
+        paceType: (pace_type ?? undefined) as PaceType | undefined,
+      };
+    }
+    return null;
+  }, [profile]);
+
+  // PR 36: 버킷 삭제 → CASCADE로 stride_plan/daily_todos/routines 자동 정리.
+  //   삭제 후 다른 버킷이 있으면 그쪽 /actions, 없으면 /dashboard로 이동.
+  function handleDeleteBucket() {
+    if (!selectedBucketId || isDeleting) return;
+    const confirmMsg =
+      typeof window !== "undefined"
+        ? window.confirm(
+            `이 ${FEATURE_NAMES.BUCKET}을 삭제할까요?\n관련된 ${FEATURE_NAMES.DAILY_TODO}/${FEATURE_NAMES.ROUTINE}/${FEATURE_NAMES.MY_STRIDES}도 함께 사라져요.`,
+          )
+        : true;
+    if (!confirmMsg) return;
+
+    startDelete(async () => {
+      const result = await deleteBucketAction(selectedBucketId);
+      if (!result.success) {
+        toast(result.error ?? `${FEATURE_NAMES.BUCKET} 삭제에 실패했어요.`, "error");
+        return;
+      }
+      const nextBucket = buckets.find((b) => b.id !== selectedBucketId);
+      toast(`${FEATURE_NAMES.BUCKET}을 삭제했어요.`, "success");
+      if (nextBucket) {
+        router.replace(`/actions?bucket=${nextBucket.id}`);
+      } else {
+        router.replace("/dashboard");
+      }
+    });
+  }
 
   // PR 25 — Optimistic UI: 토글 즉시 반영, transition 종료 시 server data로 정합성 복구
   const [, startTransition] = useTransition();
@@ -128,7 +193,7 @@ export function ActionsContent({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 헤더 */}
+      {/* 헤더 — PR 36: "대시보드로" Link → ⋮ 더보기 메뉴 (대시보드로 이동 / 버킷 삭제) */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{FEATURE_NAMES.STRIDE_DETAIL}</h1>
@@ -137,16 +202,31 @@ export function ActionsContent({
             {completedDaily.length + completedRoutine.length}개
           </p>
         </div>
-        <Link
-          href={selectedBucketId ? `/dashboard?bucket=${selectedBucketId}` : "/dashboard"}
-          className="inline-flex min-h-[44px] items-center rounded-lg border border-foreground/20 px-3 text-sm transition-colors hover:bg-foreground/5"
-        >
-          대시보드로
-        </Link>
+        <MoreActionsMenu
+          ariaLabel="더보기"
+          align="right"
+          actions={[
+            {
+              label: "대시보드로 이동",
+              onClick: () => {
+                router.push(
+                  selectedBucketId ? `/dashboard?bucket=${selectedBucketId}` : "/dashboard",
+                );
+              },
+            },
+            {
+              label: `${FEATURE_NAMES.BUCKET} 삭제`,
+              onClick: handleDeleteBucket,
+              disabled: !selectedBucketId || isDeleting,
+              variant: "danger",
+            },
+          ]}
+        />
       </div>
 
-      {/* 버킷 선택기 — PR 32: Link → button + useTransition으로 즉시 시각 피드백 */}
-      {buckets.length > 1 && (
+      {/* 버킷 선택기 — PR 32: Link → button + useTransition.
+          PR 36: 칩 리스트 마지막에 '+' 칩 → FindMeSheet '새 장면 탐색' 진입. */}
+      {buckets.length > 0 && (
         <div className="rounded-xl border border-foreground/10 px-4 py-4">
           <p className="text-xs text-foreground/60">{FEATURE_NAMES.BUCKET}</p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -177,6 +257,15 @@ export function ActionsContent({
                 </button>
               );
             })}
+            {/* PR 36: + 칩 — 새 장면 탐색 진입 (BottomSheet 'explore' 탭) */}
+            <button
+              type="button"
+              onClick={() => setFindMeSheetOpen(true)}
+              aria-label={`${FEATURE_NAMES.BUCKET} 추가`}
+              className="inline-flex min-h-[36px] items-center justify-center rounded-full border border-dashed border-foreground/30 px-3 text-xs text-foreground/60 transition-colors hover:bg-foreground/5 hover:text-foreground"
+            >
+              +
+            </button>
           </div>
         </div>
       )}
@@ -340,6 +429,21 @@ export function ActionsContent({
         onClose={() => setCalendarRoutine(null)}
         routineId={calendarRoutine?.id ?? null}
         routineTitle={calendarRoutine?.title ?? null}
+      />
+
+      {/* PR 36: '+ 칩' 진입 — FindMeSheet '새 장면 탐색' 탭 강제 활성 */}
+      <FindMeSheet
+        open={findMeSheetOpen}
+        onClose={() => setFindMeSheetOpen(false)}
+        buckets={buckets.map((b) => ({ id: b.id, title: b.title }))}
+        selectedBucketId={selectedBucketId}
+        prefillProfile={prefillProfile}
+        onExplorationComplete={() => {
+          setFindMeSheetOpen(false);
+          router.refresh();
+          toast("새로운 행동이 추가되었어요 ✨", "success");
+        }}
+        defaultMode="explore"
       />
     </div>
   );

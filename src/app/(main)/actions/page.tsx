@@ -1,7 +1,12 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getDailyTodos, getRoutinesWithCompletions, getUserBuckets } from "@/lib/dashboard";
+import {
+  getDailyTodos,
+  getProfile,
+  getRoutinesWithCompletions,
+  getUserBuckets,
+} from "@/lib/dashboard";
 import { ActionsContent } from "@/components/actions/actions-content";
 import { LAST_VIEWED_BUCKET_COOKIE_NAME } from "@/hooks/use-track-last-viewed-bucket";
 
@@ -22,7 +27,12 @@ export default async function ActionsPage({ searchParams }: ActionsPageProps) {
     redirect("/login");
   }
 
-  const buckets = await getUserBuckets(supabase, user.id);
+  // PR 36: profile도 함께 조회 — '+ 칩' 클릭 시 열리는 FindMeSheet의 prefillProfile 용도.
+  //   사용자가 온보딩 때 입력한 정보를 다시 입력하지 않게 하기 위함.
+  const [buckets, profile] = await Promise.all([
+    getUserBuckets(supabase, user.id),
+    getProfile(supabase, user.id),
+  ]);
 
   // PR 31: 대시보드와 동일한 우선순위 — URL > cookie > buckets[0]
   const cookieStore = await cookies();
@@ -45,6 +55,7 @@ export default async function ActionsPage({ searchParams }: ActionsPageProps) {
       routines={routines}
       buckets={buckets}
       selectedBucketId={selectedBucketId}
+      profile={profile}
     />
   );
 }
