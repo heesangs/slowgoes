@@ -19,7 +19,6 @@ import {
   STRIDE_ERRORS,
   APP,
   buildDefaultChapterTitle,
-  buildDefaultEmpathyMessage,
 } from "@/lib/constants";
 import type {
   LifeSceneAnalysisResult,
@@ -308,9 +307,6 @@ async function saveOnboardingV2Internal(
 
   const stridePlanPayload = {
     lifeArea,
-    empathyMessage:
-      data.stridePlan?.empathyMessage?.trim() ||
-      buildDefaultEmpathyMessage(lifeArea),
     strides: normalizedStrides,
     suggestedRoutines: normalizedSuggestedRoutines,
   };
@@ -551,7 +547,6 @@ export async function addItemsToExistingBucketAction(data: {
       user_id: user.id,
       bucket_id: data.bucketId,
       life_area: data.stridePlan.lifeArea,
-      empathy_message: data.stridePlan.empathyMessage || "",
       strides: data.stridePlan.strides,
       suggested_routines: data.stridePlan.suggestedRoutines,
       updated_at: new Date().toISOString(),

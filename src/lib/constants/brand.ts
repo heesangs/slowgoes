@@ -31,10 +31,7 @@ export function buildDefaultChapterTitle(sceneText: string): string {
   return `${fallback} ${DEFAULT_CHAPTER_TITLE_SUFFIX}`;
 }
 
-// 버킷 기본 공감 메시지 생성 헬퍼
-export function buildDefaultEmpathyMessage(lifeArea: string): string {
-  return `${lifeArea}에 대한 장면이네요, 멋져요.`;
-}
+// PR 30: buildDefaultEmpathyMessage 헬퍼 제거 — empathy_message는 더 이상 생성/저장하지 않음.
 
 // 회원탈퇴 확인 문구
 export const ACCOUNT_DELETE_CONFIRM_TEXT = "탈퇴합니다";
