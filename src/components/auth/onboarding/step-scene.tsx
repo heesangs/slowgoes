@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { getDemoScenes } from "@/lib/onboarding/demo-scenes";
 import type { DemoSceneItem, Gender, OnboardingSceneCategory, PersonalityType } from "@/types";
@@ -81,9 +82,9 @@ export function StepScene({
   return (
     <div className="flex flex-col gap-6">
       <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
-        <p className="text-sm text-foreground/60">나의 시간</p>
+        <p className="text-sm text-foreground/60">{FEATURE_NAMES.MY_CLOCK}</p>
         <p className="text-base font-semibold">
-          {lifeClock ? `당신의 시간은 ${lifeClock.label}이에요.` : "당신의 시간을 알려주세요"}
+          {lifeClock ? `${FEATURE_NAMES.MY_CLOCK}은 ${lifeClock.label}이에요.` : `${FEATURE_NAMES.MY_CLOCK}을 알려주세요`}
         </p>
       </div>
 

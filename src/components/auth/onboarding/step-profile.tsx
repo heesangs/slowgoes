@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { SegmentControl } from "@/components/ui/segment-control";
+import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Gender, PaceType, PersonalityType } from "@/types";
 import {
@@ -58,7 +59,7 @@ export function StepProfile({
   return (
     <div className="flex flex-col gap-6">
       <div className="rounded-2xl border border-foreground/15 bg-foreground/[0.03] p-5">
-        <p className="mb-4 text-sm text-foreground/60">당신의 시간을 알려주세요</p>
+        <p className="mb-4 text-sm text-foreground/60">{FEATURE_NAMES.MY_CLOCK}을 알려주세요</p>
 
         <div className="flex items-center gap-4">
           <div className="relative h-20 w-20 rounded-full border-2 border-foreground/20 bg-background">
@@ -73,9 +74,9 @@ export function StepProfile({
 
           <div className="min-h-[48px]">
             {lifeClock ? (
-              <p className="text-base font-semibold">당신의 시간은 {lifeClock.label}이에요.</p>
+              <p className="text-base font-semibold">{FEATURE_NAMES.MY_CLOCK}은 {lifeClock.label}이에요.</p>
             ) : (
-              <p className="text-sm text-foreground/50">나이를 입력하면 당신의 시간이 시작돼요.</p>
+              <p className="text-sm text-foreground/50">나이를 입력하면 {FEATURE_NAMES.MY_CLOCK}이 표시돼요.</p>
             )}
             {personalityType && (
               <p className="mt-1 text-xs text-foreground/50">현재 성향: {personalityType}</p>
