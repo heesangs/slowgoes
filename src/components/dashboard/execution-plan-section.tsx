@@ -114,17 +114,17 @@ export function ExecutionPlanSection({
     <section className="rounded-xl border border-foreground/10 px-4 py-4">
       {/* 헤더: 라벨 + 우측에 한걸음 더 + 더보기 (PR 11에서 흡수) */}
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-foreground/70">{FEATURE_NAMES.EXECUTION_PLAN}</p>
+        <p className="text-sm font-medium text-foreground/70">{FEATURE_NAMES.MY_STRIDES}</p>
 
         <div className="flex items-center gap-2">
-          {extraCount > 0 && (
-            <Link
-              href={strideDetailHref}
-              className="inline-flex min-h-[28px] items-center rounded-md border border-foreground/15 px-2 text-[11px] text-foreground/70 transition-colors hover:bg-foreground/5"
-            >
-              더보기 +{extraCount}
-            </Link>
-          )}
+          {/* PR 33: "더보기" 항상 노출 (extraCount > 0 조건 제거).
+              count=0 일 때는 "+N" 표기 없이 단순 "더보기" — 한걸음 상세로 진입하는 영구 진입점. */}
+          <Link
+            href={strideDetailHref}
+            className="inline-flex min-h-[28px] items-center rounded-md border border-foreground/15 px-2 text-[11px] text-foreground/70 transition-colors hover:bg-foreground/5"
+          >
+            {extraCount > 0 ? `더보기 +${extraCount}` : "더보기"}
+          </Link>
           <button
             type="button"
             onClick={onOpenNextStep}
