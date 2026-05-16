@@ -44,15 +44,17 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   // PR 31: 현재 보고 있는 버킷을 cookie에 기록 (로고 클릭 시 복귀에 사용)
   useTrackLastViewedBucket(data.selectedBucket?.id ?? null);
 
-  // "숨은 나 찾기" 시트 — + 버튼의 단일 진입점.
-  // 시트 안에서 "내 버킷 (전환)" / "새 장면 탐색" 모드 스위칭.
+  // "숨은 나 찾기" 시트 — InsightSection 드롭다운(내 버킷) + FAB(버킷 0개일 때 새 장면 탐색).
+  // PR 35: 진입처마다 기본 탭이 다르므로 mode를 함께 보관.
   const [findMeSheetOpen, setFindMeSheetOpen] = useState(false);
+  const [findMeSheetMode, setFindMeSheetMode] = useState<"select" | "explore" | undefined>(undefined);
 
   // "한걸음 더" 시트 (NextStepSheet)
-  // - 헤더 버튼 진입 → defaultPeriod=null (사용자가 시트 안에서 모든 단계 선택)
-  // - 카드 ⋮ "추가" 진입 → defaultPeriod=카드의 stride_level (PR 12)
+  // - FAB 진입(PR 35) → defaultPeriod=null + enableAI=false (직접 입력 폼)
+  // - 카드 ⋮ "추가" 진입 → defaultPeriod=this_month + enableAI=true (기존 동작)
   const [nextStepSheetOpen, setNextStepSheetOpen] = useState(false);
   const [nextStepDefaultPeriod, setNextStepDefaultPeriod] = useState<DailyTodoStrideLevel | null>(null);
+  const [nextStepEnableAI, setNextStepEnableAI] = useState(true);
 
   // 발걸음 재생성 진행 상태 (PR 34: 전체 재생성 제거되어 단일 레벨만)
   const [regeneratingLevel, setRegeneratingLevel] = useState<StrideLevel | null>(null);
@@ -208,8 +210,19 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       <LifeClockHeader age={data.profile.life_clock_age} />
 
       {/* 발걸음 3섹션 (PR 8): 인사이트 → 지향점 → 실행계획
-          PR 29: InsightSection은 현재 버킷 + 대화 placeholder만 표시 */}
-      <InsightSection bucketTitle={data.selectedBucket?.title ?? null} />
+          PR 29: InsightSection은 현재 버킷 + 대화 placeholder만 표시
+          PR 35: 버킷 타이틀이 드롭다운 버튼이 되어 FindMeSheet 'select' 탭 진입점 역할 */}
+      <InsightSection
+        bucketTitle={data.selectedBucket?.title ?? null}
+        onClickBucket={
+          data.buckets.length > 0
+            ? () => {
+                setFindMeSheetMode("select");
+                setFindMeSheetOpen(true);
+              }
+            : undefined
+        }
+      />
 
       {data.stridePlan && (
         <>
@@ -234,27 +247,20 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             // 빠른 연속 클릭은 useTransition이 자동 큐잉.
             togglingTodoId={null}
             togglingRoutineId={null}
-            onOpenNextStep={() => {
-              if (!data.selectedBucket?.id) {
-                toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
-                return;
-              }
-              setNextStepDefaultPeriod(null);
-              setNextStepSheetOpen(true);
-            }}
             onAddToLevel={(item) => {
               if (!data.selectedBucket?.id) {
                 toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
                 return;
               }
               // PR 18: 실행계획은 this_month 1개만. 카드 어떤 level이든 this_month로 prefill.
+              // PR 35: 카드 ⋮ "추가"는 AI 옵션 유지 (기존 동작).
               void item; // 카드별 분기 불필요 — union이 단일 값으로 축소됨
               setNextStepDefaultPeriod("this_month");
+              setNextStepEnableAI(true);
               setNextStepSheetOpen(true);
             }}
             strideDetailHref={detailHref}
             extraCount={extraMergedCount}
-            isNextStepDisabled={!data.selectedBucket}
           />
         </>
       )}
@@ -265,17 +271,27 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         </p>
       )}
 
+      {/* PR 35: FAB 재배치 — "한걸음 더"(직접 입력 폼) 단일 진입점.
+          버킷 0개일 때만 FindMeSheet(새 장면 탐색)로 폴백 — 사용자가 막히지 않도록. */}
       <button
         type="button"
-        onClick={() => setFindMeSheetOpen(true)}
+        onClick={() => {
+          if (!data.selectedBucket?.id) {
+            setFindMeSheetMode(undefined); // explore (기본 휴리스틱)
+            setFindMeSheetOpen(true);
+            return;
+          }
+          setNextStepDefaultPeriod(null);
+          setNextStepEnableAI(false); // FAB → AI 호출 없는 직접 입력 폼
+          setNextStepSheetOpen(true);
+        }}
         className="fixed bottom-6 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-2xl text-background shadow-lg transition-opacity hover:opacity-90"
-        aria-label="버킷 추가"
+        aria-label={data.selectedBucket?.id ? "한걸음 더" : "새 장면 탐색"}
       >
         +
       </button>
 
-      {/* "숨은 나 찾기" 시트 — + 버튼의 단일 진입점.
-          시트 안에서 "내 버킷 (전환)" / "새 장면 탐색" 모드 스위칭. */}
+      {/* "숨은 나 찾기" 시트 — InsightSection 드롭다운(select) + FAB(버킷 0개일 때 explore). */}
       <FindMeSheet
         open={findMeSheetOpen}
         onClose={() => setFindMeSheetOpen(false)}
@@ -287,15 +303,17 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           router.refresh();
           toast("새로운 행동이 추가되었어요 ✨", "success");
         }}
+        defaultMode={findMeSheetMode}
       />
 
-      {/* "한걸음 더" 시트 — 실행계획 헤더의 "한걸음 더" 버튼 또는 카드 ⋮ "추가"에서 진입 */}
+      {/* "한걸음 더" 시트 — FAB(enableAI=false) 또는 카드 ⋮ "추가"(enableAI=true) */}
       <NextStepSheet
         open={nextStepSheetOpen}
         onClose={() => setNextStepSheetOpen(false)}
         bucketId={data.selectedBucket?.id ?? null}
         onApplied={() => router.refresh()}
         defaultPeriod={nextStepDefaultPeriod}
+        enableAI={nextStepEnableAI}
       />
 
       {/* PR 9 — 발걸음 카드 ⋮ "수정" 진입 시트

@@ -68,14 +68,10 @@ interface ExecutionPlanSectionProps {
   togglingTodoId: string | null;
   /** PR 20: 현재 토글 진행 중인 루틴 ID (중복 클릭 방지) */
   togglingRoutineId: string | null;
-  /** PR 11: "한걸음 더" 버튼 클릭 (구 오늘의 한걸음 섹션 헤더에서 이동) */
-  onOpenNextStep: () => void;
-  /** PR 11: "한걸음 상세" 페이지 링크 (extraCount > 0일 때만 노출) */
+  /** PR 11: "한걸음 상세" 페이지 링크 — PR 33에서 항상 노출로 변경 */
   strideDetailHref: string;
-  /** PR 11: 한걸음 상세 페이지로 가야 보이는 추가 항목 개수 — 0이면 더보기 링크 숨김 */
+  /** PR 11: 한걸음 상세 페이지로 가야 보이는 추가 항목 개수 — PR 33에서 0이어도 노출 */
   extraCount: number;
-  /** PR 11: 한걸음 더 버튼 disabled 여부 (버킷 미선택 시 등) */
-  isNextStepDisabled?: boolean;
 }
 
 // stride_level은 4개 값만 가능 (DailyTodoStrideLevel)
@@ -85,6 +81,7 @@ function isExecutionLevel(level: StrideLevel): level is DailyTodoStrideLevel {
 }
 
 // PR 34: 전체 다시 추천 기능 제거 — onRegenerateAll/isRegenAll prop 삭제, 푸터 버튼 제거.
+// PR 35: 헤더의 "한걸음 더" 버튼 제거 — 우측 하단 FAB로 단일화 (PDF 명세 A-2).
 export function ExecutionPlanSection({
   items,
   dailyTodos,
@@ -97,37 +94,24 @@ export function ExecutionPlanSection({
   regeneratingLevel,
   togglingTodoId,
   togglingRoutineId,
-  onOpenNextStep,
   strideDetailHref,
   extraCount,
-  isNextStepDisabled = false,
 }: ExecutionPlanSectionProps) {
   if (items.length === 0) return null;
 
   return (
     <section className="rounded-xl border border-foreground/10 px-4 py-4">
-      {/* 헤더: 라벨 + 우측에 한걸음 더 + 더보기 (PR 11에서 흡수) */}
+      {/* 헤더: 라벨 + 우측 "더보기" 링크 (PR 35: "한걸음 더" 버튼은 우측 하단 FAB로 이동) */}
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-medium text-foreground/70">{FEATURE_NAMES.MY_STRIDES}</p>
 
-        <div className="flex items-center gap-2">
-          {/* PR 33: "더보기" 항상 노출 (extraCount > 0 조건 제거).
-              count=0 일 때는 "+N" 표기 없이 단순 "더보기" — 한걸음 상세로 진입하는 영구 진입점. */}
-          <Link
-            href={strideDetailHref}
-            className="inline-flex min-h-[28px] items-center rounded-md border border-foreground/15 px-2 text-[11px] text-foreground/70 transition-colors hover:bg-foreground/5"
-          >
-            {extraCount > 0 ? `더보기 +${extraCount}` : "더보기"}
-          </Link>
-          <button
-            type="button"
-            onClick={onOpenNextStep}
-            disabled={isNextStepDisabled}
-            className="inline-flex min-h-[28px] items-center rounded-md border border-foreground/20 bg-foreground/[0.04] px-2 text-[11px] font-medium transition-colors hover:bg-foreground/[0.08] disabled:opacity-40"
-          >
-            한걸음 더
-          </button>
-        </div>
+        {/* PR 33: "더보기" 항상 노출 (count=0 시에도 한걸음 상세 진입점) */}
+        <Link
+          href={strideDetailHref}
+          className="inline-flex min-h-[28px] items-center rounded-md border border-foreground/15 px-2 text-[11px] text-foreground/70 transition-colors hover:bg-foreground/5"
+        >
+          {extraCount > 0 ? `더보기 +${extraCount}` : "더보기"}
+        </Link>
       </div>
 
       <div className="mt-3 flex flex-col gap-2">

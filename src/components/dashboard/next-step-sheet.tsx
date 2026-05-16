@@ -50,6 +50,11 @@ interface NextStepSheetProps {
    * prop 시그니처는 호환성 유지 위해 남김.
    */
   defaultPeriod?: DailyTodoStrideLevel | null;
+  /**
+   * PR 35: AI 생성 버튼 노출 여부. FAB의 "한걸음 더" 진입은 false(직접 입력 폼)이며
+   * 카드 ⋮ "추가"는 기본값 true 유지. EditWithAISheet로 prop drilling.
+   */
+  enableAI?: boolean;
 }
 
 export function NextStepSheet({
@@ -58,6 +63,7 @@ export function NextStepSheet({
   bucketId,
   onApplied,
   defaultPeriod: _defaultPeriod = null,
+  enableAI = true,
 }: NextStepSheetProps) {
   const { toast } = useToast();
 
@@ -181,7 +187,8 @@ export function NextStepSheet({
         onConfirm={(value) => {
           void handleConfirm(value);
         }}
-        onAIGenerate={handleAIGenerate}
+        // PR 35: enableAI=false 일 때는 onAIGenerate 미전달 → EditWithAISheet가 AI 버튼 자동 숨김
+        onAIGenerate={enableAI ? handleAIGenerate : undefined}
         confirmLabel="추가하기"
       />
     ) : null;
