@@ -18,6 +18,7 @@ import {
   updateStrideItemAction,
 } from "@/app/(main)/dashboard/actions";
 import { EditWithAISheet } from "@/components/ui/edit-with-ai-sheet";
+import { useTrackLastViewedBucket } from "@/hooks/use-track-last-viewed-bucket";
 import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { FEATURE_NAMES } from "@/lib/constants";
 import type {
@@ -40,6 +41,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  // PR 31: 현재 보고 있는 버킷을 cookie에 기록 (로고 클릭 시 복귀에 사용)
+  useTrackLastViewedBucket(data.selectedBucket?.id ?? null);
 
   // "숨은 나 찾기" 시트 — + 버튼의 단일 진입점.
   // 시트 안에서 "내 버킷 (전환)" / "새 장면 탐색" 모드 스위칭.
