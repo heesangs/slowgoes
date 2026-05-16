@@ -219,11 +219,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     <div className="flex flex-col gap-4 pb-24">
       <LifeClockHeader age={data.profile.life_clock_age} />
 
-      {/* 발걸음 3섹션 (PR 8): 인사이트 → 지향점 → 실행계획 */}
-      <InsightSection
-        bucketTitle={data.selectedBucket?.title ?? null}
-        empathyMessage={data.stridePlan?.empathy_message ?? null}
-      />
+      {/* 발걸음 3섹션 (PR 8): 인사이트 → 지향점 → 실행계획
+          PR 29: InsightSection은 현재 버킷 + 대화 placeholder만 표시 */}
+      <InsightSection bucketTitle={data.selectedBucket?.title ?? null} />
 
       {data.stridePlan && (
         <>

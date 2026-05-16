@@ -1,11 +1,13 @@
 "use client";
 
-// 인사이트 섹션 — 발걸음 3섹션 중 첫 번째 (PR 8 신설)
+// 인사이트 섹션 — 발걸음 3섹션 중 첫 번째 (PR 8 신설, PR 29 정리)
 //
 // 표시 내용:
 // - 현재 버킷 타이틀 (구 StrideSection의 헤더 역할 흡수)
-// - 공감 메시지 (stride_plan.empathy_message)
-// - 우측 작은 "대화" 아이콘 (placeholder, PR 8 시점엔 비활성)
+// - 우측 작은 "대화" 아이콘 (placeholder, 추후 실제 대화 기능으로 활성화 예정)
+//
+// PR 29: AI 공감 메시지(empathy_message) 본문 표시 제거.
+//   DB/온보딩 Step 3에는 그대로 보존, 대시보드에서만 숨김.
 //
 // 사용자 결정 ③ — 헤더 우측 작은 아이콘. 부담 낮은 힌트.
 
@@ -13,10 +15,9 @@ import { FEATURE_NAMES } from "@/lib/constants";
 
 interface InsightSectionProps {
   bucketTitle: string | null;
-  empathyMessage: string | null;
 }
 
-export function InsightSection({ bucketTitle, empathyMessage }: InsightSectionProps) {
+export function InsightSection({ bucketTitle }: InsightSectionProps) {
   return (
     <section className="rounded-xl border border-foreground/10 px-4 py-4">
       {/* 헤더: 현재 버킷 + 우측 "대화" 아이콘 */}
@@ -45,14 +46,6 @@ export function InsightSection({ bucketTitle, empathyMessage }: InsightSectionPr
           </svg>
         </button>
       </div>
-
-      {/* 공감 메시지 = 인사이트 본문 */}
-      {empathyMessage && (
-        <div className="mt-3 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-2.5">
-          <p className="text-xs text-foreground/55">{FEATURE_NAMES.INSIGHT}</p>
-          <p className="mt-1 text-sm leading-relaxed">{empathyMessage}</p>
-        </div>
-      )}
     </section>
   );
 }
