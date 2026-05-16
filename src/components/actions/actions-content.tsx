@@ -17,6 +17,7 @@ import {
   toggleRoutineCompletionAction,
 } from "@/app/(main)/dashboard/actions";
 import { RoutineCalendarSheet } from "@/components/dashboard/routine-calendar-sheet";
+import { useTrackLastViewedBucket } from "@/hooks/use-track-last-viewed-bucket";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type {
@@ -49,6 +50,9 @@ export function ActionsContent({
 }: ActionsContentProps) {
   const { toast } = useToast();
   const router = useRouter();
+
+  // PR 31: 한걸음 상세에서도 보고 있는 버킷을 cookie에 기록 → 로고 클릭 시 복귀
+  useTrackLastViewedBucket(selectedBucketId);
 
   const [activeTab, setActiveTab] = useState<TabKey>("active");
   // PR 22: 루틴 캘린더 시트 상태

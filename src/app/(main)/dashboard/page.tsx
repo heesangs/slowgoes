@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardContentV2 } from "@/components/dashboard/dashboard-content-v2";
@@ -9,6 +10,7 @@ import {
   getRoutinesWithCompletions,
   getUserBuckets,
 } from "@/lib/dashboard";
+import { LAST_VIEWED_BUCKET_COOKIE_NAME } from "@/hooks/use-track-last-viewed-bucket";
 import type { DashboardV2Data } from "@/types";
 
 interface DashboardPageProps {
@@ -62,11 +64,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ? bucketsResult.value
       : (errors.push(toErrorMessage(bucketsResult.reason, "버킷 정보를 불러오지 못했습니다.")), []);
 
+  // PR 31: 우선순위 — URL 쿼리 > cookie(마지막 본 버킷) > buckets[0] fallback
+  // 로고/홈 링크로 진입(쿼리 없음)했을 때 마지막으로 보던 버킷을 유지하기 위함.
+  const cookieStore = await cookies();
+  const cookieBucketId = cookieStore.get(LAST_VIEWED_BUCKET_COOKIE_NAME)?.value;
   const defaultBucketId = buckets[0]?.id ?? null;
   const selectedBucketId =
     selectedBucketQuery && buckets.some((bucket) => bucket.id === selectedBucketQuery)
       ? selectedBucketQuery
-      : defaultBucketId;
+      : cookieBucketId && buckets.some((bucket) => bucket.id === cookieBucketId)
+        ? cookieBucketId
+        : defaultBucketId;
 
   // PR 27: getSelectedBucket 제거 — buckets에서 직접 추출 (RTT -1)
   const selectedBucket =
