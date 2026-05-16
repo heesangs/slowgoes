@@ -11,7 +11,7 @@
 //  - 기존 버킷이 0개면 'explore' (새 사용자 — 먼저 만들기)
 //  - 1개 이상이면 'select' (기존 사용자 — 먼저 전환을 권장)
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { OnboardingForm } from "@/components/auth/onboarding-form";
@@ -48,6 +48,7 @@ export function FindMeSheet({
   onExplorationComplete,
 }: FindMeSheetProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const initialMode: FindMeMode = buckets.length > 0 ? "select" : "explore";
   const [mode, setMode] = useState<FindMeMode>(initialMode);
 
@@ -61,9 +62,14 @@ export function FindMeSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, buckets.length]);
 
+  // PR 32: 버킷 전환 즉각 시각 피드백 + 히스토리 오염 방지
+  // - useTransition: 클릭 즉시 isPending=true → 카드 dimming
+  // - router.replace: 매 버킷 전환마다 history 쌓이지 않음 (뒤로가기 자연스러움)
   function handleSelectBucket(bucketId: string) {
     onClose();
-    router.push(`/dashboard?bucket=${bucketId}`);
+    startTransition(() => {
+      router.replace(`/dashboard?bucket=${bucketId}`);
+    });
   }
 
   return (
@@ -106,12 +112,15 @@ export function FindMeSheet({
                 key={bucket.id}
                 type="button"
                 onClick={() => handleSelectBucket(bucket.id)}
+                disabled={isPending}
                 aria-current={isCurrent ? "true" : undefined}
+                aria-busy={isPending}
                 className={cn(
-                  "min-h-[56px] rounded-lg border px-4 py-3 text-left transition-colors",
+                  "min-h-[56px] rounded-lg border px-4 py-3 text-left transition-all",
                   isCurrent
                     ? "border-foreground bg-foreground/[0.05]"
-                    : "border-foreground/15 hover:bg-foreground/5"
+                    : "border-foreground/15 hover:bg-foreground/5",
+                  isPending && "opacity-50"
                 )}
               >
                 <p className="text-sm font-semibold">{bucket.title}</p>

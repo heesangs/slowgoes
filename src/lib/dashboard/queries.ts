@@ -164,28 +164,38 @@ export async function getRoutinesWithCompletions(
   const weekStart = getCurrentWeekStartDate();
 
   try {
-    const [routinesResult, completionsResult] = await Promise.all([
-      supabase
-        .from("routines")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("bucket_id", bucketId)
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true }),
-      // PR 22: 일 단위로 변경됐지만 "이번 주에 한 번이라도" 정보도 유지
-      // → 이번 주 범위 내 완료 모두 조회 후 today / week 분리
-      supabase
-        .from("routine_completions")
-        .select("*")
-        .eq("user_id", userId)
-        .gte("completion_date", weekStart),
-    ]);
+    // PR 32: routines 먼저 조회 → 그 ID들로만 completions 조회 (bucket-scoped).
+    // 기존: completions를 전체 사용자 범위로 조회 후 메모리에서 routine_id 필터.
+    //   → 사용자의 다른 버킷 루틴 완료까지 매번 전송 받음.
+    // 변경 후: 현재 버킷의 active routines에 해당하는 완료만 조회.
+    //   parallel → sequential로 바뀌어 RTT +1번 추가되지만, 페이로드/DB 부하 절감.
+    //   루틴이 없으면 두번째 쿼리 자체를 스킵 (RTT 0번).
+    const routinesResult = await supabase
+      .from("routines")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("bucket_id", bucketId)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
 
     if (routinesResult.error) throw routinesResult.error;
-    if (completionsResult.error) throw completionsResult.error;
 
     const routines = (routinesResult.data as RoutineWithCompletion[] | null) ?? [];
+    if (routines.length === 0) return [];
+
+    const routineIds = routines.map((r) => r.id);
+    // PR 22: 일 단위로 변경됐지만 "이번 주에 한 번이라도" 정보도 유지
+    // → 이번 주 범위 내 완료 모두 조회 후 today / week 분리
+    const completionsResult = await supabase
+      .from("routine_completions")
+      .select("*")
+      .eq("user_id", userId)
+      .in("routine_id", routineIds)
+      .gte("completion_date", weekStart);
+
+    if (completionsResult.error) throw completionsResult.error;
+
     const completions = (completionsResult.data as RoutineCompletion[] | null) ?? [];
 
     // 루틴별로 today 완료 / 이번 주 완료 둘 다 분류
