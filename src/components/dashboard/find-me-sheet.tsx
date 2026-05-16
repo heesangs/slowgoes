@@ -37,6 +37,12 @@ interface FindMeSheetProps {
   } | null;
   /** 새 장면 탐색 흐름이 끝난 뒤 토스트/refresh — onComplete 트리거 */
   onExplorationComplete: () => void;
+  /**
+   * PR 35: 진입 시 기본 활성 탭. 미지정 시 기존 로직(버킷 0개=explore, 1개+ =select).
+   * - 헤더 드롭다운(InsightSection) 진입 → 'select'
+   * - 한걸음 상세 + 칩(PR 36) 진입 → 'explore'
+   */
+  defaultMode?: FindMeMode;
 }
 
 export function FindMeSheet({
@@ -46,10 +52,13 @@ export function FindMeSheet({
   selectedBucketId,
   prefillProfile,
   onExplorationComplete,
+  defaultMode,
 }: FindMeSheetProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const initialMode: FindMeMode = buckets.length > 0 ? "select" : "explore";
+  // PR 35: 호출자가 defaultMode 명시 시 우선 사용, 아니면 기존 휴리스틱.
+  const initialMode: FindMeMode =
+    defaultMode ?? (buckets.length > 0 ? "select" : "explore");
   const [mode, setMode] = useState<FindMeMode>(initialMode);
 
   // 시트가 닫히면 다음 진입 시 항상 기본 모드로 시작
@@ -57,10 +66,10 @@ export function FindMeSheet({
     if (!open) {
       setMode(initialMode);
     }
-    // initialMode는 buckets.length에 의존 — 사용자가 시트 안에서 새로 만들면
-    // 다음 진입 시 자동으로 select로 전환되도록 하기 위함
+    // initialMode는 buckets.length + defaultMode에 의존 — 호출자가 모드를 바꿔서
+    // 재오픈하는 경우(예: 한걸음 상세 → 헤더)에도 의도된 탭이 활성화되도록.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, buckets.length]);
+  }, [open, buckets.length, defaultMode]);
 
   // PR 32: 버킷 전환 즉각 시각 피드백 + 히스토리 오염 방지
   // - useTransition: 클릭 즉시 isPending=true → 카드 dimming
