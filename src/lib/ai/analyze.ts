@@ -577,7 +577,6 @@ ${lifeAreaHintLine}
 
 규칙:
 - 문장은 한국어로 작성
-- 공감 메시지는 짧고 따뜻하게 1문장
 - suggestedRoutines는 정확히 2개, 서로 다른 성격의 루틴
 
 어조 가이드 (PR 17):
@@ -590,7 +589,6 @@ ${lifeAreaHintLine}
 아래 JSON 객체만 응답하세요:
 {
   "lifeArea": "건강|관계|성장|경험|일|돈|내면",
-  "empathyMessage": "공감 메시지",
   "strides": [
     { "level": "today", "label": "오늘", "action": "..." },
     { "level": "this_week", "label": "이번 주", "action": "..." },
@@ -618,15 +616,12 @@ ${lifeAreaHintLine}
 
   const object = parsed as {
     lifeArea?: unknown;
-    empathyMessage?: unknown;
     strides?: unknown;
     horizons?: unknown;
     suggestedRoutines?: unknown;
   };
 
   const lifeArea = normalizeLifeArea(object.lifeArea, sceneText);
-  const empathyMessage =
-    toNonEmptyText(object.empathyMessage) ?? `${lifeArea}에 대한 장면이네요, 멋져요.`;
   // legacy 키 "horizons"도 fallback으로 수용
   const strides = normalizeStrides(
     object.strides ?? object.horizons,
@@ -640,7 +635,6 @@ ${lifeAreaHintLine}
 
   return {
     lifeArea,
-    empathyMessage,
     strides,
     suggestedRoutines,
   };

@@ -856,7 +856,7 @@ async function loadBucketContext(
  */
 export async function updateStridePlanAction(
   bucketId: string,
-  input: { empathyMessage?: string; strides: StrideItem[] }
+  input: { strides: StrideItem[] }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { supabase, userId } = await getAuthContext();
@@ -866,9 +866,6 @@ export async function updateStridePlanAction(
       strides: normalized,
       updated_at: new Date().toISOString(),
     };
-    if (typeof input.empathyMessage === "string") {
-      updatePayload.empathy_message = input.empathyMessage.trim();
-    }
 
     const { error } = await supabase
       .from("stride_plans")
@@ -919,7 +916,6 @@ export async function regenerateStridePlanAction(
       user_id: userId,
       bucket_id: bucketId,
       life_area: analysis.lifeArea || bucket.lifeArea,
-      empathy_message: analysis.empathyMessage || "",
       strides: analysis.strides,
       suggested_routines: analysis.suggestedRoutines,
       updated_at: new Date().toISOString(),

@@ -248,7 +248,6 @@ export interface StridePlan {
   user_id: string;
   bucket_id: string;
   life_area: string;
-  empathy_message: string;
   strides: StrideItem[];
   suggested_routines: SuggestedRoutine[];
   /** PR 15: 단계별 과거 타이틀 이력 (마이그레이션 DEFAULT '{}') */
@@ -301,7 +300,6 @@ export interface StrideItem {
 
 export interface LifeSceneAnalysisResult {
   lifeArea: string;
-  empathyMessage: string;
   strides: StrideItem[];
   suggestedRoutines: SuggestedRoutine[];
 }

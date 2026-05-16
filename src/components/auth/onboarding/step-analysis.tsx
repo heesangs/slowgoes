@@ -67,13 +67,8 @@ export function StepAnalysis({
 
       {!isAnalyzingLifeScene && lifeSceneAnalysis && (
         <>
-          {/* 공감 메시지 */}
-          <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-4">
-            <span className="inline-flex rounded-full border border-foreground/20 px-3 py-1 text-xs font-medium">
-              {lifeSceneAnalysis.lifeArea}
-            </span>
-            <p className="mt-3 text-sm text-foreground/70">{lifeSceneAnalysis.empathyMessage}</p>
-          </div>
+          {/* PR 30: AI 공감 메시지(empathyMessage) 카드 제거 — 생성/저장/표시 전 라인에서 폐기.
+              lifeArea 배지는 stridePlan 본문이 충분히 영역감을 전달하므로 함께 정리. */}
 
           {/* 나의 발걸음 (this_month 이상, 긴→짧은 순 — someday 먼저) */}
           <section className="flex flex-col gap-3">
