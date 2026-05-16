@@ -109,7 +109,7 @@ export const STRIDE_ERRORS = {
   EMPTY_ACTION: "빈 action은 저장할 수 없습니다.",
   COUNT_INVALID: "발걸음은 3~6개여야 합니다.",
   SOMEDAY_REQUIRED: "'언젠가' 발걸음은 반드시 포함되어야 합니다.",
-  REGENERATE_ALL_FAILED: "발걸음 전체 재생성에 실패했습니다.",
+  // PR 34: REGENERATE_ALL_FAILED 제거 — 전체 재생성 기능 폐지
   REGENERATE_SINGLE_FAILED: "발걸음 재생성에 실패했습니다.",
   REGENERATE_RESULT_EMPTY: "발걸음 재생성 결과가 비어 있습니다.",
   PROFILE_NOT_FOUND: "프로필 정보가 없습니다.",

@@ -12,7 +12,6 @@ import { RoutineCalendarSheet } from "@/components/dashboard/routine-calendar-sh
 import { useToast } from "@/components/ui/toast";
 import {
   regenerateStrideItemAction,
-  regenerateStridePlanAction,
   toggleDailyTodoAction,
   toggleRoutineCompletionAction,
   updateStrideItemAction,
@@ -55,9 +54,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [nextStepSheetOpen, setNextStepSheetOpen] = useState(false);
   const [nextStepDefaultPeriod, setNextStepDefaultPeriod] = useState<DailyTodoStrideLevel | null>(null);
 
-  // 발걸음 재생성 진행 상태
+  // 발걸음 재생성 진행 상태 (PR 34: 전체 재생성 제거되어 단일 레벨만)
   const [regeneratingLevel, setRegeneratingLevel] = useState<StrideLevel | null>(null);
-  const [isRegenAll, setIsRegenAll] = useState(false);
   // PR 9 — 발걸음 카드 ⋮ → 수정 시트 상태
   const [editingStride, setEditingStride] = useState<StrideItem | null>(null);
   // PR 22 — 루틴 캘린더 시트 상태
@@ -202,22 +200,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     });
   }
 
-  // 전체 발걸음 재생성 — 실행계획 섹션 푸터 버튼에서 호출
-  async function handleRegenerateAll() {
-    if (!data.selectedBucket?.id) return;
-    if (typeof window !== "undefined" && !window.confirm("전체 발걸음을 새로 추천받을까요?")) {
-      return;
-    }
-    setIsRegenAll(true);
-    const result = await regenerateStridePlanAction(data.selectedBucket.id);
-    if (result.success) {
-      toast("AI가 발걸음을 새로 제안했어요.", "success");
-      router.refresh();
-    } else {
-      toast(result.error ?? "전체 재추천에 실패했습니다.", "error");
-    }
-    setIsRegenAll(false);
-  }
+  // PR 34: 전체 발걸음 재생성 함수(handleRegenerateAll) 삭제 — UX 단순화.
+  //   단일 발걸음 재생성(EditWithAISheet 안의 AI 버튼)은 유지.
 
   return (
     <div className="flex flex-col gap-4 pb-24">
@@ -232,7 +216,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           <DirectionSection
             items={strideGroups.direction}
             onEditLevel={handleEditOpen}
-            isRegenAll={isRegenAll}
             regeneratingLevel={regeneratingLevel}
           />
           <ExecutionPlanSection
@@ -246,10 +229,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             onOpenRoutineCalendar={(routine) => {
               setCalendarRoutine(routine);
             }}
-            onRegenerateAll={() => {
-              void handleRegenerateAll();
-            }}
-            isRegenAll={isRegenAll}
             regeneratingLevel={regeneratingLevel}
             // PR 25: Optimistic UI가 즉시 반영하므로 disable 불필요 (사용자 체감 0ms).
             // 빠른 연속 클릭은 useTransition이 자동 큐잉.

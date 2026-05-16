@@ -885,59 +885,8 @@ export async function updateStridePlanAction(
   }
 }
 
-/**
- * stride_plan 전체 재생성 — "전체 다시 추천" 버튼
- */
-export async function regenerateStridePlanAction(
-  bucketId: string
-): Promise<{ success: boolean; plan?: StridePlan; error?: string }> {
-  try {
-    const { supabase, userId } = await getAuthContext();
-
-    const [bucket, profileResult] = await Promise.all([
-      loadBucketContext(supabase, userId, bucketId),
-      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-    ]);
-
-    const profile = (profileResult.data as Profile | null) ?? null;
-    if (!profile) {
-      throw new Error(STRIDE_ERRORS.PROFILE_NOT_FOUND);
-    }
-
-    const analysis = await analyzeLifeScene({
-      sceneText: bucket.title,
-      age: profile.life_clock_age ?? 30,
-      gender: (profile.gender as Gender) ?? "male",
-      personalityType: (profile.personality_type as PersonalityType) ?? "INFP",
-      strideScope: bucket.strideScope,
-    });
-
-    const payload = {
-      user_id: userId,
-      bucket_id: bucketId,
-      life_area: analysis.lifeArea || bucket.lifeArea,
-      strides: analysis.strides,
-      suggested_routines: analysis.suggestedRoutines,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .from("stride_plans")
-      .upsert(payload, { onConflict: "bucket_id" })
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    revalidatePath("/dashboard");
-    return { success: true, plan: data as StridePlan };
-  } catch (error) {
-    return {
-      success: false,
-      error: toClientErrorMessage(error, STRIDE_ERRORS.REGENERATE_ALL_FAILED),
-    };
-  }
-}
+// PR 34: regenerateStridePlanAction (전체 재생성) 제거 — UX 단순화.
+//   단일 발걸음 재생성(regenerateStrideItemAction)은 EditWithAISheet에서 계속 사용.
 
 // PR 15: 단계별 타이틀 이력에 prepend (최대 20개까지 누적, 시트 picker는 최근 5개만 표시)
 const TITLE_HISTORY_MAX = 20;
