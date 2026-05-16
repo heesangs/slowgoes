@@ -20,7 +20,7 @@ function getLifeClockLabel(age: number | null | undefined) {
   return `${meridiem} ${hour12}:${String(minute).padStart(2, "0")}`;
 }
 
-// 인생시계 카드 — 현재 시간만 표시. 버킷 정보는 현재 버킷 카드(StrideSection)에서 단일하게 노출.
+// 나의 시간 카드 — 현재 시간만 표시. 버킷 정보는 현재 버킷 카드(StrideSection)에서 단일하게 노출.
 export function LifeClockHeader({ age }: LifeClockHeaderProps) {
   const lifeClockLabel = getLifeClockLabel(age);
 
