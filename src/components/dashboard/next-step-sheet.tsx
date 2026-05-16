@@ -168,7 +168,7 @@ export function NextStepSheet({
         }
         description={
           mode === "daily_todo"
-            ? `이번 달 ${FEATURE_NAMES.EXECUTION_PLAN} 카드에 추가될 행동입니다.`
+            ? `이번 달 ${FEATURE_NAMES.MY_STRIDES} 카드에 추가될 행동입니다.`
             : timeSlot
               ? `${TIME_SLOT_LABELS[timeSlot]} 시간대에 반복할 행동입니다.`
               : "직접 입력하거나 AI로 추천받을 수 있어요."

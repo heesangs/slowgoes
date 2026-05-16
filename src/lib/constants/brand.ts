@@ -20,7 +20,7 @@ export const FEATURE_NAMES = {
   // 발걸음 3섹션 라벨 (PR 6 신설, PR 8에서 컴포넌트 분리 시 사용)
   INSIGHT: "인사이트", // 구 "공감 메시지"
   DIRECTION: "지향점", // 구 "방향" — 언젠가 + 1년 안
-  EXECUTION_PLAN: "실행계획", // 구 "기간" — 이번 시즌/이번 달/이번 주/오늘
+  // PR 33: "실행계획" → MY_STRIDES 로 통합. 동일 의미 상수 2개로 갈리던 것을 정리.
   STRIDE_DETAIL: "한걸음 상세", // 구 "오늘의 한걸음 상세"
 } as const;
 
