@@ -929,6 +929,79 @@ export async function deleteBucketAction(
   }
 }
 
+/**
+ * PR 37: 데일리투두 삭제 — 발걸음 수정 시트의 trash 아이콘에서 호출.
+ *
+ * Hard delete. action_logs는 `bucket_id ON DELETE SET NULL`이 아니라 별도 컬럼이며,
+ * daily_todos 자체에 대한 FK 정책이 없어 삭제해도 logs는 그대로 남음(고아 참조).
+ * 통계/회고용으로 historical record는 의도된 보존.
+ */
+export async function deleteDailyTodoAction(
+  todoId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const trimmed = todoId?.trim();
+    if (!trimmed) {
+      return { success: false, error: TODO_ERRORS.NOT_FOUND };
+    }
+
+    const { error } = await supabase
+      .from("daily_todos")
+      .delete()
+      .eq("id", trimmed)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    revalidatePath("/dashboard");
+    revalidatePath("/actions");
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, TODO_ERRORS.DELETE_FAILED),
+    };
+  }
+}
+
+/**
+ * PR 37: 루틴 비활성화 (soft delete) — 발걸음 수정 시트의 trash 아이콘에서 호출.
+ *
+ * is_active=false로 update. 모든 쿼리가 .eq("is_active", true)로 필터링하므로
+ * 자동으로 UI에서 사라짐. routine_completions / action_logs / 캘린더 히스토리 전부 보존.
+ */
+export async function deactivateRoutineAction(
+  routineId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const trimmed = routineId?.trim();
+    if (!trimmed) {
+      return { success: false, error: ROUTINE_ERRORS.NOT_FOUND };
+    }
+
+    const { error } = await supabase
+      .from("routines")
+      .update({ is_active: false })
+      .eq("id", trimmed)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    revalidatePath("/dashboard");
+    revalidatePath("/actions");
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, ROUTINE_ERRORS.DEACTIVATE_FAILED),
+    };
+  }
+}
+
 // PR 15: 단계별 타이틀 이력에 prepend (최대 20개까지 누적, 시트 picker는 최근 5개만 표시)
 const TITLE_HISTORY_MAX = 20;
 

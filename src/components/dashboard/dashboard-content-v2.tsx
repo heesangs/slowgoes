@@ -11,6 +11,8 @@ import { NextStepSheet } from "@/components/dashboard/next-step-sheet";
 import { RoutineCalendarSheet } from "@/components/dashboard/routine-calendar-sheet";
 import { useToast } from "@/components/ui/toast";
 import {
+  deactivateRoutineAction,
+  deleteDailyTodoAction,
   regenerateStrideItemAction,
   toggleDailyTodoAction,
   toggleRoutineCompletionAction,
@@ -317,7 +319,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       />
 
       {/* PR 9 — 발걸음 카드 ⋮ "수정" 진입 시트
-          PR 15 — title_history에서 해당 레벨의 과거 타이틀을 picker로 노출 */}
+          PR 15 — title_history에서 해당 레벨의 과거 타이틀을 picker로 노출
+          PR 37 — 이번 달 카드 수정 시 시트 하단에 데일리투두/루틴 삭제 영역 노출 */}
       <EditWithAISheet
         open={!!editingStride}
         onClose={() => setEditingStride(null)}
@@ -337,6 +340,31 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
               )
             : undefined
         }
+        // PR 37: this_month 카드에서만 의미 있는 데이터 — 다른 단계(언젠가/1년 안 등)는 빈 배열로 섹션 숨김
+        todos={
+          editingStride?.level === "this_month"
+            ? optimisticDailyTodos.filter((t) => t.stride_level === "this_month")
+            : []
+        }
+        routines={editingStride?.level === "this_month" ? optimisticRoutines : []}
+        onDeleteTodo={async (id) => {
+          const r = await deleteDailyTodoAction(id);
+          if (r.success) {
+            toast(`${FEATURE_NAMES.DAILY_TODO}을 삭제했어요.`, "success");
+            router.refresh();
+          } else {
+            toast(r.error ?? `${FEATURE_NAMES.DAILY_TODO} 삭제에 실패했어요.`, "error");
+          }
+        }}
+        onDeactivateRoutine={async (id) => {
+          const r = await deactivateRoutineAction(id);
+          if (r.success) {
+            toast(`${FEATURE_NAMES.ROUTINE}을 비활성화했어요.`, "success");
+            router.refresh();
+          } else {
+            toast(r.error ?? `${FEATURE_NAMES.ROUTINE} 비활성화에 실패했어요.`, "error");
+          }
+        }}
       />
 
       {/* PR 22: 루틴 달성 캘린더 시트 */}

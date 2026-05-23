@@ -91,6 +91,7 @@ export const TODO_ERRORS = {
   NOT_FOUND: "데일리투두 정보를 찾을 수 없습니다.",
   TITLE_REQUIRED: "데일리투두 제목을 입력해주세요.",
   WEEKLY_GENERATE_FAILED: "이번 주 항목 생성에 실패했습니다.",
+  DELETE_FAILED: "데일리투두 삭제에 실패했습니다.",
 } as const;
 
 export const ROUTINE_ERRORS = {
@@ -99,6 +100,7 @@ export const ROUTINE_ERRORS = {
   COMPLETE_FAILED: "루틴 완료 처리에 실패했습니다.",
   NOT_FOUND: "루틴 정보를 찾을 수 없습니다.",
   TITLE_REQUIRED: "루틴 제목을 입력해주세요.",
+  DEACTIVATE_FAILED: "루틴 비활성화에 실패했습니다.",
 } as const;
 
 export const STRIDE_ERRORS = {
