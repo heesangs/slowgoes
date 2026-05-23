@@ -1,0 +1,52 @@
+name: CI
+
+# slowgoes — PR 자동 검증 워크플로
+#
+# 목적: Dispatch 또는 로컬에서 올라온 PR이 main 머지 전에 빌드/타입 검증.
+# 시간: 평균 2~3분.
+#
+# 비밀 키 정책:
+#   - .env.local 없이도 빌드가 통과해야 함 (Next.js는 빌드 타임에 env가 없어도 동작).
+#   - Supabase 호출이 빌드 타임에 필요한 페이지가 있다면 더미값을 환경변수로 주입.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript check
+        run: pnpm exec tsc --noEmit
+
+      - name: Next.js build
+        # 빌드 타임에 필요한 더미 env (런타임엔 실제 값 사용)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role
+          GOOGLE_AI_API_KEY: placeholder-gemini-key
+          GEMINI_MODEL: gemini-2.0-flash
+        run: pnpm next build
