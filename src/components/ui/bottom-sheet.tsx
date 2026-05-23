@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 interface BottomSheetProps {
@@ -12,6 +13,12 @@ interface BottomSheetProps {
   size?: "default" | "large"; // default=60vh, large=85vh
 }
 
+// PR 37: createPortal로 document.body에 mount.
+//   기존엔 호출 컴포넌트(예: dashboard-content-v2)의 DOM 트리 안에 fixed가 렌더되었는데,
+//   부모 chain에 transform/filter/will-change/perspective 등이 있으면 "containing block"이
+//   viewport 대신 그 ancestor가 되어 `fixed inset-0 + bottom-0`이 viewport가 아닌
+//   ancestor 내부 하단을 가리킴 → 시트가 화면 상단/중앙 등 엉뚱한 위치에 노출.
+//   Portal로 body 자식이 되면 어떤 부모 transform도 영향을 못 미침.
 export function BottomSheet({ open, onClose, title, children, footer, size = "default" }: BottomSheetProps) {
   useEffect(() => {
     if (!open) return;
@@ -27,8 +34,10 @@ export function BottomSheet({ open, onClose, title, children, footer, size = "de
   }, [open, onClose]);
 
   if (!open) return null;
+  // SSR 가드 — 서버 렌더 시 document 없음 (Next 16 App Router에선 client component라 무방하지만 안전망)
+  if (typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50">
       <button
         type="button"
@@ -59,6 +68,7 @@ export function BottomSheet({ open, onClose, title, children, footer, size = "de
         <div className={cn("overflow-y-auto pb-2", size === "large" ? "max-h-[85vh]" : "max-h-[60vh]")}>{children}</div>
         {footer ? <div className="mt-3">{footer}</div> : null}
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }
