@@ -66,9 +66,10 @@ pnpm dev   # http://localhost:3000
 - `pnpm exec tsc --noEmit`
 - `pnpm next build` (더미 env로 빌드 검증)
 
-## 원격 작업 (Claude Code Dispatch)
+## 원격 작업 (Claude Code Dispatch / Cowork)
 
-이 리포는 [Claude Code Dispatch](https://claude.com/claude-code) 환경에서 모바일로 원격 작업 가능하도록 정비되어 있어요.
+이 프로젝트는 [Claude Cowork](https://claude.ai/cowork)를 통해 원격으로 개발 및 관리할 수 있습니다.
+또한 [Claude Code Dispatch](https://claude.com/claude-code) 환경에서 모바일로 원격 작업 가능하도록 정비되어 있어요.
 
 **Dispatch에서 작업 시 확인 사항:**
 - [ ] Dispatch 프로젝트 설정에서 GitHub `heesangs/slowgoes` 연결
