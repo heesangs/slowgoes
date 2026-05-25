@@ -9,8 +9,11 @@
 // - PR 25: 토글은 useOptimistic으로 즉시 반영, 실패 시 자동 rollback
 // - PR 36:
 //   - 헤더 "대시보드로" Link → ⋮ 더보기 메뉴 (대시보드로 이동 / 버킷 삭제)
-//   - 버킷 칩 리스트 끝에 "+" 칩 → FindMeSheet '새 장면 탐색' 탭
+//   - 버킷 칩 리스트 끝에 "+" 칩 → ExploreNewSceneSheet (구 FindMeSheet 'explore' 탭)
 //   - 버킷 삭제 후 라우팅: 다른 버킷 → 그쪽 /actions, 없으면 /dashboard
+// - IA v2 목표 3: FindMeSheet → ExploreNewSceneSheet 교체 (select 책임은 헤더로 이관).
+//   /actions 라우트 자체는 목표 5에서 통째 폐기 예정이라 이 파일의 인라인 버킷 셀렉터는
+//   헤더 BucketSwitcher와 시각적으로 중복되더라도 과도기 한정으로 유지한다.
 
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -20,7 +23,7 @@ import {
   toggleDailyTodoAction,
   toggleRoutineCompletionAction,
 } from "@/app/(main)/dashboard/actions";
-import { FindMeSheet } from "@/components/dashboard/find-me-sheet";
+import { ExploreNewSceneSheet } from "@/components/dashboard/explore-new-scene-sheet";
 import { RoutineCalendarSheet } from "@/components/dashboard/routine-calendar-sheet";
 import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { useTrackLastViewedBucket } from "@/hooks/use-track-last-viewed-bucket";
@@ -43,7 +46,7 @@ interface ActionsContentProps {
   routines: RoutineWithCompletion[];
   buckets: Pick<Bucket, "id" | "title">[];
   selectedBucketId: string | null;
-  /** PR 36: '+ 칩' 클릭 시 열리는 FindMeSheet의 prefillProfile 공급용 */
+  /** PR 36: '+ 칩' 클릭 시 열리는 ExploreNewSceneSheet의 prefillProfile 공급용 */
   profile: Profile | null;
 }
 
@@ -74,8 +77,8 @@ export function ActionsContent({
   // PR 32: 버킷 전환 즉각 시각 피드백
   const [isBucketSwitching, startBucketSwitch] = useTransition();
 
-  // PR 36: + 칩 → FindMeSheet '새 장면 탐색' 탭
-  const [findMeSheetOpen, setFindMeSheetOpen] = useState(false);
+  // PR 36 → IA v2 목표 3: + 칩 → ExploreNewSceneSheet
+  const [exploreSheetOpen, setExploreSheetOpen] = useState(false);
   // PR 36: ⋮ 메뉴 '버킷 삭제' 진행 상태 (UI disable + 중복 클릭 방지)
   const [isDeleting, startDelete] = useTransition();
 
@@ -225,7 +228,7 @@ export function ActionsContent({
       </div>
 
       {/* 버킷 선택기 — PR 32: Link → button + useTransition.
-          PR 36: 칩 리스트 마지막에 '+' 칩 → FindMeSheet '새 장면 탐색' 진입. */}
+          PR 36 → IA v2 목표 3: 칩 리스트 마지막에 '+' 칩 → ExploreNewSceneSheet 진입. */}
       {buckets.length > 0 && (
         <div className="rounded-xl border border-foreground/10 px-4 py-4">
           <p className="text-xs text-foreground/60">{FEATURE_NAMES.BUCKET}</p>
@@ -257,10 +260,10 @@ export function ActionsContent({
                 </button>
               );
             })}
-            {/* PR 36: + 칩 — 새 장면 탐색 진입 (BottomSheet 'explore' 탭) */}
+            {/* PR 36 → IA v2 목표 3: + 칩 — 새 장면 탐색(ExploreNewSceneSheet) 진입 */}
             <button
               type="button"
-              onClick={() => setFindMeSheetOpen(true)}
+              onClick={() => setExploreSheetOpen(true)}
               aria-label={`${FEATURE_NAMES.BUCKET} 추가`}
               className="inline-flex min-h-[36px] items-center justify-center rounded-full border border-dashed border-foreground/30 px-3 text-xs text-foreground/60 transition-colors hover:bg-foreground/5 hover:text-foreground"
             >
@@ -431,19 +434,16 @@ export function ActionsContent({
         routineTitle={calendarRoutine?.title ?? null}
       />
 
-      {/* PR 36: '+ 칩' 진입 — FindMeSheet '새 장면 탐색' 탭 강제 활성 */}
-      <FindMeSheet
-        open={findMeSheetOpen}
-        onClose={() => setFindMeSheetOpen(false)}
-        buckets={buckets.map((b) => ({ id: b.id, title: b.title }))}
-        selectedBucketId={selectedBucketId}
+      {/* PR 36 → IA v2 목표 3: '+ 칩' 진입 — ExploreNewSceneSheet */}
+      <ExploreNewSceneSheet
+        open={exploreSheetOpen}
+        onClose={() => setExploreSheetOpen(false)}
         prefillProfile={prefillProfile}
-        onExplorationComplete={() => {
-          setFindMeSheetOpen(false);
+        onComplete={() => {
+          setExploreSheetOpen(false);
           router.refresh();
           toast("새로운 행동이 추가되었어요 ✨", "success");
         }}
-        defaultMode="explore"
       />
     </div>
   );
