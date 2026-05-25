@@ -148,10 +148,16 @@ export function NextStepSheet({
     onClose();
   }
 
+  // IA v2 목표 1: FAB는 항상 NextStepSheet를 열도록 통일됨.
+  //   버킷이 0개여서 bucketId가 null이면 모드 선택 대신 빈 상태 안내를 보여줘 사용자가 막히지 않도록 함.
+  //   (새 장면 추가 진입점은 헤더 BucketSwitcher의 `+` 칩.)
+  const showEmptyGuard = step === "mode" && bucketId == null;
+
   // 단계 1·2 시트 (BottomSheet 공통)
   const stepSheet = (
     <BottomSheet open={open && step !== "edit"} onClose={onClose} title={FEATURE_NAMES.STEP_MORE}>
-      {step === "mode" && <ModeSelectStep onSelect={(m) => setMode(m)} />}
+      {showEmptyGuard && <EmptyBucketGuard onClose={onClose} />}
+      {!showEmptyGuard && step === "mode" && <ModeSelectStep onSelect={(m) => setMode(m)} />}
       {step === "timeSlot" && (
         <TimeSlotSelectStep
           onBack={() => setMode(null)}
@@ -198,6 +204,35 @@ export function NextStepSheet({
       {stepSheet}
       {editSheet}
     </>
+  );
+}
+
+// ─── 버킷 0개 빈 상태 가드 (IA v2 목표 1) ───────────────────────────────────────────
+
+interface EmptyBucketGuardProps {
+  onClose: () => void;
+}
+
+function EmptyBucketGuard({ onClose }: EmptyBucketGuardProps) {
+  return (
+    <div className="flex flex-col gap-3 py-1">
+      <p className="text-sm text-foreground/70">
+        아직 {FEATURE_NAMES.BUCKET}이 없어요. 먼저 상단의{" "}
+        <span className="font-semibold text-foreground">＋</span> 버튼으로 새 장면을
+        추가해주세요.
+      </p>
+      <p className="text-xs text-foreground/50">
+        {FEATURE_NAMES.BUCKET}이 생기면 여기서 {FEATURE_NAMES.DAILY_TODO}와{" "}
+        {FEATURE_NAMES.ROUTINE}을 한 걸음씩 더할 수 있어요.
+      </p>
+      <button
+        type="button"
+        onClick={onClose}
+        className="mt-2 inline-flex items-center justify-center rounded-lg border border-foreground/10 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/[0.04]"
+      >
+        닫기
+      </button>
+    </div>
   );
 }
 
