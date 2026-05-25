@@ -4,7 +4,6 @@ import { useEffect, useMemo, useOptimistic, useState, useTransition } from "reac
 import { useRouter, useSearchParams } from "next/navigation";
 import { DirectionSection } from "@/components/dashboard/direction-section";
 import { ExecutionPlanSection } from "@/components/dashboard/execution-plan-section";
-import { ExploreNewSceneSheet } from "@/components/dashboard/explore-new-scene-sheet";
 import { InsightSection } from "@/components/dashboard/insight-section";
 import { LifeClockHeader } from "@/components/dashboard/life-clock-header";
 import { NextStepSheet } from "@/components/dashboard/next-step-sheet";
@@ -26,8 +25,6 @@ import type {
   DailyTodo,
   DailyTodoStrideLevel,
   DashboardV2Data,
-  Gender,
-  PersonalityType,
   RoutineWithCompletion,
   StrideItem,
   StrideLevel,
@@ -46,11 +43,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   // PR 31: 현재 보고 있는 버킷을 cookie에 기록 (로고 클릭 시 복귀에 사용)
   useTrackLastViewedBucket(data.selectedBucket?.id ?? null);
 
-  // IA v2 목표 3: select 책임은 헤더의 BucketSwitcher로 이관됨.
-  //   여기서는 FAB의 "버킷 0개일 때 새 장면 탐색" 폴백만 ExploreNewSceneSheet으로 처리.
-  //   (이 폴백은 목표 1에서 StepSheet 가드로 통합 예정 — 현재는 과도기 동작.)
-  const [exploreSheetOpen, setExploreSheetOpen] = useState(false);
-
+  // IA v2 목표 1: FAB는 항상 "한걸음 더"(NextStepSheet)만 트리거.
+  //   "새 장면 탐색"은 헤더 BucketSwitcher의 `+` 칩(MainNavBar)이 단일 진입점으로 흡수 → FAB 분기/폴백 제거.
+  //   버킷 0개일 때의 빈 상태 안내는 NextStepSheet 내부 가드에서 처리.
+  //
   // "한걸음 더" 시트 (NextStepSheet)
   // - FAB 진입(PR 35) → defaultPeriod=null + enableAI=false (직접 입력 폼)
   // - 카드 ⋮ "추가" 진입 → defaultPeriod=this_month + enableAI=true (기존 동작)
@@ -96,24 +92,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     () => splitStridesByGroup(data.stridePlan?.strides ?? []),
     [data.stridePlan]
   );
-
-  // 탐색 바텀시트용 프로필 데이터 구성
-  const prefillProfile = useMemo(() => {
-    const { life_clock_age, gender, personality_type, pace_type } = data.profile;
-    if (
-      life_clock_age != null &&
-      (gender === "male" || gender === "female") &&
-      personality_type != null
-    ) {
-      return {
-        age: life_clock_age,
-        gender: gender as Gender,
-        personalityType: personality_type as PersonalityType,
-        paceType: (pace_type ?? undefined) as import("@/types").PaceType | undefined,
-      };
-    }
-    return null;
-  }, [data.profile]);
 
   const detailHref = useMemo(() => {
     if (!data.selectedBucket?.id) return "/actions";
@@ -259,41 +237,25 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
 
       {!data.stridePlan && (
         <p className="rounded-xl border border-foreground/10 px-4 py-4 text-sm text-foreground/60">
-          아직 {FEATURE_NAMES.MY_STRIDES}이 없어요. 우측 하단 + 버튼으로 새 장면을 탐색해보세요.
+          아직 {FEATURE_NAMES.MY_STRIDES}이 없어요. 상단 + 버튼으로 새 장면을 추가해보세요.
         </p>
       )}
 
-      {/* PR 35: FAB 재배치 — "한걸음 더"(직접 입력 폼) 단일 진입점.
-          IA v2 목표 3: 버킷 0개일 때 ExploreNewSceneSheet으로 폴백 — 사용자가 막히지 않도록.
-          (목표 1에서 StepSheet 내부 가드로 통합 예정.) */}
+      {/* IA v2 목표 1: FAB는 항상 "한걸음 더"(NextStepSheet)만 트리거.
+          이전의 "버킷 0개 → ExploreNewSceneSheet 폴백" 분기는 제거 — 새 장면 탐색은 헤더 [+] 칩으로 일원화.
+          버킷 0개일 때의 빈 상태 안내는 NextStepSheet 내부 가드가 담당. */}
       <button
         type="button"
         onClick={() => {
-          if (!data.selectedBucket?.id) {
-            setExploreSheetOpen(true);
-            return;
-          }
           setNextStepDefaultPeriod(null);
           setNextStepEnableAI(false); // FAB → AI 호출 없는 직접 입력 폼
           setNextStepSheetOpen(true);
         }}
         className="fixed bottom-6 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-2xl text-background shadow-lg transition-opacity hover:opacity-90"
-        aria-label={data.selectedBucket?.id ? FEATURE_NAMES.STEP_MORE : "새 장면 탐색"}
+        aria-label={FEATURE_NAMES.STEP_MORE}
       >
         +
       </button>
-
-      {/* IA v2 목표 3: 버킷 0개 폴백 — 헤더 BucketSwitcher의 `+` 칩과 동일한 시트. */}
-      <ExploreNewSceneSheet
-        open={exploreSheetOpen}
-        onClose={() => setExploreSheetOpen(false)}
-        prefillProfile={prefillProfile}
-        onComplete={() => {
-          setExploreSheetOpen(false);
-          router.refresh();
-          toast("새로운 행동이 추가되었어요 ✨", "success");
-        }}
-      />
 
       {/* "한걸음 더" 시트 — FAB(enableAI=false) 또는 카드 ⋮ "추가"(enableAI=true) */}
       <NextStepSheet
