@@ -150,7 +150,7 @@ export function NextStepSheet({
 
   // 단계 1·2 시트 (BottomSheet 공통)
   const stepSheet = (
-    <BottomSheet open={open && step !== "edit"} onClose={onClose} title="한걸음 더">
+    <BottomSheet open={open && step !== "edit"} onClose={onClose} title={FEATURE_NAMES.STEP_MORE}>
       {step === "mode" && <ModeSelectStep onSelect={(m) => setMode(m)} />}
       {step === "timeSlot" && (
         <TimeSlotSelectStep

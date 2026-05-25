@@ -288,7 +288,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           setNextStepSheetOpen(true);
         }}
         className="fixed bottom-6 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-2xl text-background shadow-lg transition-opacity hover:opacity-90"
-        aria-label={data.selectedBucket?.id ? "한걸음 더" : "새 장면 탐색"}
+        aria-label={data.selectedBucket?.id ? FEATURE_NAMES.STEP_MORE : "새 장면 탐색"}
       >
         +
       </button>

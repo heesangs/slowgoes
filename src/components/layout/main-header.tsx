@@ -2,26 +2,24 @@
 
 // 메인 라우트 그룹의 상단 헤더 — 로고 + 우측 아이콘 액션.
 //
-// 이전엔 /buckets 계열에서 뒤로가기 헤더로 분기했지만, /buckets 페이지 자체가
-// 폐기되어(메인 대시보드 + "숨은 나 찾기" 시트로 흡수) 분기 자체가 사라졌다.
-//
-// (main)/layout.tsx 는 server component 로 유지하면서 헤더만 client 로 위임.
+// IA v2 목표 6: 헤더 우측의 로그아웃 버튼은 제거하고 /profile 페이지로 일원화.
+// 모바일 우측 상단은 뒤로가기/닫기와 가까워 오탭 빈도가 높기 때문.
 
 import Link from "next/link";
-import { SignOutButton } from "@/components/auth/sign-out-button";
+import { APP, FEATURE_NAMES } from "@/lib/constants";
 
 export function MainHeader() {
   return (
     <header className="border-b border-foreground/10 px-4 py-3">
       <div className="mx-auto flex max-w-2xl items-center justify-between">
         <Link href="/dashboard" className="text-lg font-bold">
-          slowgoes
+          {APP.NAME}
         </Link>
         <div className="flex items-center gap-2">
           <Link
             href="/review"
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:bg-foreground/5"
-            aria-label="회고"
+            aria-label={FEATURE_NAMES.REVIEW}
           >
             <svg
               className="h-5 w-5"
@@ -40,7 +38,7 @@ export function MainHeader() {
           <Link
             href="/profile"
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:bg-foreground/5"
-            aria-label="프로필"
+            aria-label={FEATURE_NAMES.PROFILE}
           >
             <svg
               className="h-5 w-5"
@@ -56,7 +54,6 @@ export function MainHeader() {
               />
             </svg>
           </Link>
-          <SignOutButton />
         </div>
       </div>
     </header>
