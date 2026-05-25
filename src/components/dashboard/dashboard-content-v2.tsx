@@ -4,7 +4,7 @@ import { useEffect, useMemo, useOptimistic, useState, useTransition } from "reac
 import { useRouter, useSearchParams } from "next/navigation";
 import { DirectionSection } from "@/components/dashboard/direction-section";
 import { ExecutionPlanSection } from "@/components/dashboard/execution-plan-section";
-import { FindMeSheet } from "@/components/dashboard/find-me-sheet";
+import { ExploreNewSceneSheet } from "@/components/dashboard/explore-new-scene-sheet";
 import { InsightSection } from "@/components/dashboard/insight-section";
 import { LifeClockHeader } from "@/components/dashboard/life-clock-header";
 import { NextStepSheet } from "@/components/dashboard/next-step-sheet";
@@ -46,10 +46,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   // PR 31: 현재 보고 있는 버킷을 cookie에 기록 (로고 클릭 시 복귀에 사용)
   useTrackLastViewedBucket(data.selectedBucket?.id ?? null);
 
-  // "숨은 나 찾기" 시트 — InsightSection 드롭다운(내 버킷) + FAB(버킷 0개일 때 새 장면 탐색).
-  // PR 35: 진입처마다 기본 탭이 다르므로 mode를 함께 보관.
-  const [findMeSheetOpen, setFindMeSheetOpen] = useState(false);
-  const [findMeSheetMode, setFindMeSheetMode] = useState<"select" | "explore" | undefined>(undefined);
+  // IA v2 목표 3: select 책임은 헤더의 BucketSwitcher로 이관됨.
+  //   여기서는 FAB의 "버킷 0개일 때 새 장면 탐색" 폴백만 ExploreNewSceneSheet으로 처리.
+  //   (이 폴백은 목표 1에서 StepSheet 가드로 통합 예정 — 현재는 과도기 동작.)
+  const [exploreSheetOpen, setExploreSheetOpen] = useState(false);
 
   // "한걸음 더" 시트 (NextStepSheet)
   // - FAB 진입(PR 35) → defaultPeriod=null + enableAI=false (직접 입력 폼)
@@ -212,19 +212,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       <LifeClockHeader age={data.profile.life_clock_age} />
 
       {/* 발걸음 3섹션 (PR 8): 인사이트 → 지향점 → 실행계획
-          PR 29: InsightSection은 현재 버킷 + 대화 placeholder만 표시
-          PR 35: 버킷 타이틀이 드롭다운 버튼이 되어 FindMeSheet 'select' 탭 진입점 역할 */}
-      <InsightSection
-        bucketTitle={data.selectedBucket?.title ?? null}
-        onClickBucket={
-          data.buckets.length > 0
-            ? () => {
-                setFindMeSheetMode("select");
-                setFindMeSheetOpen(true);
-              }
-            : undefined
-        }
-      />
+          PR 29: InsightSection은 현재 버킷 + 대화 placeholder만 표시.
+          IA v2 목표 3: 버킷 전환은 헤더 BucketSwitcher로 일원화 — 드롭다운 prop 제거. */}
+      <InsightSection bucketTitle={data.selectedBucket?.title ?? null} />
 
       {data.stridePlan && (
         <>
@@ -274,13 +264,13 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       )}
 
       {/* PR 35: FAB 재배치 — "한걸음 더"(직접 입력 폼) 단일 진입점.
-          버킷 0개일 때만 FindMeSheet(새 장면 탐색)로 폴백 — 사용자가 막히지 않도록. */}
+          IA v2 목표 3: 버킷 0개일 때 ExploreNewSceneSheet으로 폴백 — 사용자가 막히지 않도록.
+          (목표 1에서 StepSheet 내부 가드로 통합 예정.) */}
       <button
         type="button"
         onClick={() => {
           if (!data.selectedBucket?.id) {
-            setFindMeSheetMode(undefined); // explore (기본 휴리스틱)
-            setFindMeSheetOpen(true);
+            setExploreSheetOpen(true);
             return;
           }
           setNextStepDefaultPeriod(null);
@@ -293,19 +283,16 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         +
       </button>
 
-      {/* "숨은 나 찾기" 시트 — InsightSection 드롭다운(select) + FAB(버킷 0개일 때 explore). */}
-      <FindMeSheet
-        open={findMeSheetOpen}
-        onClose={() => setFindMeSheetOpen(false)}
-        buckets={data.buckets.map((b) => ({ id: b.id, title: b.title }))}
-        selectedBucketId={data.selectedBucket?.id ?? null}
+      {/* IA v2 목표 3: 버킷 0개 폴백 — 헤더 BucketSwitcher의 `+` 칩과 동일한 시트. */}
+      <ExploreNewSceneSheet
+        open={exploreSheetOpen}
+        onClose={() => setExploreSheetOpen(false)}
         prefillProfile={prefillProfile}
-        onExplorationComplete={() => {
-          setFindMeSheetOpen(false);
+        onComplete={() => {
+          setExploreSheetOpen(false);
           router.refresh();
           toast("새로운 행동이 추가되었어요 ✨", "success");
         }}
-        defaultMode={findMeSheetMode}
       />
 
       {/* "한걸음 더" 시트 — FAB(enableAI=false) 또는 카드 ⋮ "추가"(enableAI=true) */}

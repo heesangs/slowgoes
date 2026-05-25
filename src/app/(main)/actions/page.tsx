@@ -27,7 +27,7 @@ export default async function ActionsPage({ searchParams }: ActionsPageProps) {
     redirect("/login");
   }
 
-  // PR 36: profile도 함께 조회 — '+ 칩' 클릭 시 열리는 FindMeSheet의 prefillProfile 용도.
+  // PR 36 → IA v2 목표 3: profile도 함께 조회 — '+ 칩' 클릭 시 열리는 ExploreNewSceneSheet의 prefillProfile 용도.
   //   사용자가 온보딩 때 입력한 정보를 다시 입력하지 않게 하기 위함.
   const [buckets, profile] = await Promise.all([
     getUserBuckets(supabase, user.id),
