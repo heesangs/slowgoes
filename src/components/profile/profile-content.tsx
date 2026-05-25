@@ -14,9 +14,8 @@ import {
 } from "@/app/(main)/profile/actions";
 import { signOutAction } from "@/app/(auth)/actions";
 import { TaskStatsSection } from "@/components/profile/task-stats";
+import { ACCOUNT_DELETE_CONFIRM_TEXT } from "@/lib/constants";
 import type { TaskStats } from "@/types";
-
-const ACCOUNT_DELETE_CONFIRM_TEXT = "탈퇴합니다";
 
 interface ProfileViewData {
   id: string;

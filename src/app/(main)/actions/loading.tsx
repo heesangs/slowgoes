@@ -3,11 +3,13 @@
 // /actions SSR + 버킷 이동 시 즉시 표시.
 // 매칭: 헤더 + 버킷 선택기 + 탭 + 데일리/루틴 섹션
 
+import { FEATURE_NAMES } from "@/lib/constants";
+
 const SKELETON = "rounded bg-foreground/10";
 
 export default function ActionsLoading() {
   return (
-    <div className="flex flex-col gap-5 animate-pulse" aria-label="한걸음 상세 로딩 중">
+    <div className="flex flex-col gap-5 animate-pulse" aria-label={`${FEATURE_NAMES.STRIDE_DETAIL} 로딩 중`}>
       {/* 헤더 */}
       <div className="flex items-center justify-between gap-3">
         <div>

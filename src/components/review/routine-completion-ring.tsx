@@ -67,7 +67,7 @@ export function RoutineCompletionRing({ rate }: RoutineCompletionRingProps) {
           </p>
           <p className="mt-2 text-xs text-foreground/50">
             {rate.total === 0
-              ? "활성 루틴이 없어요. 새 루틴을 추가해보세요."
+              ? `활성 ${FEATURE_NAMES.ROUTINE}이 없어요. 새 ${FEATURE_NAMES.ROUTINE}을 추가해보세요.`
               : rate.percentage >= 80
                 ? "이번 주 흐름이 정말 좋아요 ✨"
                 : rate.percentage >= 50

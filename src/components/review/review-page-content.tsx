@@ -175,7 +175,7 @@ export function ReviewPageContent({
               {(item.bucketTitle || item.lifeAreaName) && (
                 <p className="mt-1 text-xs text-foreground/55">
                   {item.lifeAreaName ? `${item.lifeAreaName} · ` : ""}
-                  {item.bucketTitle ?? "버킷 미연결"}
+                  {item.bucketTitle ?? `${FEATURE_NAMES.BUCKET} 미연결`}
                 </p>
               )}
             </article>
