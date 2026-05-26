@@ -919,7 +919,6 @@ export async function deleteBucketAction(
     if (error) throw error;
 
     revalidatePath("/dashboard");
-    revalidatePath("/actions");
     return { success: true };
   } catch (error) {
     return {
@@ -956,7 +955,6 @@ export async function deleteDailyTodoAction(
     if (error) throw error;
 
     revalidatePath("/dashboard");
-    revalidatePath("/actions");
     return { success: true };
   } catch (error) {
     return {
@@ -992,7 +990,6 @@ export async function deactivateRoutineAction(
     if (error) throw error;
 
     revalidatePath("/dashboard");
-    revalidatePath("/actions");
     return { success: true };
   } catch (error) {
     return {

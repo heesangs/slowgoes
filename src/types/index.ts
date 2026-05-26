@@ -395,8 +395,6 @@ export interface DashboardV2Data {
   dailyTodos: DailyTodo[];
   routines: RoutineWithCompletion[];
   stridePlan: StridePlan | null;
-  extraDailyTodoCount: number;
-  extraRoutineCount: number;
   // legacy 필드 (점진 전환)
   dailyStep?: TaskWithSubtasks | null;
   selectedCondition?: TaskCondition;

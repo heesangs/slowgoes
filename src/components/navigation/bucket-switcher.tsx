@@ -2,8 +2,9 @@
 
 // IA v2 목표 2: 버킷 스위처 칩 공통화 (BucketSwitcher)
 //
-// 헤더 하단에 고정되는 가로 스크롤 칩 리스트. 모든 메인 화면(/dashboard, /actions 등)에서
+// 헤더 하단에 고정되는 가로 스크롤 칩 리스트. 메인 화면(/dashboard)에서
 // 동일한 UX로 버킷을 전환할 수 있게 한다.
+// (IA v2 목표 5에서 /actions가 폐기되어 사실상 단일 라우트지만, basePath를 prop으로 받는 구조는 유지.)
 //
 // 선택된 버킷은 URL의 ?bucket= 또는 cookie(LAST_VIEWED_BUCKET_COOKIE_NAME) 기반으로
 // 서버 컴포넌트에서 결정 → selectedBucketId prop 으로 주입받는다.
@@ -23,7 +24,7 @@ export interface BucketSwitcherProps {
   /** 현재 선택된 버킷 id (URL ?bucket= 또는 cookie 기반으로 부모가 해석해서 주입). */
   selectedBucketId: string | null;
   /**
-   * 칩 클릭 시 router.replace 할 베이스 경로. (예: "/dashboard", "/actions")
+   * 칩 클릭 시 router.replace 할 베이스 경로. (예: "/dashboard")
    * 내부적으로 `${basePath}?bucket=${id}` 형태로 라우팅한다.
    */
   basePath: string;
