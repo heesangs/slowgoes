@@ -4,7 +4,7 @@
 //
 // 표시 내용: 이번 달 카드 (PR 18에서 4개 → 1개로 단순화)
 // 카드 액션:
-// - PR 9: ⋮ 더보기 메뉴 (수정 → EditWithAISheet, 추가 → 한걸음 더)
+// - PR 9: ⋮ 더보기 메뉴 (수정/추가 → 통합 StepSheet, IA v2 목표 4)
 // - PR 10: 카드 본문에 해당 stride_level 투두 리스트 + 클릭 시 완료 토글
 // - PR 11: 헤더 우측에 "한걸음 더" 버튼 + "한걸음 상세" 링크 흡수
 // - PR 14: 잔여 기간 + 게이지 바
@@ -52,7 +52,7 @@ interface ExecutionPlanSectionProps {
   dailyTodos: DailyTodo[];
   /** PR 20: 현재 버킷의 모든 루틴. this_month 카드에만 표시. */
   routines: RoutineWithCompletion[];
-  /** "수정" 클릭 → EditWithAISheet 진입 */
+  /** "수정" 클릭 → StepSheet(edit-with-ai) 진입 */
   onEditLevel: (item: StrideItem) => void;
   /** "추가" 클릭 → 한걸음 더 흐름과 연결 (PR 12) */
   onAddToLevel?: (item: StrideItem) => void;
