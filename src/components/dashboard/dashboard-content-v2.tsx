@@ -11,6 +11,7 @@ import { StepSheet, type StepSheetMode } from "@/components/dashboard/step-sheet
 import { useToast } from "@/components/ui/toast";
 import {
   deactivateRoutineAction,
+  deleteBucketAction,
   deleteDailyTodoAction,
   toggleDailyTodoAction,
   toggleRoutineCompletionAction,
@@ -82,7 +83,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       )
   );
 
-  const extraMergedCount = data.extraDailyTodoCount + data.extraRoutineCount;
+  // IA v2 목표 5: /actions 폐기로 "더보기" 링크가 사라져 extraCount/detailHref도 불필요.
+  //   완료 항목 진입은 ExecutionPlanSection 헤더 탭이 대신한다.
 
   // 발걸음 3섹션 분류 (PR 8) — strides가 바뀔 때만 재계산
   const strideGroups = useMemo(
@@ -90,10 +92,36 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     [data.stridePlan]
   );
 
-  const detailHref = useMemo(() => {
-    if (!data.selectedBucket?.id) return "/actions";
-    return `/actions?bucket=${data.selectedBucket.id}`;
-  }, [data.selectedBucket]);
+  // IA v2 목표 5: /actions 헤더에 있던 '버킷 삭제' 메뉴를 대시보드(ExecutionPlanSection 헤더)로 흡수.
+  //   CASCADE로 stride_plan/daily_todos/routines 자동 정리되며,
+  //   삭제 후 다른 버킷이 있으면 그쪽으로, 없으면 /dashboard 루트로 라우팅.
+  const [isDeletingBucket, startDeleteBucket] = useTransition();
+  function handleDeleteBucket() {
+    const bucketId = data.selectedBucket?.id;
+    if (!bucketId || isDeletingBucket) return;
+    const confirmMsg =
+      typeof window !== "undefined"
+        ? window.confirm(
+            `이 ${FEATURE_NAMES.BUCKET}을 삭제할까요?\n관련된 ${FEATURE_NAMES.DAILY_TODO}/${FEATURE_NAMES.ROUTINE}/${FEATURE_NAMES.MY_STRIDES}도 함께 사라져요.`,
+          )
+        : true;
+    if (!confirmMsg) return;
+
+    startDeleteBucket(async () => {
+      const result = await deleteBucketAction(bucketId);
+      if (!result.success) {
+        toast(result.error ?? `${FEATURE_NAMES.BUCKET} 삭제에 실패했어요.`, "error");
+        return;
+      }
+      const nextBucket = data.buckets.find((b) => b.id !== bucketId);
+      toast(`${FEATURE_NAMES.BUCKET}을 삭제했어요.`, "success");
+      if (nextBucket) {
+        router.replace(`/dashboard?bucket=${nextBucket.id}`);
+      } else {
+        router.replace("/dashboard");
+      }
+    });
+  }
 
   useEffect(() => {
     if (searchParams.get("onboarding_saved") === "1") {
@@ -191,8 +219,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
               setStepSheetEnableAI(true);
               setStepSheetOpen(true);
             }}
-            strideDetailHref={detailHref}
-            extraCount={extraMergedCount}
+            onDeleteBucket={data.selectedBucket ? handleDeleteBucket : undefined}
+            isDeletingBucket={isDeletingBucket}
           />
         </>
       )}

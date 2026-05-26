@@ -102,6 +102,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ? stridePlanResult.value
       : (errors.push(toErrorMessage(stridePlanResult.reason, "AI 추천 정보를 불러오지 못했습니다.")), null);
 
+  // IA v2 목표 5: extraDailyTodoCount/extraRoutineCount 제거 — /actions "더보기" 링크가 사라져 의미 상실.
   const v2Data: DashboardV2Data = {
     profile,
     buckets,
@@ -109,8 +110,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     dailyTodos,
     routines,
     stridePlan,
-    extraDailyTodoCount: Math.max(0, dailyTodos.length - 1),
-    extraRoutineCount: Math.max(0, routines.length - 1),
   };
 
   return (

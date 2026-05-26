@@ -14,7 +14,8 @@
 // `+` 칩 → ExploreNewSceneSheet (목표 3 신설).
 //
 // 노출 라우트:
-// - /dashboard, /actions 등 버킷 컨텍스트가 의미 있는 라우트에서만 노출.
+// - /dashboard 등 버킷 컨텍스트가 의미 있는 라우트에서만 노출.
+//   (IA v2 목표 5: /actions 폐기로 사실상 /dashboard 단일.)
 // - /profile, /review 같은 글로벌 라우트에서는 숨김 — 버킷 전환의 결과 화면이 모호하기 때문.
 
 import { useMemo, useState } from "react";
@@ -38,7 +39,8 @@ interface MainNavBarProps {
 }
 
 // 버킷 스위처를 노출할 라우트 — 그 외에는 null 반환으로 헤더 하단 공간을 줄임.
-const BUCKET_SCOPED_PATHS = ["/dashboard", "/actions"];
+// IA v2 목표 5: /actions 폐기로 /dashboard 단일.
+const BUCKET_SCOPED_PATHS = ["/dashboard"];
 
 export function MainNavBar({
   buckets,

@@ -11,8 +11,15 @@
 // - PR 20: 카드 본문에 루틴 리스트도 함께 표시 (this_month 카드에만)
 //   - 루틴: title + 주기(매일/매주) + 시간대(있으면)
 //   - 클릭 → 완료 토글 (PR 21에서 시각 효과 차별화 예정)
+//
+// IA v2 목표 5: /actions 폐기 → 흡수
+// - 헤더 "더보기" Link 제거 (같은 화면이므로 이동 불필요)
+// - 헤더 우측에 ⋮ MoreActionsMenu 추가 (버킷 삭제 액션)
+// - 헤더 아래에 진행중/완료 탭 추가 — 카드 내부 todos/routines를 activeTab에 따라 필터링.
+//   완료 항목은 line-through 대신 "완료 탭에서만" 노출하는 방식이라
+//   진행중 탭의 시각적 노이즈가 줄어든다.
 
-import Link from "next/link";
+import { useState } from "react";
 import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -32,6 +39,8 @@ const TIME_SLOT_LABELS: Record<RoutineTimeSlot, string> = {
   evening: "저녁",
   night: "밤",
 };
+
+type TabKey = "active" | "completed";
 
 function formatRoutineMeta(routine: RoutineWithCompletion): string {
   const parts: string[] = [];
@@ -68,10 +77,13 @@ interface ExecutionPlanSectionProps {
   togglingTodoId: string | null;
   /** PR 20: 현재 토글 진행 중인 루틴 ID (중복 클릭 방지) */
   togglingRoutineId: string | null;
-  /** PR 11: "한걸음 상세" 페이지 링크 — PR 33에서 항상 노출로 변경 */
-  strideDetailHref: string;
-  /** PR 11: 한걸음 상세 페이지로 가야 보이는 추가 항목 개수 — PR 33에서 0이어도 노출 */
-  extraCount: number;
+  /**
+   * IA v2 목표 5: /actions 헤더의 "버킷 삭제" 액션이 이쪽으로 흡수됨.
+   * 버킷이 선택되어 있을 때만 활성화.
+   */
+  onDeleteBucket?: () => void;
+  /** 버킷 삭제 진행 중 (UI disable + 중복 클릭 방지) */
+  isDeletingBucket?: boolean;
 }
 
 // stride_level은 4개 값만 가능 (DailyTodoStrideLevel)
@@ -82,6 +94,8 @@ function isExecutionLevel(level: StrideLevel): level is DailyTodoStrideLevel {
 
 // PR 34: 전체 다시 추천 기능 제거 — onRegenerateAll/isRegenAll prop 삭제, 푸터 버튼 제거.
 // PR 35: 헤더의 "한걸음 더" 버튼 제거 — 우측 하단 FAB로 단일화 (PDF 명세 A-2).
+// IA v2 목표 5: strideDetailHref/extraCount prop 제거 — /actions 폐기로 더보기 링크 의미 상실.
+//   대신 진행중/완료 탭이 같은 위치에서 완료 항목 진입을 대신한다.
 export function ExecutionPlanSection({
   items,
   dailyTodos,
@@ -94,24 +108,61 @@ export function ExecutionPlanSection({
   regeneratingLevel,
   togglingTodoId,
   togglingRoutineId,
-  strideDetailHref,
-  extraCount,
+  onDeleteBucket,
+  isDeletingBucket = false,
 }: ExecutionPlanSectionProps) {
+  // IA v2 목표 5: 진행중/완료 탭 — /actions의 ActionsContent에서 이관.
+  //   기본값 "active": 사용자가 화면 열자마자 보고 싶은 것은 "아직 안 한 것".
+  const [activeTab, setActiveTab] = useState<TabKey>("active");
+
+  // 전체 카운트는 *현재 발걸음 그룹 전체* 기준이라 카드 단위 필터링과 별개로 계산.
+  // 완료 탭 카운트가 0이어도 진입은 가능 (사용자가 직접 토글해서 채우는 흐름).
+  const totalActive =
+    dailyTodos.filter((t) => t.status !== "completed").length +
+    routines.filter((r) => !r.is_completed_today).length;
+  const totalCompleted =
+    dailyTodos.filter((t) => t.status === "completed").length +
+    routines.filter((r) => r.is_completed_today).length;
+
   if (items.length === 0) return null;
 
   return (
     <section className="rounded-xl border border-foreground/10 px-4 py-4">
-      {/* 헤더: 라벨 + 우측 "더보기" 링크 (PR 35: "한걸음 더" 버튼은 우측 하단 FAB로 이동) */}
+      {/* 헤더: 라벨 + 우측 ⋮ 더보기 메뉴 (IA v2 목표 5: 버킷 삭제 액션 흡수) */}
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-medium text-foreground/70">{FEATURE_NAMES.MY_STRIDES}</p>
 
-        {/* PR 33: "더보기" 항상 노출 (count=0 시에도 한걸음 상세 진입점) */}
-        <Link
-          href={strideDetailHref}
-          className="inline-flex min-h-[28px] items-center rounded-md border border-foreground/15 px-2 text-[11px] text-foreground/70 transition-colors hover:bg-foreground/5"
-        >
-          {extraCount > 0 ? `더보기 +${extraCount}` : "더보기"}
-        </Link>
+        {onDeleteBucket && (
+          <MoreActionsMenu
+            ariaLabel={`${FEATURE_NAMES.MY_STRIDES} 더보기`}
+            align="right"
+            actions={[
+              {
+                label: `${FEATURE_NAMES.BUCKET} 삭제`,
+                onClick: onDeleteBucket,
+                disabled: isDeletingBucket,
+                variant: "danger",
+              },
+            ]}
+          />
+        )}
+      </div>
+
+      {/* IA v2 목표 5: 진행중/완료 탭 — /actions에서 흡수.
+          카운트는 전체 dailyTodos+routines 기준이라 카드 단위 필터링과 별개. */}
+      <div role="tablist" className="mt-3 flex border-b border-foreground/10">
+        <TabButton
+          active={activeTab === "active"}
+          onClick={() => setActiveTab("active")}
+          label="진행중"
+          count={totalActive}
+        />
+        <TabButton
+          active={activeTab === "completed"}
+          onClick={() => setActiveTab("completed")}
+          label="완료"
+          count={totalCompleted}
+        />
       </div>
 
       <div className="mt-3 flex flex-col gap-2">
@@ -122,11 +173,23 @@ export function ExecutionPlanSection({
           const execLevel: DailyTodoStrideLevel | null = isExecutionLevel(item.level)
             ? item.level
             : null;
+          // IA v2 목표 5: activeTab 기준으로 카드 내부 todos/routines 필터링.
+          //   진행중 탭에서 완료 항목은 시각적 노이즈로 작용했음 → 탭 분리로 해소.
           const cardTodos = execLevel
-            ? dailyTodos.filter((todo) => todo.stride_level === execLevel)
+            ? dailyTodos.filter((todo) => {
+                if (todo.stride_level !== execLevel) return false;
+                return activeTab === "active"
+                  ? todo.status !== "completed"
+                  : todo.status === "completed";
+              })
             : [];
           // PR 20: 루틴은 stride_level 개념이 없으므로 this_month 카드에만 모두 표시
-          const cardRoutines = execLevel === "this_month" ? routines : [];
+          const cardRoutines =
+            execLevel === "this_month"
+              ? routines.filter((r) =>
+                  activeTab === "active" ? !r.is_completed_today : r.is_completed_today,
+                )
+              : [];
           const periodLabel = execLevel ? getDaysLeftLabel(execLevel) : null;
           const progress = execLevel ? getPeriodProgress(execLevel) : 0;
 
@@ -293,10 +356,57 @@ export function ExecutionPlanSection({
                   })}
                 </ul>
               )}
+
+              {/* IA v2 목표 5: 완료 탭에서 카드에 표시할 항목이 0개일 때 안내 — 진행중 탭에는 항목 0개도 자연스러우므로 표시 안 함. */}
+              {activeTab === "completed" &&
+                cardTodos.length === 0 &&
+                cardRoutines.length === 0 && (
+                  <p className="mt-2 border-t border-foreground/10 pt-2 text-xs text-foreground/45">
+                    완료한 항목이 아직 없어요.
+                  </p>
+                )}
             </article>
           );
         })}
       </div>
     </section>
+  );
+}
+
+interface TabButtonProps {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+}
+
+// IA v2 목표 5: /actions의 TabButton 재구현 — 동일 시각 언어 유지로 회귀 0.
+function TabButton({ active, onClick, label, count }: TabButtonProps) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        "relative flex-1 px-3 py-2.5 text-sm font-medium transition-colors",
+        active
+          ? "text-foreground"
+          : "text-foreground/55 hover:text-foreground/80"
+      )}
+    >
+      {label}
+      <span
+        className={cn(
+          "ml-1.5 inline-block min-w-[20px] rounded-full px-1.5 text-[11px]",
+          active ? "bg-foreground text-background" : "bg-foreground/10 text-foreground/60"
+        )}
+      >
+        {count}
+      </span>
+      {active && (
+        <span className="absolute inset-x-0 bottom-0 h-[2px] bg-foreground" aria-hidden />
+      )}
+    </button>
   );
 }
