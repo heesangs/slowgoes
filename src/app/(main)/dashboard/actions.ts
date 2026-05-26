@@ -886,7 +886,7 @@ export async function updateStridePlanAction(
 }
 
 // PR 34: regenerateStridePlanAction (전체 재생성) 제거 — UX 단순화.
-//   단일 발걸음 재생성(regenerateStrideItemAction)은 EditWithAISheet에서 계속 사용.
+//   단일 발걸음 재생성(regenerateStrideItemAction)은 StepSheet(edit-with-ai)에서 계속 사용 (IA v2 목표 4).
 
 /**
  * PR 36: 버킷 삭제 — 한걸음 상세 페이지 ⋮ 메뉴에서 호출.
@@ -1083,7 +1083,7 @@ export async function regenerateStrideItemAction(
 
 /**
  * 특정 stride 항목의 action을 사용자 입력 텍스트로 업데이트 (PR 9)
- * EditWithAISheet의 "확인" 버튼에서 호출. AI 재생성은 regenerateStrideItemAction이 담당.
+ * StepSheet(edit-with-ai)의 "저장" 버튼에서 호출. AI 재생성은 regenerateStrideItemAction이 담당.
  */
 export async function updateStrideItemAction(
   bucketId: string,
