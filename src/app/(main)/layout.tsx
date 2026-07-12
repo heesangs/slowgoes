@@ -10,8 +10,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile, getUserBuckets } from "@/lib/dashboard";
 import { LAST_VIEWED_BUCKET_COOKIE_NAME } from "@/hooks/use-track-last-viewed-bucket";
-import { MainHeader } from "@/components/layout/main-header";
-import { MainNavBar } from "@/components/layout/main-nav-bar";
+import { MainShell } from "@/components/layout/main-shell";
 import type { Gender, PaceType, PersonalityType } from "@/types";
 
 export default async function MainLayout({
@@ -63,17 +62,10 @@ export default async function MainLayout({
   }
 
   return (
-    <div className="min-h-dvh flex flex-col">
-      <MainHeader />
-      <MainNavBar
-        buckets={bucketsForNav}
-        cookieSelectedBucketId={cookieSelectedBucketId}
-        prefillProfile={prefillProfile}
-      />
-
-      <main className="flex-1 px-4 py-6">
-        <div className="mx-auto max-w-2xl">{children}</div>
-      </main>
-    </div>
+    <MainShell
+      navProps={{ buckets: bucketsForNav, cookieSelectedBucketId, prefillProfile }}
+    >
+      {children}
+    </MainShell>
   );
 }

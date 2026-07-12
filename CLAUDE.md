@@ -201,6 +201,16 @@ stride_plans (                             -- 구 horizon_analyses (20260411 리
   UNIQUE (bucket_id)                       -- 버킷당 1개 분석
 )
 -- empathy_message 컬럼은 20260516에서 DROP됨
+
+diaries (                                   -- 일기(저널) — TipTap 마크다운 (20260712)
+  id uuid PK,
+  user_id uuid FK → profiles(id) ON DELETE CASCADE,
+  content text NOT NULL,                   -- TipTap 에디터 HTML 원문
+  plain_text text NOT NULL,                -- 순수 텍스트 (목록 제목/미리보기용)
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+)
+-- 목록 인덱스: (user_id, created_at DESC). RLS: 본인(user_id=auth.uid())만 접근
 ```
 
 ### 레거시 (코드 미사용, 데이터 보존)
