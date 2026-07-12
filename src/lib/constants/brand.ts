@@ -26,6 +26,7 @@ export const FEATURE_NAMES = {
   REVIEW: "회고",
   PROFILE: "프로필",
   STEP_MORE: "한걸음 더",
+  DIARY: "일기",
 } as const;
 
 // 레거시 챕터 RPC 입력용 기본 제목 헬퍼 — 현재 챕터 UI는 제거되었지만 DB RPC는 chapter_title을 요구.

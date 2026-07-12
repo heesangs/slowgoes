@@ -103,6 +103,16 @@ export const ROUTINE_ERRORS = {
   DEACTIVATE_FAILED: "루틴 비활성화에 실패했습니다.",
 } as const;
 
+export const DIARY_ERRORS = {
+  ACCESS_DENIED: "해당 일기에 접근할 수 없습니다.",
+  NOT_FOUND: "일기를 찾을 수 없습니다.",
+  CONTENT_REQUIRED: "일기 내용을 입력해주세요.",
+  CREATE_FAILED: "일기 작성에 실패했습니다.",
+  UPDATE_FAILED: "일기 수정에 실패했습니다.",
+  DELETE_FAILED: "일기 삭제에 실패했습니다.",
+  LOAD_FAILED: "일기를 불러오지 못했습니다.",
+} as const;
+
 export const STRIDE_ERRORS = {
   DATA_FORMAT_INVALID: "발걸음 데이터 형식이 올바르지 않습니다.",
   LEVEL_INVALID: "발걸음 레벨이 올바르지 않습니다.",

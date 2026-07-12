@@ -386,6 +386,26 @@ export interface ReviewPageData {
   recent: ReviewRecentItem[];
 }
 
+// 일기(Diary) — TipTap 기반 저널
+export interface Diary {
+  id: string;
+  user_id: string;
+  /** TipTap 에디터 HTML 원문 */
+  content: string;
+  /** editor.getText() 순수 텍스트 — 제목/미리보기/향후 검색용 */
+  plain_text: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// 목록 렌더용 파생 뷰 — content(HTML) 없이 미리보기만 전달
+export interface DiaryListItem {
+  id: string;
+  title: string;
+  preview: string;
+  created_at: string;
+}
+
 export interface DashboardV2Data {
   profile: Profile;
   buckets: Array<Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at">>;
