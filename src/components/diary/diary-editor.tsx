@@ -18,19 +18,14 @@ import { MarkdownEditor } from "./markdown-editor";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
-// "2026년 7월 12일 (일) 오후 9:02"
-function formatDateTime(iso: string): string {
+// "26.7.13 (월)" — 시간은 목록에 있으므로 생략
+function formatDateLabel(iso: string): string {
   const date = new Date(iso);
-  const year = date.getFullYear();
+  const yy = date.getFullYear() % 100;
   const month = date.getMonth() + 1;
   const day = date.getDate();
   const weekday = WEEKDAY_LABELS[date.getDay()];
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const isPM = hours >= 12;
-  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
-  const time = `${isPM ? "오후" : "오전"} ${hour12}:${String(minutes).padStart(2, "0")}`;
-  return `${year}년 ${month}월 ${day}일 (${weekday}) ${time}`;
+  return `${yy}.${month}.${day} (${weekday})`;
 }
 
 type DiaryEditorProps =
@@ -47,7 +42,7 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
   const plainTextRef = useRef<string>(entry?.plain_text ?? "");
 
   // 헤더 날짜: 편집은 작성일, 작성은 현재 시각(마운트 시점 고정)
-  const [dateLabel] = useState(() => formatDateTime(entry?.created_at ?? new Date().toISOString()));
+  const [dateLabel] = useState(() => formatDateLabel(entry?.created_at ?? new Date().toISOString()));
 
   function handleChange(html: string, text: string) {
     contentRef.current = html;

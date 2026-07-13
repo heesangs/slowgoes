@@ -14,6 +14,7 @@ import {
 } from "@/app/(main)/profile/actions";
 import { signOutAction } from "@/app/(auth)/actions";
 import { TaskStatsSection } from "@/components/profile/task-stats";
+import { ThemeSetting } from "@/components/profile/theme-setting";
 import { ACCOUNT_DELETE_CONFIRM_TEXT } from "@/lib/constants";
 import type { TaskStats } from "@/types";
 
@@ -189,6 +190,16 @@ export function ProfileContent({ profile, email, stats }: ProfileContentProps) {
           >
             저장하기
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Section: 화면 테마 */}
+      <Card>
+        <CardHeader>
+          <h2 className="text-base font-semibold">화면 테마</h2>
+        </CardHeader>
+        <CardContent>
+          <ThemeSetting />
         </CardContent>
       </Card>
 

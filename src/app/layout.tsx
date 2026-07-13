@@ -27,8 +27,15 @@ export default function RootLayout({
   const shouldLoadFigmaCapture = process.env.NODE_ENV === "development";
 
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
       <head>
+        {/* 페인트 전 테마 적용 — FOUC(테마 깜빡임) 방지 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();",
+          }}
+        />
         {shouldLoadFigmaCapture && (
           <script
             src="https://mcp.figma.com/mcp/html-to-design/capture.js"

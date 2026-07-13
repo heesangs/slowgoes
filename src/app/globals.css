@@ -2,7 +2,13 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #333333;
+}
+
+/* 강제 다크 (프로필에서 선택) */
+:root[data-theme="dark"] {
+  --background: #333333;
+  --foreground: #e6e6e6;
 }
 
 @theme inline {
@@ -12,10 +18,11 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* OS 다크 추종 — 단, 사용자가 라이트/다크를 명시 선택하면 그 값을 우선 */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --background: #333333;
+    --foreground: #e6e6e6;
   }
 }
 
