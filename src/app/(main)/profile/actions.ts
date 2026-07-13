@@ -4,6 +4,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { getAuthUser } from "@/lib/supabase/auth";
+import { getTaskStats } from "@/lib/stats";
 import {
   PROFILE_ERRORS,
   PASSWORD_ERRORS,
@@ -11,6 +13,46 @@ import {
   AUTH_ERRORS,
   ACCOUNT_DELETE_CONFIRM_TEXT,
 } from "@/lib/constants";
+import type { TaskStats } from "@/types";
+
+// ── React Query queryFn용 읽기 액션 ──
+export interface ProfileViewData {
+  profile: { id: string; display_name: string | null; created_at: string };
+  email: string;
+  stats: TaskStats;
+}
+
+const FALLBACK_STATS: TaskStats = {
+  totalDailyTodos: 0,
+  completedDailyTodos: 0,
+  totalRoutines: 0,
+  completedRoutinesThisWeek: 0,
+  totalActionsCompleted: 0,
+  completedInLast14Days: 0,
+};
+
+export async function fetchProfileViewAction(): Promise<ProfileViewData> {
+  const user = await getAuthUser();
+  if (!user) throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
+
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, display_name, created_at")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile) throw new Error(PROFILE_ERRORS.SAVE_FAILED);
+
+  let stats: TaskStats;
+  try {
+    stats = await getTaskStats(supabase, user.id);
+  } catch {
+    stats = FALLBACK_STATS;
+  }
+
+  return { profile, email: user.email ?? "", stats };
+}
 
 
 export async function updateProfileAction(formData: FormData) {

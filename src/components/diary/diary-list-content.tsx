@@ -1,30 +1,50 @@
+"use client";
+
 // 일기 목록 — 월별 그룹 리스트 + 우하단 플로팅 작성 버튼.
-// 컬러는 앱 블랙 계열 토큰만 사용 (하늘색 미사용).
+// React Query로 자체 페치 → 재방문 시 캐시 즉시 표시(스켈레톤 없이).
+// 컬러는 앱 블랙 계열 토큰만 사용.
 
 import Link from "next/link";
 import { FEATURE_NAMES } from "@/lib/constants";
-import type { DiaryListItem } from "@/types";
 import { groupDiariesByMonth } from "@/lib/diary/format";
+import { useDiaryEntries } from "@/hooks/use-diary";
 
-interface DiaryListContentProps {
-  entries: DiaryListItem[];
-  loadError?: string;
-}
+const SKELETON = "rounded bg-foreground/10";
 
-export function DiaryListContent({ entries, loadError }: DiaryListContentProps) {
-  const groups = groupDiariesByMonth(entries);
+export function DiaryListContent() {
+  const { data: entries, isLoading, isError } = useDiaryEntries();
+  const groups = groupDiariesByMonth(entries ?? []);
 
   return (
     <div className="relative mx-auto min-h-[70vh] max-w-2xl px-4 py-5 pb-24">
       <h1 className="mb-4 text-2xl font-bold text-foreground">{FEATURE_NAMES.DIARY}</h1>
 
-      {loadError && (
+      {isError && (
         <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-          {loadError}
+          일기를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
         </p>
       )}
 
-      {entries.length === 0 && !loadError ? (
+      {isLoading ? (
+        <div className="animate-pulse" aria-label="일기 로딩 중">
+          <div className={`${SKELETON} h-4 w-24`} />
+          <div className="mt-3 flex flex-col divide-y divide-foreground/10 border-y border-foreground/10">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex gap-3 py-3">
+                <div className="w-9 shrink-0 pt-0.5">
+                  <div className={`${SKELETON} mx-auto h-3 w-5`} />
+                  <div className={`${SKELETON} mx-auto mt-1 h-5 w-6`} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className={`${SKELETON} h-4 w-2/3`} />
+                  <div className={`${SKELETON} mt-2 h-3 w-full`} />
+                  <div className={`${SKELETON} mt-1.5 h-3 w-16`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : !isError && (entries?.length ?? 0) === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-24 text-center">
           <p className="text-base font-medium text-foreground/70">아직 작성한 일기가 없어요</p>
           <p className="text-sm text-foreground/50">

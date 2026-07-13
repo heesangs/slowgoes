@@ -2,7 +2,8 @@
 
 // 프로필 페이지 전체 UI — 기본 정보 수정 + 계정 관리
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,25 +17,18 @@ import { signOutAction } from "@/app/(auth)/actions";
 import { TaskStatsSection } from "@/components/profile/task-stats";
 import { ThemeSetting } from "@/components/profile/theme-setting";
 import { ACCOUNT_DELETE_CONFIRM_TEXT } from "@/lib/constants";
-import type { TaskStats } from "@/types";
+import { useProfileView } from "@/hooks/use-profile-view";
 
-interface ProfileViewData {
-  id: string;
-  display_name: string | null;
-  created_at: string;
-}
+const SKELETON = "rounded bg-foreground/10";
 
-interface ProfileContentProps {
-  profile: ProfileViewData;
-  email: string;
-  stats: TaskStats;
-}
-
-export function ProfileContent({ profile, email, stats }: ProfileContentProps) {
+export function ProfileContent() {
+  const { data, isLoading, isError } = useProfileView();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // 프로필 폼 상태
-  const [displayName, setDisplayName] = useState(profile.display_name ?? "");
+  // 프로필 폼 상태 (데이터 도착 시 초기화)
+  const [displayName, setDisplayName] = useState("");
+  const [displayNameInit, setDisplayNameInit] = useState(false);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
 
   // 비밀번호 변경 상태
@@ -43,20 +37,19 @@ export function ProfileContent({ profile, email, stats }: ProfileContentProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
 
-  // 로그아웃 상태
+  // 로그아웃/탈퇴 상태
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [showDeleteForm, setShowDeleteForm] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
-  // 함께한 일수 계산
-  const daysSinceJoined = Math.max(
-    1,
-    Math.floor(
-      (Date.now() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24)
-    )
-  );
+  useEffect(() => {
+    if (data && !displayNameInit) {
+      setDisplayName(data.profile.display_name ?? "");
+      setDisplayNameInit(true);
+    }
+  }, [data, displayNameInit]);
 
   async function handleProfileSave() {
     if (!displayName.trim()) {
@@ -72,6 +65,8 @@ export function ProfileContent({ profile, email, stats }: ProfileContentProps) {
       const result = await updateProfileAction(formData);
       if (result.success) {
         toast("프로필이 저장되었습니다.");
+        // 클라이언트 캐시 갱신 → 재방문 시 최신 닉네임 반영
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
       } else {
         toast(result.error ?? "저장에 실패했습니다.", "error");
       }
@@ -154,6 +149,42 @@ export function ProfileContent({ profile, email, stats }: ProfileContentProps) {
       setIsDeletingAccount(false);
     }
   }
+
+  // 로딩/에러 (데이터 없을 때만; 재방문은 캐시로 즉시 통과)
+  if (!data) {
+    if (isError) {
+      return (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          프로필을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+        </p>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-6 animate-pulse" aria-label="프로필 로딩 중">
+        <div className="flex items-center gap-4">
+          <div className={`${SKELETON} h-14 w-14 shrink-0 rounded-full`} />
+          <div className="flex flex-col gap-2">
+            <div className={`${SKELETON} h-6 w-32`} />
+            <div className={`${SKELETON} h-4 w-40`} />
+          </div>
+        </div>
+        {[0, 1].map((i) => (
+          <div key={i} className="rounded-xl border border-foreground/10 px-4 py-4">
+            <div className={`${SKELETON} h-5 w-24`} />
+            <div className={`${SKELETON} mt-4 h-10 w-full`} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const { email, stats } = data;
+  const daysSinceJoined = Math.max(
+    1,
+    Math.floor(
+      (Date.now() - new Date(data.profile.created_at).getTime()) / (1000 * 60 * 60 * 24)
+    )
+  );
 
   return (
     <div className="flex flex-col gap-6">

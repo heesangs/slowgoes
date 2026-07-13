@@ -7,6 +7,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { SubPageHeader } from "@/components/layout/sub-page-header";
@@ -34,6 +35,7 @@ type DiaryEditorProps =
 
 export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
@@ -69,8 +71,8 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
       }
 
       toast("일기를 저장했어요 ✨", "success");
-      // revalidatePath("/diary")가 액션에서 캐시를 무효화하므로 push만으로 최신 목록이 로드된다.
-      // (router.refresh()는 이중 재페치가 되어 저장/삭제 체감을 느리게 함 — 제거)
+      // React Query 캐시 무효화 → 목록/편집 재방문 시 최신 반영
+      queryClient.invalidateQueries({ queryKey: ["diary"] });
       router.push("/diary");
     });
   }
@@ -87,8 +89,8 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
         return;
       }
       toast("일기를 삭제했어요.", "success");
-      // revalidatePath("/diary")가 액션에서 캐시를 무효화하므로 push만으로 최신 목록이 로드된다.
-      // (router.refresh()는 이중 재페치가 되어 저장/삭제 체감을 느리게 함 — 제거)
+      // React Query 캐시 무효화 → 목록 재방문 시 최신 반영
+      queryClient.invalidateQueries({ queryKey: ["diary"] });
       router.push("/diary");
     });
   }
