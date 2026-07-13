@@ -2,15 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { getDiaryEntries } from "@/lib/diary/queries";
 import { DiaryListContent } from "@/components/diary/diary-list-content";
 import type { DiaryListItem } from "@/types";
 
 export default async function DiaryPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect("/login");

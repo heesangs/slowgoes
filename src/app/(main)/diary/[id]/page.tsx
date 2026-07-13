@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { getDiaryEntry } from "@/lib/diary/queries";
 import { DiaryEditor } from "@/components/diary/diary-editor";
 
@@ -13,9 +14,7 @@ export default async function DiaryDetailPage({ params }: DiaryDetailPageProps) 
   const { id } = await params;
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect("/login");

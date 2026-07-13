@@ -12,7 +12,8 @@ export async function getDiaryEntries(
     .from("diaries")
     .select("id, plain_text, created_at")
     .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(100);
 
   if (error) {
     throw new Error(DIARY_ERRORS.LOAD_FAILED);
