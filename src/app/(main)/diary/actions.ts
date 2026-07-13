@@ -2,7 +2,27 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
+import { getDiaryEntries, getDiaryEntry } from "@/lib/diary/queries";
 import { AUTH_ERRORS, DIARY_ERRORS } from "@/lib/constants";
+import type { Diary, DiaryListItem } from "@/types";
+
+// ── React Query queryFn용 읽기 액션 ──
+// 클라이언트 useQuery에서 호출한다. 인증 가드(getAuthUser) + RLS로 보호.
+
+export async function fetchDiaryEntriesAction(): Promise<DiaryListItem[]> {
+  const user = await getAuthUser();
+  if (!user) throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
+  const supabase = await createClient();
+  return getDiaryEntries(supabase, user.id);
+}
+
+export async function fetchDiaryEntryAction(id: string): Promise<Diary | null> {
+  const user = await getAuthUser();
+  if (!user) throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
+  const supabase = await createClient();
+  return getDiaryEntry(supabase, user.id, id);
+}
 
 function toClientErrorMessage(error: unknown, fallback: string): string {
   if (!(error instanceof Error)) return fallback;
