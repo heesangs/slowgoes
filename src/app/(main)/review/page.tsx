@@ -3,6 +3,7 @@ import { ReviewPageContent } from "@/components/review/review-page-content";
 import { getLifeBalance } from "@/lib/dashboard";
 import { getReviewPageData } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 
 function toErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message.trim().length > 0) {
@@ -13,9 +14,7 @@ function toErrorMessage(error: unknown, fallback: string) {
 
 export default async function ReviewPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect("/login");

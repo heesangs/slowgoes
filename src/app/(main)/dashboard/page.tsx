@@ -1,14 +1,15 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { DashboardContentV2 } from "@/components/dashboard/dashboard-content-v2";
 import { featureFlags } from "@/lib/flags";
 import {
   getDailyTodos,
   getStridePlan,
-  getProfile,
+  getProfileForRequest,
   getRoutinesWithCompletions,
-  getUserBuckets,
+  getUserBucketsForRequest,
 } from "@/lib/dashboard";
 import { LAST_VIEWED_BUCKET_COOKIE_NAME } from "@/hooks/use-track-last-viewed-bucket";
 import type { DashboardV2Data } from "@/types";
@@ -30,9 +31,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const resolvedSearchParams = (await searchParams) ?? {};
   const selectedBucketQuery = resolvedSearchParams.bucket?.trim();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect("/login");
@@ -43,8 +42,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const errors: string[] = [];
 
   const [profileResult, bucketsResult] = await Promise.allSettled([
-    getProfile(supabase, user.id),
-    getUserBuckets(supabase, user.id),
+    getProfileForRequest(user.id),
+    getUserBucketsForRequest(user.id),
   ]);
 
   const profile =

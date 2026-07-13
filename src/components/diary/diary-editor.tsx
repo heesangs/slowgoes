@@ -69,8 +69,9 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
       }
 
       toast("일기를 저장했어요 ✨", "success");
+      // revalidatePath("/diary")가 액션에서 캐시를 무효화하므로 push만으로 최신 목록이 로드된다.
+      // (router.refresh()는 이중 재페치가 되어 저장/삭제 체감을 느리게 함 — 제거)
       router.push("/diary");
-      router.refresh();
     });
   }
 
@@ -86,8 +87,9 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
         return;
       }
       toast("일기를 삭제했어요.", "success");
+      // revalidatePath("/diary")가 액션에서 캐시를 무효화하므로 push만으로 최신 목록이 로드된다.
+      // (router.refresh()는 이중 재페치가 되어 저장/삭제 체감을 느리게 함 — 제거)
       router.push("/diary");
-      router.refresh();
     });
   }
 

@@ -2,15 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { ProfileContent } from "@/components/profile/profile-content";
 import { getTaskStats } from "@/lib/stats";
 import type { TaskStats } from "@/types";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   // 미로그인 시 로그인 페이지로 리다이렉트
   if (!user) {

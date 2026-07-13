@@ -1,5 +1,7 @@
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCurrentWeekStartDate } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/server";
 import type {
   Bucket,
   DailyTodo,
@@ -89,6 +91,21 @@ export async function getUserBuckets(
     throw toClientError(error, "버킷 정보를 불러오지 못했습니다.");
   }
 }
+
+// 요청 스코프 dedup 버전 — 클라이언트를 내부 생성하여 userId만 키로 캐싱한다.
+// (getProfile/getUserBuckets는 supabase 인스턴스를 인자로 받아 cache 키가 매번 달라지므로
+//  layout의 nav 로더와 페이지에서 각각 호출해도 중복 쿼리가 생긴다. 아래 버전은 dedup됨.)
+export const getProfileForRequest = cache(async (userId: string): Promise<Profile | null> => {
+  const supabase = await createClient();
+  return getProfile(supabase, userId);
+});
+
+export const getUserBucketsForRequest = cache(
+  async (userId: string) => {
+    const supabase = await createClient();
+    return getUserBuckets(supabase, userId);
+  }
+);
 
 export async function getSelectedBucket(
   supabase: DashboardSupabase,
