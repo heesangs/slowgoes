@@ -30,21 +30,21 @@ interface MarkdownEditorProps {
 // .ProseMirror 하위 요소 스타일 — 전부 앱 토큰(foreground) 기반, sky/blue 없음.
 const EDITOR_WRAPPER_CLASS = [
   "[&_.ProseMirror]:min-h-[55vh] [&_.ProseMirror]:outline-none [&_.ProseMirror]:text-foreground",
-  // 문단 — 스크린샷 매칭 17px
-  "[&_.ProseMirror_p]:text-[17px] [&_.ProseMirror_p]:leading-[1.7] [&_.ProseMirror_p]:my-1",
-  // 헤딩
-  "[&_.ProseMirror_h1]:text-[26px] [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h1]:mt-3 [&_.ProseMirror_h1]:mb-1",
-  "[&_.ProseMirror_h2]:text-[22px] [&_.ProseMirror_h2]:font-semibold [&_.ProseMirror_h2]:mt-3 [&_.ProseMirror_h2]:mb-1",
-  "[&_.ProseMirror_h3]:text-[19px] [&_.ProseMirror_h3]:font-semibold [&_.ProseMirror_h3]:mt-2 [&_.ProseMirror_h3]:mb-1",
+  // 문단 — 14px, 자동 줄바꿈 1.5. 엔터(문단) 간격은 +7px로 2.0 리듬(14×1.5=21 + 7 = 28 ≈ 2.0×14)
+  "[&_.ProseMirror_p]:text-[14px] [&_.ProseMirror_p]:leading-[1.5] [&_.ProseMirror_p]:mt-0 [&_.ProseMirror_p]:mb-[7px]",
+  // 헤딩 — 반전(오름차순): # 은 본문크기+볼드, ## 더 크게, ### 가장 크게
+  "[&_.ProseMirror_h1]:text-[14px] [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h1]:mt-3 [&_.ProseMirror_h1]:mb-1",
+  "[&_.ProseMirror_h2]:text-[18px] [&_.ProseMirror_h2]:font-bold [&_.ProseMirror_h2]:mt-3 [&_.ProseMirror_h2]:mb-1",
+  "[&_.ProseMirror_h3]:text-[22px] [&_.ProseMirror_h3]:font-bold [&_.ProseMirror_h3]:mt-3 [&_.ProseMirror_h3]:mb-1",
   // 리스트
   "[&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-5 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-5",
-  "[&_.ProseMirror_li]:text-[17px] [&_.ProseMirror_li]:leading-[1.7]",
+  "[&_.ProseMirror_li]:text-[14px] [&_.ProseMirror_li]:leading-[1.5]",
   // 인용구
   "[&_.ProseMirror_blockquote]:border-l-2 [&_.ProseMirror_blockquote]:border-foreground/25 [&_.ProseMirror_blockquote]:pl-3 [&_.ProseMirror_blockquote]:text-foreground/70",
   // 구분선
   "[&_.ProseMirror_hr]:my-4 [&_.ProseMirror_hr]:border-t [&_.ProseMirror_hr]:border-foreground/15",
   // 코드
-  "[&_.ProseMirror_code]:rounded [&_.ProseMirror_code]:bg-foreground/10 [&_.ProseMirror_code]:px-1 [&_.ProseMirror_code]:py-0.5 [&_.ProseMirror_code]:text-[15px]",
+  "[&_.ProseMirror_code]:rounded [&_.ProseMirror_code]:bg-foreground/10 [&_.ProseMirror_code]:px-1 [&_.ProseMirror_code]:py-0.5 [&_.ProseMirror_code]:text-[13px]",
   // 체크리스트
   "[&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]]:pl-0",
   "[&_li[data-type=taskItem]]:flex [&_li[data-type=taskItem]]:items-start [&_li[data-type=taskItem]]:gap-2",

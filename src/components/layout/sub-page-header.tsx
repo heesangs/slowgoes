@@ -63,7 +63,7 @@ export function SubPageHeader({ title, actions, backHref, onBack, hideBack }: Su
               </button>
             ))}
           {title != null && (
-            <span className="min-w-0 truncate text-sm font-medium text-foreground/70">{title}</span>
+            <span className="min-w-0 truncate text-base font-medium text-foreground/70">{title}</span>
           )}
         </div>
         {actions != null && <div className="flex items-center gap-1">{actions}</div>}
