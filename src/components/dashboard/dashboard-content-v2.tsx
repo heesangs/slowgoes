@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { DirectionSection } from "@/components/dashboard/direction-section";
 import { ExecutionPlanSection } from "@/components/dashboard/execution-plan-section";
 import { InsightSection } from "@/components/dashboard/insight-section";
@@ -36,6 +37,12 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  // 대시보드 캐시 무효화 헬퍼 (router.refresh 대체).
+  // optimistic 토글은 await로 base 갱신을 기다려 깜빡임을 막는다.
+  const invalidateDashboard = () =>
+    queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 
   // PR 31: 현재 보고 있는 버킷을 cookie에 기록 (로고 클릭 시 복귀에 사용)
   useTrackLastViewedBucket(data.selectedBucket?.id ?? null);
@@ -115,6 +122,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       }
       const nextBucket = data.buckets.find((b) => b.id !== bucketId);
       toast(`${FEATURE_NAMES.BUCKET}을 삭제했어요.`, "success");
+      // 버킷 목록이 바뀌었으므로 대시보드 캐시 전체 무효화 후 이동
+      await invalidateDashboard();
       if (nextBucket) {
         router.replace(`/dashboard?bucket=${nextBucket.id}`);
       } else {
@@ -153,9 +162,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       if (!result.success) {
         toast(result.error ?? "상태 변경에 실패했어요.", "error");
       }
-      // 성공 여부와 무관하게 server data로 정합성 복구
-      // useOptimistic은 transition 종료 시 base state로 자동 reset → router.refresh로 새 데이터
-      router.refresh();
+      // 회고 통계(action_logs)도 영향 → 무효화. 대시보드는 await로 base 갱신을 기다려
+      // optimistic 값이 깜빡이지 않게 한다.
+      queryClient.invalidateQueries({ queryKey: ["review"] });
+      await invalidateDashboard();
     });
   }
 
@@ -167,7 +177,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       if (!result.success) {
         toast(result.error ?? "상태 변경에 실패했어요.", "error");
       }
-      router.refresh();
+      queryClient.invalidateQueries({ queryKey: ["review"] });
+      await invalidateDashboard();
     });
   }
 
@@ -258,7 +269,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         }}
         initialMode={stepSheetInitialMode}
         bucketId={data.selectedBucket?.id ?? null}
-        onApplied={() => router.refresh()}
+        onApplied={() => invalidateDashboard()}
         editingStride={editingStride}
         editHistory={
           editingStride
@@ -278,7 +289,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           const r = await deleteDailyTodoAction(id);
           if (r.success) {
             toast(`${FEATURE_NAMES.DAILY_TODO}을 삭제했어요.`, "success");
-            router.refresh();
+            invalidateDashboard();
           } else {
             toast(r.error ?? `${FEATURE_NAMES.DAILY_TODO} 삭제에 실패했어요.`, "error");
           }
@@ -287,7 +298,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           const r = await deactivateRoutineAction(id);
           if (r.success) {
             toast(`${FEATURE_NAMES.ROUTINE}을 비활성화했어요.`, "success");
-            router.refresh();
+            invalidateDashboard();
           } else {
             toast(r.error ?? `${FEATURE_NAMES.ROUTINE} 비활성화에 실패했어요.`, "error");
           }
