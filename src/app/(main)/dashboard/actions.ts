@@ -2,6 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
+import {
+  getProfileForRequest,
+  getUserBucketsForRequest,
+  getDailyTodos,
+  getRoutinesWithCompletions,
+  getStridePlan,
+} from "@/lib/dashboard";
 import {
   analyzeLifeScene,
   generateSingleNextStep,
@@ -22,6 +30,7 @@ import {
 } from "@/lib/constants";
 import type {
   DailyTodoStrideLevel,
+  DashboardV2Data,
   Gender,
   ItemSource,
   PersonalityType,
@@ -68,6 +77,42 @@ async function getAuthContext() {
   }
 
   return { supabase, userId: user.id };
+}
+
+// ── React Query queryFn용 대시보드 읽기 액션 ──
+// requestedBucketId(URL ?bucket= 또는 쿠키)를 받아 버킷 선택을 해석하고
+// DashboardV2Data를 조합해 반환한다. profile 없으면(온보딩 미완) null 반환.
+export async function fetchDashboardDataAction(
+  requestedBucketId: string | null
+): Promise<DashboardV2Data | null> {
+  const user = await getAuthUser();
+  if (!user) throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
+
+  const supabase = await createClient();
+
+  const [profile, buckets] = await Promise.all([
+    getProfileForRequest(user.id),
+    getUserBucketsForRequest(user.id),
+  ]);
+
+  // 온보딩 미완 → null (로더가 /onboarding으로 보냄)
+  if (!profile) return null;
+
+  // 선택 해석: 요청 버킷이 유효하면 그것, 아니면 buckets[0]
+  const selectedBucketId =
+    requestedBucketId && buckets.some((b) => b.id === requestedBucketId)
+      ? requestedBucketId
+      : (buckets[0]?.id ?? null);
+  const selectedBucket =
+    (selectedBucketId && buckets.find((b) => b.id === selectedBucketId)) || null;
+
+  const [dailyTodos, routines, stridePlan] = await Promise.all([
+    getDailyTodos(supabase, user.id, selectedBucketId),
+    getRoutinesWithCompletions(supabase, user.id, selectedBucketId),
+    getStridePlan(supabase, user.id, selectedBucketId),
+  ]);
+
+  return { profile, buckets, selectedBucket, dailyTodos, routines, stridePlan };
 }
 
 function normalizeSource(source: ItemSource | undefined): ItemSource {
