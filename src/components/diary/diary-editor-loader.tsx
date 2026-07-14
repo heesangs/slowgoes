@@ -6,6 +6,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDiaryEntry } from "@/hooks/use-diary";
+import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { DiaryEditor } from "./diary-editor";
 
 const SKELETON = "rounded bg-foreground/10";
@@ -37,6 +38,7 @@ function EditorSkeleton() {
 export function DiaryEditorLoader({ id }: { id: string }) {
   const router = useRouter();
   const { data: entry, isLoading, isError } = useDiaryEntry(id);
+  const showSkeleton = useDelayedFlag(isLoading || !entry);
 
   // 로드 완료했는데 항목이 없으면 목록으로
   useEffect(() => {
@@ -54,7 +56,7 @@ export function DiaryEditorLoader({ id }: { id: string }) {
   }
 
   if (isLoading || !entry) {
-    return <EditorSkeleton />;
+    return showSkeleton ? <EditorSkeleton /> : null;
   }
 
   return <DiaryEditor mode="edit" entry={entry} />;

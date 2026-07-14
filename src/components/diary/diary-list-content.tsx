@@ -8,11 +8,14 @@ import Link from "next/link";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { groupDiariesByMonth } from "@/lib/diary/format";
 import { useDiaryEntries } from "@/hooks/use-diary";
+import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 
 const SKELETON = "rounded bg-foreground/10";
 
 export function DiaryListContent() {
   const { data: entries, isLoading, isError } = useDiaryEntries();
+  // 300ms 미만 로딩엔 스켈레톤 미표시(깜빡임 방지)
+  const showSkeleton = useDelayedFlag(isLoading);
   const groups = groupDiariesByMonth(entries ?? []);
 
   return (
@@ -26,6 +29,7 @@ export function DiaryListContent() {
       )}
 
       {isLoading ? (
+        showSkeleton ? (
         <div className="animate-pulse" aria-label="일기 로딩 중">
           <div className={`${SKELETON} h-4 w-24`} />
           <div className="mt-3 flex flex-col divide-y divide-foreground/10 border-y border-foreground/10">
@@ -44,6 +48,7 @@ export function DiaryListContent() {
             ))}
           </div>
         </div>
+        ) : null
       ) : !isError && (entries?.length ?? 0) === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-24 text-center">
           <p className="text-base font-medium text-foreground/70">아직 작성한 일기가 없어요</p>

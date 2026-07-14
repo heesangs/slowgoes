@@ -18,11 +18,13 @@ import { TaskStatsSection } from "@/components/profile/task-stats";
 import { ThemeSetting } from "@/components/profile/theme-setting";
 import { ACCOUNT_DELETE_CONFIRM_TEXT } from "@/lib/constants";
 import { useProfileView } from "@/hooks/use-profile-view";
+import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 
 const SKELETON = "rounded bg-foreground/10";
 
 export function ProfileContent() {
-  const { data, isLoading, isError } = useProfileView();
+  const { data, isError } = useProfileView();
+  const showSkeleton = useDelayedFlag(!data);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -159,7 +161,7 @@ export function ProfileContent() {
         </p>
       );
     }
-    return (
+    return showSkeleton ? (
       <div className="flex flex-col gap-6 animate-pulse" aria-label="프로필 로딩 중">
         <div className="flex items-center gap-4">
           <div className={`${SKELETON} h-14 w-14 shrink-0 rounded-full`} />
@@ -175,7 +177,7 @@ export function ProfileContent() {
           </div>
         ))}
       </div>
-    );
+    ) : null;
   }
 
   const { email, stats } = data;

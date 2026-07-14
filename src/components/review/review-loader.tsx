@@ -4,6 +4,7 @@
 // ReviewPageContent는 순수 프레젠테이션이라 그대로 재사용(props 주입).
 
 import { useReview } from "@/hooks/use-review";
+import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { ReviewPageContent } from "./review-page-content";
 
 const SKELETON = "rounded bg-foreground/10";
@@ -24,6 +25,7 @@ function ReviewSkeleton() {
 
 export function ReviewLoader() {
   const { data, isLoading, isError } = useReview();
+  const showSkeleton = useDelayedFlag(isLoading || !data);
 
   if (isError) {
     return (
@@ -34,7 +36,7 @@ export function ReviewLoader() {
   }
 
   if (isLoading || !data) {
-    return <ReviewSkeleton />;
+    return showSkeleton ? <ReviewSkeleton /> : null;
   }
 
   return (
