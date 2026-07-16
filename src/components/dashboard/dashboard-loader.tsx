@@ -7,6 +7,7 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDashboard } from "@/hooks/use-dashboard";
+import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { DashboardContentV2 } from "./dashboard-content-v2";
 import { LAST_VIEWED_BUCKET_COOKIE_NAME } from "@/hooks/use-track-last-viewed-bucket";
 
@@ -40,6 +41,7 @@ export function DashboardLoader() {
   const requestedBucketId = urlBucket ?? readCookie(LAST_VIEWED_BUCKET_COOKIE_NAME);
 
   const { data, isLoading, isError } = useDashboard(requestedBucketId);
+  const showSkeleton = useDelayedFlag(isLoading || !data);
 
   // 온보딩 미완(profile 없음) → 온보딩으로
   useEffect(() => {
@@ -56,9 +58,9 @@ export function DashboardLoader() {
     );
   }
 
-  // 로딩 중 또는 온보딩 리다이렉트 대기
+  // 로딩 중 또는 온보딩 리다이렉트 대기 (300ms 미만은 스켈레톤 미표시)
   if (isLoading || !data) {
-    return <DashboardSkeleton />;
+    return showSkeleton ? <DashboardSkeleton /> : null;
   }
 
   return <DashboardContentV2 data={data} />;

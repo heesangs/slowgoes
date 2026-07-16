@@ -279,3 +279,4 @@ subtasks (
 - Toast notifications for user feedback (auto-dismiss 3s)
 - AI API calls must be in Server Actions or Route Handlers only
 - 서비스 핵심 용어(버킷/데일리 투두/루틴/나의 발걸음/나의 시간/숨은 나 찾기)는 `FEATURE_NAMES` 상수 사용 — 자세한 가이드는 `DEVELOPER.md`의 "Brand Naming & FEATURE_NAMES" 섹션 참조
+- 성능·상태관리(React Query / Next.js 캐싱 / Zustand / 지연 스켈레톤)는 `PERFORMANCE.md` 참조 — 서버데이터=React Query, UI상태=Zustand, 로딩표시=`useDelayedFlag`(300ms), `loading.tsx` 신설 금지
