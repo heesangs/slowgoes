@@ -4,9 +4,13 @@
 // React Query로 자체 페치 → 재방문 시 캐시 즉시 표시(스켈레톤 없이).
 // 컬러는 앱 블랙 계열 토큰만 사용.
 
+import { useEffect } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { groupDiariesByMonth } from "@/lib/diary/format";
+import { getDiaryDrafts, clearDiaryDraft } from "@/lib/diary/draft";
+import { saveDiaryAction } from "@/app/(main)/diary/actions";
 import { useDiaryEntries } from "@/hooks/use-diary";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 
@@ -14,9 +18,41 @@ const SKELETON = "rounded bg-foreground/10";
 
 export function DiaryListContent() {
   const { data: entries, isLoading, isError } = useDiaryEntries();
+  const queryClient = useQueryClient();
   // 300ms 미만 로딩엔 스켈레톤 미표시(깜빡임 방지)
   const showSkeleton = useDelayedFlag(isLoading);
   const groups = groupDiariesByMonth(entries ?? []);
+
+  // 백그라운드 flush가 실패했거나 탭이 닫혀 남은 드래프트를 자동 재전송한다.
+  // saveDiaryAction은 클라 UUID + upsert라 멱등 → 여러 번 보내도 중복 생성 없음.
+  useEffect(() => {
+    const drafts = getDiaryDrafts();
+    if (drafts.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      let synced = false;
+      for (const draft of drafts) {
+        const result = await saveDiaryAction({
+          id: draft.id,
+          content: draft.content,
+          plainText: draft.plainText,
+        });
+        if (result.success) {
+          clearDiaryDraft(draft.id);
+          synced = true;
+        }
+      }
+      // 재전송된 게 있으면 서버 최신값으로 목록을 맞춘다
+      if (synced && !cancelled) {
+        queryClient.invalidateQueries({ queryKey: ["diary", "list"] });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient]);
 
   return (
     <div className="relative mx-auto min-h-[70vh] max-w-2xl px-4 py-5 pb-24">

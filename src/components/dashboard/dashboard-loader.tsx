@@ -9,15 +9,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { DashboardContentV2 } from "./dashboard-content-v2";
-import { LAST_VIEWED_BUCKET_COOKIE_NAME } from "@/hooks/use-track-last-viewed-bucket";
+import { readLastViewedBucketCookie } from "@/hooks/use-track-last-viewed-bucket";
 
 const SKELETON = "rounded bg-foreground/10";
-
-function readCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
-  return match ? decodeURIComponent(match[1]) : null;
-}
 
 function DashboardSkeleton() {
   return (
@@ -37,8 +31,9 @@ export function DashboardLoader() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  // MainNavBar와 **동일한 입력**(URL > 클라 쿠키)으로 해석해야 칩·콘텐츠가 갈리지 않는다.
   const urlBucket = searchParams.get("bucket");
-  const requestedBucketId = urlBucket ?? readCookie(LAST_VIEWED_BUCKET_COOKIE_NAME);
+  const requestedBucketId = urlBucket ?? readLastViewedBucketCookie();
 
   const { data, isLoading, isError } = useDashboard(requestedBucketId);
   const showSkeleton = useDelayedFlag(isLoading || !data);

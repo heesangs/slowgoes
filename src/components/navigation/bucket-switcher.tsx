@@ -12,8 +12,7 @@
 //
 // 자세한 설계 배경은 docs/ia-v2.md "목표 2" 절 참조.
 
-import { useEffect, useRef, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Bucket } from "@/types";
@@ -44,9 +43,19 @@ export function BucketSwitcher({
   onAddBucket,
   className,
 }: BucketSwitcherProps) {
-  const router = useRouter();
-  // 버킷 전환 즉각 시각 피드백 (actions-content.tsx의 PR 32 패턴 계승)
-  const [isSwitching, startSwitch] = useTransition();
+  // 버킷 전환은 **shallow routing**(history.replaceState)으로 처리한다.
+  //
+  // 왜: 이 전환에 서버는 필요 없다. MainNavBar는 useSearchParams로 selectedBucketId를,
+  // DashboardLoader는 같은 ?bucket= 으로 useDashboard(버킷별 캐시)를 읽는다.
+  // router.replace를 쓰면 ?bucket= 이 바뀔 때 Router Cache 키가 달라져 staleTimes가
+  // 안 먹고 매번 RSC 왕복(≈300~700ms)이 발생 → 그동안 useTransition 피드백(흐려짐)이
+  // 길게 남았다. history.replaceState는 Next Router와 통합되어 useSearchParams가
+  // 동기화되므로, 왕복 0회로 칩 하이라이트와 데이터가 동시에 즉시 전환된다.
+  //
+  // 안전성: 이 컴포넌트는 basePath(/dashboard)에서만 렌더되므로 같은 라우트 내 shallow routing.
+  function selectBucket(bucketId: string) {
+    window.history.replaceState(null, "", `${basePath}?bucket=${bucketId}`);
+  }
 
   // 활성 칩 자동 scrollIntoView — 모바일 가로 스크롤에서 선택된 칩이 화면 밖에 있어도 보이게.
   const activeChipRef = useRef<HTMLButtonElement | null>(null);
@@ -80,20 +89,15 @@ export function BucketSwitcher({
             ref={isCurrent ? activeChipRef : null}
             type="button"
             onClick={() => {
-              if (isCurrent || isSwitching) return;
-              startSwitch(() => {
-                router.replace(`${basePath}?bucket=${bucket.id}`);
-              });
+              if (isCurrent) return;
+              selectBucket(bucket.id);
             }}
-            disabled={isSwitching}
             aria-current={isCurrent ? "true" : undefined}
-            aria-busy={isSwitching && !isCurrent}
             className={cn(
               "inline-flex min-h-[36px] shrink-0 items-center whitespace-nowrap rounded-full border px-3 text-xs transition-all",
               isCurrent
                 ? "border-foreground bg-foreground text-background"
                 : "border-foreground/20 text-foreground hover:bg-foreground/5",
-              isSwitching && !isCurrent && "opacity-50",
             )}
           >
             {bucket.title}

@@ -18,8 +18,9 @@
 //   (IA v2 목표 5: /actions 폐기로 사실상 /dashboard 단일.)
 // - /profile, /review 같은 글로벌 라우트에서는 숨김 — 버킷 전환의 결과 화면이 모호하기 때문.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { readLastViewedBucketCookie } from "@/hooks/use-track-last-viewed-bucket";
 import { BucketSwitcher } from "@/components/navigation/bucket-switcher";
 import { ExploreNewSceneSheet } from "@/components/dashboard/explore-new-scene-sheet";
 import { useToast } from "@/components/ui/toast";
@@ -58,15 +59,26 @@ export function MainNavBar({
     return match ?? null;
   }, [pathname]);
 
+  // 쿠키는 **클라이언트에서** 읽는다. 서버가 읽은 prop은 요청 시점에 박제되는데,
+  // 버킷 전환이 shallow routing이라 레이아웃이 재렌더되지 않아 세션 내내 낡는다.
+  // 그 낡은 값으로 해석하면 DashboardLoader(클라 쿠키 기준)와 서로 다른 버킷을 가리킨다.
+  // prop은 SSR 첫 페인트 시드로만 쓰고(하이드레이션 불일치 방지), 마운트 후 실제 쿠키로 교체.
+  const [clientCookieBucketId, setClientCookieBucketId] = useState<string | null>(null);
+  useEffect(() => {
+    setClientCookieBucketId(readLastViewedBucketCookie());
+  }, [searchParams, buckets]);
+
+  const effectiveCookieBucketId = clientCookieBucketId ?? cookieSelectedBucketId;
+
   // URL > cookie > buckets[0]
   const selectedBucketId = useMemo(() => {
     const urlBucket = searchParams.get("bucket");
     if (urlBucket && buckets.some((b) => b.id === urlBucket)) return urlBucket;
-    if (cookieSelectedBucketId && buckets.some((b) => b.id === cookieSelectedBucketId)) {
-      return cookieSelectedBucketId;
+    if (effectiveCookieBucketId && buckets.some((b) => b.id === effectiveCookieBucketId)) {
+      return effectiveCookieBucketId;
     }
     return buckets[0]?.id ?? null;
-  }, [searchParams, buckets, cookieSelectedBucketId]);
+  }, [searchParams, buckets, effectiveCookieBucketId]);
 
   if (!basePath) return null;
 
