@@ -9,7 +9,6 @@ import {
   getTodosForDate,
   getStridePlan,
 } from "@/lib/dashboard";
-import { getTodayDateString } from "@/lib/todos/repeat";
 import {
   generateSingleNextStep,
   regenerateSingleStride,
@@ -35,6 +34,7 @@ import type {
   StrideTitleHistoryEntry,
   TodoRepeatInput,
   TodoRepeatType,
+  TodoWithCompletion,
 } from "@/types";
 
 function toClientErrorMessage(error: unknown, fallback: string): string {
@@ -98,13 +98,24 @@ export async function fetchDashboardDataAction(
   const selectedBucket =
     (selectedBucketId && buckets.find((b) => b.id === selectedBucketId)) || null;
 
-  // Phase B: 통합 todos — 현재는 항상 오늘 기준 (Phase C에서 선택 날짜 도입)
-  const [todos, stridePlan] = await Promise.all([
-    getTodosForDate(supabase, user.id, selectedBucketId, getTodayDateString()),
-    getStridePlan(supabase, user.id, selectedBucketId),
-  ]);
+  // Phase C: todos는 날짜별 독립 쿼리(fetchTodosForDateAction)로 분리 —
+  // 날짜 전환 시 대시보드 셸(profile/buckets/stride)을 재조회하지 않는다.
+  const stridePlan = await getStridePlan(supabase, user.id, selectedBucketId);
 
-  return { profile, buckets, selectedBucket, todos, stridePlan };
+  return { profile, buckets, selectedBucket, stridePlan };
+}
+
+// 선택 날짜의 할 일 목록 (React Query queryFn — 키: ['todos', bucketId, date])
+export async function fetchTodosForDateAction(
+  bucketId: string | null,
+  dateStr: string
+): Promise<TodoWithCompletion[]> {
+  const user = await getAuthUser();
+  if (!user) throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
+  if (!DATE_RE.test(dateStr)) throw new Error("날짜 형식이 올바르지 않습니다.");
+
+  const supabase = await createClient();
+  return getTodosForDate(supabase, user.id, bucketId, dateStr);
 }
 
 function normalizeSource(source: ItemSource | undefined): ItemSource {
@@ -764,45 +775,3 @@ export async function deleteTodoAction(
   }
 }
 
-/**
- * 특정 할 일의 월별 완료 일자 조회 (달성 기록 캘린더 시트용).
- * 구 routine_completions → todo_completions. id가 이관 시 보존되어 과거 기록도 조회된다.
- */
-export async function getTodoCompletionsForMonthAction(
-  todoId: string,
-  year: number,
-  month: number
-): Promise<{ success: boolean; dates?: string[]; error?: string }> {
-  try {
-    const { supabase, userId } = await getAuthContext();
-
-    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
-      throw new Error("조회 기간이 올바르지 않습니다.");
-    }
-
-    const start = `${year}-${String(month).padStart(2, "0")}-01`;
-    const nextMonth = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
-
-    const { data, error } = await supabase
-      .from("todo_completions")
-      .select("completion_date")
-      .eq("user_id", userId)
-      .eq("todo_id", todoId)
-      .gte("completion_date", start)
-      .lt("completion_date", nextMonth);
-
-    if (error) throw error;
-
-    return {
-      success: true,
-      dates: ((data as Array<{ completion_date: string }> | null) ?? []).map(
-        (row) => row.completion_date
-      ),
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: toClientErrorMessage(error, "달성 기록을 불러오지 못했습니다."),
-    };
-  }
-}

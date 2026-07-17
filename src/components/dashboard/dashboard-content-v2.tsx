@@ -3,11 +3,10 @@
 import { useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { CalendarSection } from "@/components/dashboard/calendar-section";
 import { DirectionSection } from "@/components/dashboard/direction-section";
-import { ExecutionPlanSection } from "@/components/dashboard/execution-plan-section";
 import { InsightSection } from "@/components/dashboard/insight-section";
 import { LifeClockHeader } from "@/components/dashboard/life-clock-header";
-import { RoutineCalendarSheet } from "@/components/dashboard/routine-calendar-sheet";
 import { RepeatOptionsSheet } from "@/components/dashboard/repeat-options-sheet";
 import { KeyboardAccessoryInput } from "@/components/ui/keyboard-accessory-input";
 import { useToast } from "@/components/ui/toast";
@@ -20,9 +19,10 @@ import {
   updateStrideItemAction,
 } from "@/app/(main)/dashboard/actions";
 import { useTrackLastViewedBucket } from "@/hooks/use-track-last-viewed-bucket";
+import { useTodos } from "@/hooks/use-todos";
 import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { FEATURE_NAMES } from "@/lib/constants";
-import { formatRepeatInputLabel, getTodayDateString } from "@/lib/todos/repeat";
+import { formatRepeatInputLabel, getTodayDateString, parseDateString } from "@/lib/todos/repeat";
 import type {
   DashboardV2Data,
   StrideItem,
@@ -67,15 +67,24 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [repeatSheetOpen, setRepeatSheetOpen] = useState(false);
   const [selectedRepeat, setSelectedRepeat] = useState<TodoRepeatInput | null>(null);
 
-  // DirectionSection / ExecutionPlanSection prop 호환용 (AI 재생성 제거로 항상 null)
+  // DirectionSection prop 호환용 (AI 재생성 제거로 항상 null)
   const regeneratingLevel: StrideLevel | null = null;
-  // 달성 기록 캘린더 시트 (반복 있는 할 일)
-  const [calendarTodo, setCalendarTodo] = useState<TodoWithCompletion | null>(null);
 
-  // Optimistic UI: 토글 즉시 반영, 실패 시 자동 rollback (통합 todos 단일 리스트)
+  // Phase C: 캘린더 선택 날짜 (기본 오늘). 날짜별 todos는 독립 쿼리 —
+  // 방문했던 날짜는 캐시로 즉시 표시된다 (['todos', bucketId, date]).
+  const [selectedDate, setSelectedDate] = useState(() => getTodayDateString());
+  const { data: todosData, isLoading: isLoadingTodos } = useTodos(
+    data.selectedBucket?.id ?? null,
+    selectedDate
+  );
+  const todos = useMemo(() => todosData ?? [], [todosData]);
+
+  const invalidateTodos = () => queryClient.invalidateQueries({ queryKey: ["todos"] });
+
+  // Optimistic UI: 토글 즉시 반영, 실패 시 자동 rollback
   const [, startTransition] = useTransition();
   const [optimisticTodos, applyOptimisticTodo] = useOptimistic(
-    data.todos,
+    todos,
     (state: TodoWithCompletion[], todoId: string) =>
       state.map((t) =>
         t.id === todoId ? { ...t, is_completed: !t.is_completed } : t
@@ -160,7 +169,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     if (!bucketId || isGeneratingAI) return;
     setIsGeneratingAI(true);
     try {
-      const existingTitles = data.todos.map((t) => t.title);
+      const existingTitles = todos.map((t) => t.title);
       const result = await generateNextStepPreviewAction(bucketId, "daily_todo", existingTitles);
       if (result.success && result.data) {
         setInputValue(result.data.title);
@@ -185,10 +194,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     setIsSubmittingInput(true);
     try {
       if (inputMode.type === "add") {
-        // Phase B: 통합 todos — 반복 선택 시 루틴이 된다 (기준일 = 오늘)
+        // Phase C: 기준일 = 캘린더 선택 날짜 (기본 오늘). 반복 선택 시 루틴이 된다.
         const result = await addTodoAction(bucketId, {
           title: value,
-          scheduledDate: getTodayDateString(),
+          scheduledDate: selectedDate,
           repeat: selectedRepeat,
           source: "manual",
         });
@@ -197,32 +206,34 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           return;
         }
         setSelectedRepeat(null);
+        setInputMode(null);
+        invalidateTodos();
       } else {
         const result = await updateStrideItemAction(bucketId, inputMode.stride.level, value);
         if (!result.success) {
           toast(result.error ?? "수정에 실패했어요.", "error");
           return;
         }
+        setInputMode(null);
+        invalidateDashboard();
       }
-      setInputMode(null);
-      invalidateDashboard();
     } finally {
       setIsSubmittingInput(false);
     }
   }
 
-  // 할 일 완료 토글 — useOptimistic 즉시 반영 (통합: 반복 여부 무관 날짜 단위)
+  // 할 일 완료 토글 — useOptimistic 즉시 반영 (선택 날짜 단위)
   function handleToggleTodo(todoId: string) {
     startTransition(async () => {
       applyOptimisticTodo(todoId);
-      const result = await toggleTodoCompletionAction(todoId, getTodayDateString());
+      const result = await toggleTodoCompletionAction(todoId, selectedDate);
       if (!result.success) {
         toast(result.error ?? "상태 변경에 실패했어요.", "error");
       }
-      // 회고 통계(action_logs)도 영향 → 무효화. 대시보드는 await로 base 갱신을 기다려
+      // 회고 통계(action_logs)도 영향 → 무효화. todos는 await로 base 갱신을 기다려
       // optimistic 값이 깜빡이지 않게 한다.
       queryClient.invalidateQueries({ queryKey: ["review"] });
-      await invalidateDashboard();
+      await invalidateTodos();
     });
   }
 
@@ -230,11 +241,20 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   async function handleDeleteTodo(todo: TodoWithCompletion) {
     const result = await deleteTodoAction(todo.id);
     if (result.success) {
-      invalidateDashboard();
+      invalidateTodos();
     } else {
       toast(result.error ?? "할 일 삭제에 실패했어요.", "error");
     }
   }
+
+  // 캘린더 헤더의 이번달 발걸음 (수정 진입 대상)
+  const thisMonthStride = useMemo(
+    () =>
+      strideGroups.execution.find((item) => item.level === "this_month") ??
+      strideGroups.execution[0] ??
+      null,
+    [strideGroups]
+  );
 
   // PR 34: 전체 발걸음 재생성 삭제. Phase A: 수정 시 AI 재생성도 제거(텍스트 수정만).
 
@@ -254,15 +274,16 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             onEditLevel={handleEditOpen}
             regeneratingLevel={regeneratingLevel}
           />
-          <ExecutionPlanSection
-            items={strideGroups.execution}
-            // Phase B: 통합 todos — Optimistic 토글 즉시 반영
+          {/* Phase C: 캘린더 섹션 — 주↔월 전환 + 날짜 탭 + 진행중/완료 상하 구분 */}
+          <CalendarSection
+            thisMonthStride={thisMonthStride}
+            onEditThisMonth={handleEditOpen}
             todos={optimisticTodos}
-            onEditLevel={handleEditOpen}
+            isLoadingTodos={isLoadingTodos}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
             onToggleTodo={handleToggleTodo}
             onDeleteTodo={handleDeleteTodo}
-            onOpenTodoCalendar={(todo) => setCalendarTodo(todo)}
-            regeneratingLevel={regeneratingLevel}
             onDeleteBucket={data.selectedBucket ? handleDeleteBucket : undefined}
             isDeletingBucket={isDeletingBucket}
           />
@@ -295,7 +316,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         placeholder={
           inputMode?.type === "edit"
             ? `${inputMode.stride.label} 내용을 수정하세요`
-            : "할 일을 입력하세요"
+            : selectedDate === getTodayDateString()
+              ? "할 일을 입력하세요"
+              : `${parseDateString(selectedDate).getMonth() + 1}월 ${parseDateString(selectedDate).getDate()}일의 할 일을 입력하세요`
         }
         submitLabel={inputMode?.type === "edit" ? "저장" : "추가"}
         isSubmitting={isSubmittingInput}
@@ -331,21 +354,13 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         }
       />
 
-      {/* [반복] 옵션 시트 — 선택 시 할 일이 루틴이 된다 */}
+      {/* [반복] 옵션 시트 — 기준일은 캘린더 선택 날짜. 선택 시 할 일이 루틴이 된다 */}
       <RepeatOptionsSheet
         open={repeatSheetOpen}
         onClose={() => setRepeatSheetOpen(false)}
-        baseDate={getTodayDateString()}
+        baseDate={selectedDate}
         selected={selectedRepeat}
         onSelect={setSelectedRepeat}
-      />
-
-      {/* 반복 있는 할 일 달성 기록 캘린더 시트 */}
-      <RoutineCalendarSheet
-        open={calendarTodo !== null}
-        onClose={() => setCalendarTodo(null)}
-        routineId={calendarTodo?.id ?? null}
-        routineTitle={calendarTodo?.title ?? null}
       />
     </div>
   );

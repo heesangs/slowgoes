@@ -460,8 +460,7 @@ export interface DashboardV2Data {
   // PR 27: selectedBucket은 buckets에서 추출 가능 (별도 RTT 절약).
   // 컴포넌트가 id/title만 쓰므로 Pick으로 충분.
   selectedBucket: Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at"> | null;
-  /** Phase B: 투두/루틴 통합 — 선택 날짜(현재는 오늘) 기준 할 일 목록 */
-  todos: TodoWithCompletion[];
+  // Phase C: todos는 날짜별 독립 쿼리(useTodos)로 분리됨
   stridePlan: StridePlan | null;
   // legacy 필드 (점진 전환)
   dailyStep?: TaskWithSubtasks | null;
