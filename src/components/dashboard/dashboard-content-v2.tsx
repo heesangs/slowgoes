@@ -8,14 +8,17 @@ import { ExecutionPlanSection } from "@/components/dashboard/execution-plan-sect
 import { InsightSection } from "@/components/dashboard/insight-section";
 import { LifeClockHeader } from "@/components/dashboard/life-clock-header";
 import { RoutineCalendarSheet } from "@/components/dashboard/routine-calendar-sheet";
-import { StepSheet, type StepSheetMode } from "@/components/dashboard/step-sheet";
+import { KeyboardAccessoryInput } from "@/components/ui/keyboard-accessory-input";
 import { useToast } from "@/components/ui/toast";
 import {
+  applyNextStepAction,
   deactivateRoutineAction,
   deleteBucketAction,
   deleteDailyTodoAction,
+  generateNextStepPreviewAction,
   toggleDailyTodoAction,
   toggleRoutineCompletionAction,
+  updateStrideItemAction,
 } from "@/app/(main)/dashboard/actions";
 import { useTrackLastViewedBucket } from "@/hooks/use-track-last-viewed-bucket";
 import { splitStridesByGroup } from "@/lib/ai/analyze";
@@ -47,21 +50,20 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   // PR 31: 현재 보고 있는 버킷을 cookie에 기록 (로고 클릭 시 복귀에 사용)
   useTrackLastViewedBucket(data.selectedBucket?.id ?? null);
 
-  // IA v2 목표 4: NextStepSheet + EditWithAISheet → 단일 StepSheet 통합.
-  //   진입점이 시트의 초기 segment + AI toggle 기본값을 결정한다.
-  //   - FAB           → initialMode="next-step", editingStride=null, defaultAIEnabled=false
-  //   - 카드 ⋮ "추가"  → initialMode="next-step", editingStride=null, defaultAIEnabled=true
-  //   - 카드 ⋮ "수정"  → initialMode="edit-with-ai", editingStride=item, defaultAIEnabled=true
-  //   "새 장면 추가"는 헤더 BucketSwitcher의 + 칩이 단일 진입점 (IA v2 목표 1·3).
-  const [stepSheetOpen, setStepSheetOpen] = useState(false);
-  const [stepSheetInitialMode, setStepSheetInitialMode] =
-    useState<StepSheetMode>("next-step");
-  const [stepSheetEnableAI, setStepSheetEnableAI] = useState(true);
-  // 발걸음 카드 ⋮ "수정" 진입 컨텍스트. null이면 next-step 단독 모드.
-  const [editingStride, setEditingStride] = useState<StrideItem | null>(null);
+  // 할일 추가/발걸음 수정 — 키보드 상단 입력창(Input Accessory View) 단일 패턴.
+  //   - FAB(+)      → mode="add": 직접 입력 + [AI] 버튼만 (투두로 저장)
+  //   - 카드 ⋮ 수정 → mode="edit": 해당 발걸음 타이틀 텍스트만 수정
+  //   StepSheet(구 763줄)은 이 패턴으로 대체되어 삭제됨.
+  const [inputMode, setInputMode] = useState<
+    | { type: "add" }
+    | { type: "edit"; stride: StrideItem }
+    | null
+  >(null);
+  const [inputValue, setInputValue] = useState("");
+  const [isSubmittingInput, setIsSubmittingInput] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
-  // 발걸음 재생성 진행 상태는 StepSheet 내부에서 관리 — 부모는 더 이상 추적할 필요 없음.
-  // 단, DirectionSection / ExecutionPlanSection은 prop으로 받아야 하므로 null 고정.
+  // DirectionSection / ExecutionPlanSection prop 호환용 (AI 재생성 제거로 항상 null)
   const regeneratingLevel: StrideLevel | null = null;
   // PR 22 — 루틴 캘린더 시트 상태
   const [calendarRoutine, setCalendarRoutine] = useState<RoutineWithCompletion | null>(null);
@@ -145,13 +147,73 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     }
   }, [fetchError, toast]);
 
-  // 카드 ⋮ "수정" 클릭 → StepSheet을 edit 모드로 진입.
-  // 왜: StepSheet 내부에서 update/regenerate 액션을 모두 처리하므로 부모는 컨텍스트만 set.
+  // 카드 ⋮ "수정" → 키보드 입력창(타이틀 프리필, 텍스트만 수정)
   function handleEditOpen(item: StrideItem) {
-    setEditingStride(item);
-    setStepSheetInitialMode("edit-with-ai");
-    setStepSheetEnableAI(true);
-    setStepSheetOpen(true);
+    setInputValue(item.action);
+    setInputMode({ type: "edit", stride: item });
+  }
+
+  // FAB(+) → 키보드 입력창 (직접 입력 + AI)
+  function handleAddOpen() {
+    if (!data.selectedBucket?.id) {
+      toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
+      return;
+    }
+    setInputValue("");
+    setInputMode({ type: "add" });
+  }
+
+  // [AI] 버튼 — 추천 타이틀을 입력창에 채움(사용자가 수정 후 확정)
+  async function handleGenerateAI() {
+    const bucketId = data.selectedBucket?.id;
+    if (!bucketId || isGeneratingAI) return;
+    setIsGeneratingAI(true);
+    try {
+      const existingTitles = data.dailyTodos.map((t) => t.title);
+      const result = await generateNextStepPreviewAction(bucketId, "daily_todo", existingTitles);
+      if (result.success && result.data) {
+        setInputValue(result.data.title);
+      } else {
+        toast(result.error ?? "AI 추천에 실패했어요.", "error");
+      }
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  }
+
+  async function handleInputSubmit(value: string) {
+    const bucketId = data.selectedBucket?.id;
+    if (!inputMode || !bucketId || isSubmittingInput) return;
+
+    // 수정인데 변경이 없으면 서버 호출 없이 닫기 (dirty 체크)
+    if (inputMode.type === "edit" && value === inputMode.stride.action.trim()) {
+      setInputMode(null);
+      return;
+    }
+
+    setIsSubmittingInput(true);
+    try {
+      if (inputMode.type === "add") {
+        const result = await applyNextStepAction(bucketId, {
+          daily: { title: value, strideLevel: "this_month" },
+          routine: null,
+        });
+        if (!result.success) {
+          toast(result.error ?? "추가에 실패했어요.", "error");
+          return;
+        }
+      } else {
+        const result = await updateStrideItemAction(bucketId, inputMode.stride.level, value);
+        if (!result.success) {
+          toast(result.error ?? "수정에 실패했어요.", "error");
+          return;
+        }
+      }
+      setInputMode(null);
+      invalidateDashboard();
+    } finally {
+      setIsSubmittingInput(false);
+    }
   }
 
   // PR 25 — 실행계획 카드 안 투두 토글: useOptimistic으로 즉시 반영
@@ -182,8 +244,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     });
   }
 
-  // PR 34: 전체 발걸음 재생성 함수(handleRegenerateAll) 삭제 — UX 단순화.
-  //   단일 발걸음 재생성은 StepSheet(edit-with-ai) 내부의 AI 생성 버튼이 담당.
+  // PR 34: 전체 발걸음 재생성 삭제. Phase A: 수정 시 AI 재생성도 제거(텍스트 수정만).
 
   return (
     <div className="flex flex-col gap-4 pb-24">
@@ -217,18 +278,22 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             // 빠른 연속 클릭은 useTransition이 자동 큐잉.
             togglingTodoId={null}
             togglingRoutineId={null}
-            onAddToLevel={(item) => {
-              if (!data.selectedBucket?.id) {
-                toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
-                return;
+            // 행 단위 삭제/비활성 — 구 StepSheet 삭제 섹션을 행 ⋮ 메뉴로 이관
+            onDeleteTodo={async (id) => {
+              const r = await deleteDailyTodoAction(id);
+              if (r.success) {
+                invalidateDashboard();
+              } else {
+                toast(r.error ?? `${FEATURE_NAMES.DAILY_TODO} 삭제에 실패했어요.`, "error");
               }
-              // 실행계획은 PR 18 이후 this_month 1개로 단순화 → 카드 level별 분기 없음.
-              // 카드 ⋮ "추가"는 AI 옵션 ON 유지 (기존 PR 35 동작 보존).
-              void item;
-              setEditingStride(null);
-              setStepSheetInitialMode("next-step");
-              setStepSheetEnableAI(true);
-              setStepSheetOpen(true);
+            }}
+            onDeactivateRoutine={async (id) => {
+              const r = await deactivateRoutineAction(id);
+              if (r.success) {
+                invalidateDashboard();
+              } else {
+                toast(r.error ?? `${FEATURE_NAMES.ROUTINE} 비활성화에 실패했어요.`, "error");
+              }
             }}
             onDeleteBucket={data.selectedBucket ? handleDeleteBucket : undefined}
             isDeletingBucket={isDeletingBucket}
@@ -242,68 +307,43 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         </p>
       )}
 
-      {/* FAB — IA v2 목표 1·4: 항상 StepSheet을 next-step 모드로 진입.
-          AI toggle은 기본 OFF (PR 35 직접 입력 폼 의도 유지), 사용자가 시트 안에서 켤 수 있음.
-          버킷 0개 빈 상태는 StepSheet 내부 가드가 담당. */}
+      {/* FAB(+) — 키보드 상단 입력창으로 할 일 추가 (직접 입력 + AI) */}
       <button
         type="button"
-        onClick={() => {
-          setEditingStride(null);
-          setStepSheetInitialMode("next-step");
-          setStepSheetEnableAI(false);
-          setStepSheetOpen(true);
-        }}
+        onClick={handleAddOpen}
         className="fixed bottom-6 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-2xl text-background shadow-lg transition-opacity hover:opacity-90"
         aria-label={FEATURE_NAMES.STEP_MORE}
       >
         +
       </button>
 
-      {/* IA v2 목표 4 — 통합 StepSheet (단일 depth).
-          NextStepSheet(3단계) + EditWithAISheet(단독)를 흡수한 단일 진입점. */}
-      <StepSheet
-        open={stepSheetOpen}
-        onClose={() => {
-          setStepSheetOpen(false);
-          setEditingStride(null);
-        }}
-        initialMode={stepSheetInitialMode}
-        bucketId={data.selectedBucket?.id ?? null}
-        onApplied={() => invalidateDashboard()}
-        editingStride={editingStride}
-        editHistory={
-          editingStride
-            ? (data.stridePlan?.title_history?.[editingStride.level] ?? []).map(
-                (entry) => entry.title
-              )
-            : undefined
+      {/* 키보드 상단 입력창 — 추가/수정 공용 (Input Accessory View 패턴) */}
+      <KeyboardAccessoryInput
+        open={inputMode !== null}
+        onClose={() => setInputMode(null)}
+        onSubmit={handleInputSubmit}
+        value={inputValue}
+        onValueChange={setInputValue}
+        placeholder={
+          inputMode?.type === "edit"
+            ? `${inputMode.stride.label} 내용을 수정하세요`
+            : "할 일을 입력하세요"
         }
-        // this_month 카드에서만 의미 — StepSheet 내부에서도 한 번 더 가드하지만 데이터 양 자체를 줄여 전송.
-        editTodos={
-          editingStride?.level === "this_month"
-            ? optimisticDailyTodos.filter((t) => t.stride_level === "this_month")
-            : []
+        submitLabel={inputMode?.type === "edit" ? "저장" : "추가"}
+        isSubmitting={isSubmittingInput}
+        rightActions={
+          inputMode?.type === "add" ? (
+            <button
+              type="button"
+              onClick={handleGenerateAI}
+              disabled={isGeneratingAI}
+              aria-label="AI 추천 받기"
+              className="shrink-0 rounded-lg border border-foreground/20 px-3 py-2 text-sm text-foreground transition-colors hover:bg-foreground/5 disabled:opacity-50"
+            >
+              {isGeneratingAI ? "…" : "AI"}
+            </button>
+          ) : undefined
         }
-        editRoutines={editingStride?.level === "this_month" ? optimisticRoutines : []}
-        onDeleteTodo={async (id) => {
-          const r = await deleteDailyTodoAction(id);
-          if (r.success) {
-            toast(`${FEATURE_NAMES.DAILY_TODO}을 삭제했어요.`, "success");
-            invalidateDashboard();
-          } else {
-            toast(r.error ?? `${FEATURE_NAMES.DAILY_TODO} 삭제에 실패했어요.`, "error");
-          }
-        }}
-        onDeactivateRoutine={async (id) => {
-          const r = await deactivateRoutineAction(id);
-          if (r.success) {
-            toast(`${FEATURE_NAMES.ROUTINE}을 비활성화했어요.`, "success");
-            invalidateDashboard();
-          } else {
-            toast(r.error ?? `${FEATURE_NAMES.ROUTINE} 비활성화에 실패했어요.`, "error");
-          }
-        }}
-        defaultAIEnabled={stepSheetEnableAI}
       />
 
       {/* PR 22: 루틴 달성 캘린더 시트 */}

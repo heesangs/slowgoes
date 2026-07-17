@@ -61,10 +61,12 @@ interface ExecutionPlanSectionProps {
   dailyTodos: DailyTodo[];
   /** PR 20: 현재 버킷의 모든 루틴. this_month 카드에만 표시. */
   routines: RoutineWithCompletion[];
-  /** "수정" 클릭 → StepSheet(edit-with-ai) 진입 */
+  /** "수정" 클릭 → 키보드 입력창(타이틀 수정) 진입 */
   onEditLevel: (item: StrideItem) => void;
-  /** "추가" 클릭 → 한걸음 더 흐름과 연결 (PR 12) */
-  onAddToLevel?: (item: StrideItem) => void;
+  /** 행 ⋮ "삭제" — 투두 삭제 (구 StepSheet 삭제 섹션 이관) */
+  onDeleteTodo: (todoId: string) => void;
+  /** 행 ⋮ "비활성화" — 루틴 비활성 (달성 기록 보존) */
+  onDeactivateRoutine: (routineId: string) => void;
   /** PR 10: 투두 클릭 → 완료 토글 */
   onToggleTodo: (todoId: string) => void;
   /** PR 20: 루틴 좌측 체크박스 클릭 → 완료 토글 (PR 22: 일 단위로 변경) */
@@ -101,7 +103,8 @@ export function ExecutionPlanSection({
   dailyTodos,
   routines,
   onEditLevel,
-  onAddToLevel,
+  onDeleteTodo,
+  onDeactivateRoutine,
   onToggleTodo,
   onToggleRoutine,
   onOpenRoutineCalendar,
@@ -218,6 +221,7 @@ export function ExecutionPlanSection({
                     <span className="text-[10px] text-foreground/40">{periodLabel}</span>
                   )}
                 </div>
+                {/* "추가" 메뉴 제거 — 우하단 (+) FAB와 중복이라 단일 진입점으로 통일 */}
                 <MoreActionsMenu
                   ariaLabel={`${item.label} 더보기`}
                   actions={[
@@ -225,11 +229,6 @@ export function ExecutionPlanSection({
                       label: "수정",
                       onClick: () => onEditLevel(item),
                       disabled: busy,
-                    },
-                    {
-                      label: "추가",
-                      onClick: () => onAddToLevel?.(item),
-                      disabled: busy || !onAddToLevel,
                     },
                   ]}
                 />
@@ -243,7 +242,7 @@ export function ExecutionPlanSection({
                     const isCompleted = todo.status === "completed";
                     const isToggling = togglingTodoId === todo.id;
                     return (
-                      <li key={todo.id}>
+                      <li key={todo.id} className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => onToggleTodo(todo.id)}
@@ -251,7 +250,7 @@ export function ExecutionPlanSection({
                           aria-pressed={isCompleted}
                           aria-label={`${todo.title} ${isCompleted ? "완료 취소" : "완료"}`}
                           className={cn(
-                            "flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm transition-colors",
+                            "flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm transition-colors",
                             "hover:bg-foreground/5 disabled:opacity-60",
                             isCompleted && "text-foreground/45"
                           )}
@@ -271,8 +270,24 @@ export function ExecutionPlanSection({
                               </svg>
                             )}
                           </span>
-                          <span className={cn("flex-1", isCompleted && "line-through")}>{todo.title}</span>
+                          <span className={cn("min-w-0 flex-1 truncate", isCompleted && "line-through")}>{todo.title}</span>
                         </button>
+                        {/* 구 StepSheet 삭제 섹션 이관 — 행에서 바로 삭제 */}
+                        <MoreActionsMenu
+                          ariaLabel={`${todo.title} 관리`}
+                          align="right"
+                          actions={[
+                            {
+                              label: "삭제",
+                              onClick: () => {
+                                if (window.confirm(`'${todo.title}'을(를) 삭제할까요?`)) {
+                                  onDeleteTodo(todo.id);
+                                }
+                              },
+                              variant: "danger",
+                            },
+                          ]}
+                        />
                       </li>
                     );
                   })}
@@ -350,6 +365,27 @@ export function ExecutionPlanSection({
                               🔁 {meta}
                             </p>
                           </button>
+
+                          {/* 구 StepSheet 삭제 섹션 이관 — 행에서 바로 비활성화 */}
+                          <MoreActionsMenu
+                            ariaLabel={`${routine.title} 관리`}
+                            align="right"
+                            actions={[
+                              {
+                                label: "비활성화",
+                                onClick: () => {
+                                  if (
+                                    window.confirm(
+                                      `'${routine.title}'을(를) 비활성화할까요?\n과거 달성 기록은 보존돼요.`
+                                    )
+                                  ) {
+                                    onDeactivateRoutine(routine.id);
+                                  }
+                                },
+                                variant: "danger",
+                              },
+                            ]}
+                          />
                         </div>
                       </li>
                     );
