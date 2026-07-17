@@ -28,4 +28,16 @@ export function useTrackLastViewedBucket(bucketId: string | null) {
   }, [bucketId]);
 }
 
+// 클라이언트에서 쿠키를 직접 읽는다 (SSR에선 null).
+//
+// 왜 필요한가: 서버가 읽은 값(prop)은 **요청 시점에 박제**된다. 쿠키는 렌더 후
+// 클라이언트가 쓰고(useTrackLastViewedBucket), 버킷 전환이 shallow routing이라
+// 레이아웃이 재렌더되지 않으므로 서버 prop은 세션 내내 낡는다.
+// → 소비자들이 이 함수로 같은 값을 읽어야 해석이 갈리지 않는다.
+export function readLastViewedBucketCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp("(?:^|; )" + COOKIE_NAME + "=([^;]*)"));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export const LAST_VIEWED_BUCKET_COOKIE_NAME = COOKIE_NAME;
