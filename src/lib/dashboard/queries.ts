@@ -1,16 +1,15 @@
 import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getCurrentWeekStartDate } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { occursOn } from "@/lib/todos/repeat";
 import type {
   Bucket,
-  DailyTodo,
   StridePlan,
   LifeBalanceInsight,
   LifeArea,
   Profile,
-  RoutineCompletion,
-  RoutineWithCompletion,
+  Todo,
+  TodoWithCompletion,
 } from "@/types";
 
 type DashboardSupabase = SupabaseClient;
@@ -132,63 +131,24 @@ export async function getSelectedBucket(
   }
 }
 
-export async function getDailyTodos(
+// Phase B: 투두/루틴 통합 — 선택 날짜의 할 일 목록 (완료 여부 포함).
+//
+// 표시 규칙:
+//   - 반복 있음: occursOn(date) 발생일에 표시. 완료 = 그 날짜의 completion 존재
+//   - 반복 없음: scheduled_date 당일 표시. 단, 미완료인 채 지난 할 일은
+//     오늘 뷰로 이월(overdue rollover — 완료 전까지 사라지지 않게)
+//     완료 = completion 존재(1회성이므로 어느 날짜든)
+export async function getTodosForDate(
   supabase: DashboardSupabase,
   userId: string,
-  bucketId: string | null
-): Promise<DailyTodo[]> {
+  bucketId: string | null,
+  dateStr: string
+): Promise<TodoWithCompletion[]> {
   if (!bucketId) return [];
 
-  const weekStart = getCurrentWeekStartDate();
-
   try {
-    const { data, error } = await supabase
-      .from("daily_todos")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("bucket_id", bucketId)
-      .eq("week_start", weekStart)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      throw error;
-    }
-
-    return (data as DailyTodo[] | null) ?? [];
-  } catch (error) {
-    throw toClientError(error, "데일리투두를 불러오지 못했습니다.");
-  }
-}
-
-// PR 22: 오늘 날짜를 "YYYY-MM-DD" 로컬 기준
-function getTodayDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export async function getRoutinesWithCompletions(
-  supabase: DashboardSupabase,
-  userId: string,
-  bucketId: string | null
-): Promise<RoutineWithCompletion[]> {
-  if (!bucketId) return [];
-
-  const today = getTodayDateString();
-  const weekStart = getCurrentWeekStartDate();
-
-  try {
-    // PR 32: routines 먼저 조회 → 그 ID들로만 completions 조회 (bucket-scoped).
-    // 기존: completions를 전체 사용자 범위로 조회 후 메모리에서 routine_id 필터.
-    //   → 사용자의 다른 버킷 루틴 완료까지 매번 전송 받음.
-    // 변경 후: 현재 버킷의 active routines에 해당하는 완료만 조회.
-    //   parallel → sequential로 바뀌어 RTT +1번 추가되지만, 페이로드/DB 부하 절감.
-    //   루틴이 없으면 두번째 쿼리 자체를 스킵 (RTT 0번).
-    const routinesResult = await supabase
-      .from("routines")
+    const todosResult = await supabase
+      .from("todos")
       .select("*")
       .eq("user_id", userId)
       .eq("bucket_id", bucketId)
@@ -196,46 +156,62 @@ export async function getRoutinesWithCompletions(
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true });
 
-    if (routinesResult.error) throw routinesResult.error;
+    if (todosResult.error) throw todosResult.error;
 
-    const routines = (routinesResult.data as RoutineWithCompletion[] | null) ?? [];
-    if (routines.length === 0) return [];
+    const todos = (todosResult.data as Todo[] | null) ?? [];
+    if (todos.length === 0) return [];
 
-    const routineIds = routines.map((r) => r.id);
-    // PR 22: 일 단위로 변경됐지만 "이번 주에 한 번이라도" 정보도 유지
-    // → 이번 주 범위 내 완료 모두 조회 후 today / week 분리
-    const completionsResult = await supabase
-      .from("routine_completions")
-      .select("*")
-      .eq("user_id", userId)
-      .in("routine_id", routineIds)
-      .gte("completion_date", weekStart);
+    const repeatingIds = todos.filter((t) => t.repeat_type).map((t) => t.id);
+    const onceIds = todos.filter((t) => !t.repeat_type).map((t) => t.id);
 
-    if (completionsResult.error) throw completionsResult.error;
+    // 반복: 해당 날짜의 완료만 / 1회성: 어느 날짜든 완료 여부
+    const [dateCompletionsResult, onceCompletionsResult] = await Promise.all([
+      repeatingIds.length > 0
+        ? supabase
+            .from("todo_completions")
+            .select("todo_id")
+            .eq("user_id", userId)
+            .eq("completion_date", dateStr)
+            .in("todo_id", repeatingIds)
+        : Promise.resolve({ data: [], error: null }),
+      onceIds.length > 0
+        ? supabase
+            .from("todo_completions")
+            .select("todo_id")
+            .eq("user_id", userId)
+            .in("todo_id", onceIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
 
-    const completions = (completionsResult.data as RoutineCompletion[] | null) ?? [];
+    if (dateCompletionsResult.error) throw dateCompletionsResult.error;
+    if (onceCompletionsResult.error) throw onceCompletionsResult.error;
 
-    // 루틴별로 today 완료 / 이번 주 완료 둘 다 분류
-    const todayByRoutineId = new Map<string, RoutineCompletion>();
-    const weekByRoutineId = new Map<string, RoutineCompletion>();
-    for (const c of completions) {
-      if (c.completion_date === today) todayByRoutineId.set(c.routine_id, c);
-      // 이번 주 안 어느 날이든 한 번이라도 있으면 기록 (최근 것 우선)
-      if (!weekByRoutineId.has(c.routine_id)) weekByRoutineId.set(c.routine_id, c);
-    }
+    const completedOnDate = new Set(
+      ((dateCompletionsResult.data as Array<{ todo_id: string }> | null) ?? []).map(
+        (c) => c.todo_id
+      )
+    );
+    const completedOnce = new Set(
+      ((onceCompletionsResult.data as Array<{ todo_id: string }> | null) ?? []).map(
+        (c) => c.todo_id
+      )
+    );
 
-    return routines.map((routine) => {
-      const todayCompletion = todayByRoutineId.get(routine.id) ?? null;
-      const weekCompletion = weekByRoutineId.get(routine.id) ?? null;
-      return {
-        ...routine,
-        completion: todayCompletion ?? weekCompletion,
-        is_completed_today: Boolean(todayCompletion),
-        is_completed_this_week: Boolean(weekCompletion),
-      };
-    });
+    return todos
+      .filter((todo) => {
+        if (todo.repeat_type) return occursOn(todo, dateStr);
+        // 1회성: 당일 표시 + 미완료 이월(과거 날짜인데 아직 미완료면 오늘 뷰에 표시)
+        if (todo.scheduled_date === dateStr) return true;
+        return todo.scheduled_date < dateStr && !completedOnce.has(todo.id);
+      })
+      .map((todo) => ({
+        ...todo,
+        is_completed: todo.repeat_type
+          ? completedOnDate.has(todo.id)
+          : completedOnce.has(todo.id),
+      }));
   } catch (error) {
-    throw toClientError(error, "루틴 정보를 불러오지 못했습니다.");
+    throw toClientError(error, "할 일을 불러오지 못했습니다.");
   }
 }
 
@@ -269,7 +245,8 @@ export async function getLifeBalance(
   userId: string
 ): Promise<LifeBalanceInsight | null> {
   try {
-    const [lifeAreasResult, bucketsResult, completedDailyResult, routinesResult, routineCompletionsResult] =
+    // Phase B: 통합 todos — 완료는 todo_completions 단일 경로로 집계
+    const [lifeAreasResult, bucketsResult, todosResult, completionsResult] =
       await Promise.all([
         supabase
           .from("life_areas")
@@ -280,39 +257,29 @@ export async function getLifeBalance(
           .select("id, life_area_id, status")
           .eq("user_id", userId),
         supabase
-          .from("daily_todos")
-          .select("bucket_id, completed_at")
-          .eq("user_id", userId)
-          .eq("status", "completed")
-          .gte("completed_at", toUtcIsoDaysAgo(TWO_WEEKS_DAYS)),
-        supabase
-          .from("routines")
+          .from("todos")
           .select("id, bucket_id")
           .eq("user_id", userId),
         supabase
-          .from("routine_completions")
-          .select("routine_id, completed_at")
+          .from("todo_completions")
+          .select("todo_id, completed_at")
           .eq("user_id", userId)
           .gte("completed_at", toUtcIsoDaysAgo(TWO_WEEKS_DAYS)),
       ]);
 
     if (lifeAreasResult.error) throw lifeAreasResult.error;
     if (bucketsResult.error) throw bucketsResult.error;
-    if (completedDailyResult.error) throw completedDailyResult.error;
-    if (routinesResult.error) throw routinesResult.error;
-    if (routineCompletionsResult.error) throw routineCompletionsResult.error;
+    if (todosResult.error) throw todosResult.error;
+    if (completionsResult.error) throw completionsResult.error;
 
     const lifeAreas =
       (lifeAreasResult.data as Array<Pick<LifeArea, "id" | "name">> | null) ?? [];
     const buckets =
       (bucketsResult.data as Array<Pick<Bucket, "id" | "life_area_id" | "status">> | null) ?? [];
-    const completedDailyTodos =
-      (completedDailyResult.data as Array<{ bucket_id: string | null; completed_at: string | null }> | null) ??
-      [];
-    const routines =
-      (routinesResult.data as Array<{ id: string; bucket_id: string | null }> | null) ?? [];
-    const routineCompletions =
-      (routineCompletionsResult.data as Array<{ routine_id: string; completed_at: string | null }> | null) ??
+    const todoRows =
+      (todosResult.data as Array<{ id: string; bucket_id: string | null }> | null) ?? [];
+    const completions =
+      (completionsResult.data as Array<{ todo_id: string; completed_at: string | null }> | null) ??
       [];
 
     if (lifeAreas.length === 0 && buckets.length === 0) {
@@ -349,22 +316,13 @@ export async function getLifeBalance(
       areaStatMap.set(areaName, stat);
     }
 
-    for (const item of completedDailyTodos) {
-      if (!item.bucket_id) continue;
-      const areaName = bucketAreaMap.get(item.bucket_id);
-      if (!areaName) continue;
-      const stat = areaStatMap.get(areaName) ?? { activeBuckets: 0, completedItems: 0 };
-      stat.completedItems += 1;
-      areaStatMap.set(areaName, stat);
+    const todoBucketMap = new Map<string, string | null>();
+    for (const todo of todoRows) {
+      todoBucketMap.set(todo.id, todo.bucket_id);
     }
 
-    const routineBucketMap = new Map<string, string | null>();
-    for (const routine of routines) {
-      routineBucketMap.set(routine.id, routine.bucket_id);
-    }
-
-    for (const completion of routineCompletions) {
-      const bucketId = routineBucketMap.get(completion.routine_id) ?? null;
+    for (const completion of completions) {
+      const bucketId = todoBucketMap.get(completion.todo_id) ?? null;
       if (!bucketId) continue;
       const areaName = bucketAreaMap.get(bucketId);
       if (!areaName) continue;

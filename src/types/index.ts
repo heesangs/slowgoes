@@ -46,7 +46,55 @@ export type DailyTodoStatus = "pending" | "completed";
 export type RoutineRepeatUnit = "daily" | "weekly";
 // PR 19: 루틴 시간대 (DB CHECK 제약과 동일)
 export type RoutineTimeSlot = "morning" | "afternoon" | "evening" | "night";
-export type ActionLogItemType = "daily_todo" | "routine";
+export type ActionLogItemType = "daily_todo" | "routine" | "todo";
+
+// ── Phase B: 투두/루틴 통합 모델 ──
+// 반복 여부만 다른 하나의 "할 일". 완료는 todo_completions(일별 행)로 통일.
+// 요일 규약: 0=일 ~ 6=토 (JS getDay() = Postgres EXTRACT(DOW))
+export type TodoRepeatType = "daily" | "weekly" | "monthly" | "yearly";
+
+export interface Todo {
+  id: string;
+  user_id: string;
+  bucket_id: string | null;
+  title: string;
+  source: ItemSource;
+  /** 반복 없으면 "이 날짜의 할 일", 반복 있으면 시작 기준일 (YYYY-MM-DD) */
+  scheduled_date: string;
+  repeat_type: TodoRepeatType | null;
+  /** weekly 전용: 0(일)~6(토) 배열. 평일=[1..5], 주말=[0,6] */
+  repeat_weekdays: number[] | null;
+  /** monthly/yearly 전용: 1~31 */
+  repeat_month_day: number | null;
+  /** yearly 전용: 1~12 */
+  repeat_month: number | null;
+  /** 표시용 시간 "HH:MM:SS" (선택) */
+  scheduled_time: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface TodoCompletion {
+  id: string;
+  todo_id: string;
+  user_id: string;
+  completion_date: string;
+  completed_at: string;
+}
+
+/** 선택 날짜 기준 완료 여부가 계산된 할 일 */
+export interface TodoWithCompletion extends Todo {
+  is_completed: boolean;
+}
+
+/** 입력창 [반복] 버튼에서 선택하는 반복 규칙 */
+export interface TodoRepeatInput {
+  type: TodoRepeatType;
+  weekdays?: number[];
+  monthDay?: number;
+  month?: number;
+}
 
 export interface Profile {
   id: string;
@@ -412,8 +460,8 @@ export interface DashboardV2Data {
   // PR 27: selectedBucket은 buckets에서 추출 가능 (별도 RTT 절약).
   // 컴포넌트가 id/title만 쓰므로 Pick으로 충분.
   selectedBucket: Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at"> | null;
-  dailyTodos: DailyTodo[];
-  routines: RoutineWithCompletion[];
+  /** Phase B: 투두/루틴 통합 — 선택 날짜(현재는 오늘) 기준 할 일 목록 */
+  todos: TodoWithCompletion[];
   stridePlan: StridePlan | null;
   // legacy 필드 (점진 전환)
   dailyStep?: TaskWithSubtasks | null;
