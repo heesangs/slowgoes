@@ -6,7 +6,7 @@
 // 카드 액션 (PR 9):
 // - "↻ 다시" 버튼 → ⋮ 더보기 메뉴로 교체
 // - 메뉴 액션:
-//   - "수정" → StepSheet(edit-with-ai 모드) 진입. AI 생성은 regenerateStrideItemAction 재사용 (IA v2 목표 4).
+//   - "수정" → 키보드 상단 입력창(타이틀 텍스트만 수정) 진입.
 
 import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { FEATURE_NAMES } from "@/lib/constants";
@@ -14,7 +14,7 @@ import type { StrideItem, StrideLevel } from "@/types";
 
 interface DirectionSectionProps {
   items: StrideItem[];
-  /** "수정" 클릭 → StepSheet(edit-with-ai) 진입. dashboard-content-v2가 시트를 띄움. */
+  /** "수정" 클릭 → 키보드 입력창 진입. dashboard-content-v2가 입력창을 띄움. */
   onEditLevel: (item: StrideItem) => void;
   /** 현재 AI 재생성 진행 중인 레벨 (수정 버튼 disable용) */
   regeneratingLevel: StrideLevel | null;
