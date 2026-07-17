@@ -6,43 +6,35 @@ import { getAuthUser } from "@/lib/supabase/auth";
 import {
   getProfileForRequest,
   getUserBucketsForRequest,
-  getDailyTodos,
-  getRoutinesWithCompletions,
+  getTodosForDate,
   getStridePlan,
 } from "@/lib/dashboard";
+import { getTodayDateString } from "@/lib/todos/repeat";
 import {
-  analyzeLifeScene,
   generateSingleNextStep,
-  generateWeeklyItems,
   regenerateSingleStride,
   STRIDE_ORDER,
   STRIDE_LABELS,
   type SingleNextStepResult,
 } from "@/lib/ai/analyze";
-import { getCurrentWeekStartDate } from "@/lib/utils";
 import {
   AUTH_ERRORS,
   AI_ERRORS,
   BUCKET_ERRORS,
   TODO_ERRORS,
-  ROUTINE_ERRORS,
   STRIDE_ERRORS,
 } from "@/lib/constants";
 import type {
-  DailyTodoStrideLevel,
   DashboardV2Data,
-  Gender,
   ItemSource,
-  PersonalityType,
-  Profile,
-  RoutineRepeatUnit,
-  RoutineTimeSlot,
   StrideItem,
   StrideLevel,
   StridePlan,
   StrideScope,
   StrideTitleHistory,
   StrideTitleHistoryEntry,
+  TodoRepeatInput,
+  TodoRepeatType,
 } from "@/types";
 
 function toClientErrorMessage(error: unknown, fallback: string): string {
@@ -106,13 +98,13 @@ export async function fetchDashboardDataAction(
   const selectedBucket =
     (selectedBucketId && buckets.find((b) => b.id === selectedBucketId)) || null;
 
-  const [dailyTodos, routines, stridePlan] = await Promise.all([
-    getDailyTodos(supabase, user.id, selectedBucketId),
-    getRoutinesWithCompletions(supabase, user.id, selectedBucketId),
+  // Phase B: 통합 todos — 현재는 항상 오늘 기준 (Phase C에서 선택 날짜 도입)
+  const [todos, stridePlan] = await Promise.all([
+    getTodosForDate(supabase, user.id, selectedBucketId, getTodayDateString()),
     getStridePlan(supabase, user.id, selectedBucketId),
   ]);
 
-  return { profile, buckets, selectedBucket, dailyTodos, routines, stridePlan };
+  return { profile, buckets, selectedBucket, todos, stridePlan };
 }
 
 function normalizeSource(source: ItemSource | undefined): ItemSource {
@@ -122,370 +114,11 @@ function normalizeSource(source: ItemSource | undefined): ItemSource {
   return "manual";
 }
 
-function normalizeRepeatUnit(value: RoutineRepeatUnit | undefined): RoutineRepeatUnit {
-  return value === "daily" ? "daily" : "weekly";
-}
-
-function normalizeRepeatValue(value: number | undefined, unit: RoutineRepeatUnit): number {
-  const max = unit === "daily" ? 7 : 14;
-  return Math.max(1, Math.min(max, Math.round(value || 1)));
-}
-
-export async function toggleDailyTodoAction(todoId: string): Promise<{
-  success: boolean;
-  data?: { status: "pending" | "completed" };
-  error?: string;
-}> {
-  try {
-    const { supabase, userId } = await getAuthContext();
-
-    const { data: todo, error: todoError } = await supabase
-      .from("daily_todos")
-      .select("id, title, status, bucket_id")
-      .eq("id", todoId)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (todoError || !todo) {
-      throw new Error(TODO_ERRORS.ACCESS_DENIED);
-    }
-
-    const nextStatus = todo.status === "completed" ? "pending" : "completed";
-    const completedAt = nextStatus === "completed" ? new Date().toISOString() : null;
-
-    const { error: updateError } = await supabase
-      .from("daily_todos")
-      .update({ status: nextStatus, completed_at: completedAt })
-      .eq("id", todo.id)
-      .eq("user_id", userId);
-
-    if (updateError) {
-      throw updateError;
-    }
-
-    if (nextStatus === "completed") {
-      const { error: logError } = await supabase.from("action_logs").insert({
-        user_id: userId,
-        bucket_id: todo.bucket_id,
-        item_type: "daily_todo",
-        item_id: todo.id,
-        title: todo.title,
-        ai_advice: null,
-        completed_at: completedAt,
-      });
-
-      if (logError) {
-        throw logError;
-      }
-    } else {
-      const { data: latestLog } = await supabase
-        .from("action_logs")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("item_type", "daily_todo")
-        .eq("item_id", todo.id)
-        .order("completed_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (latestLog?.id) {
-        await supabase
-          .from("action_logs")
-          .delete()
-          .eq("id", latestLog.id)
-          .eq("user_id", userId);
-      }
-    }
-
-    revalidatePath("/dashboard");
-    revalidatePath("/review");
-
-    return { success: true, data: { status: nextStatus } };
-  } catch (error) {
-    return {
-      success: false,
-      error: toClientErrorMessage(error, TODO_ERRORS.STATUS_CHANGE_FAILED),
-    };
-  }
-}
-
-// PR 22: 오늘 날짜를 "YYYY-MM-DD" 로컬 기준으로 반환 (UTC 변환 없이)
-function getTodayDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export async function toggleRoutineCompletionAction(routineId: string): Promise<{
-  success: boolean;
-  data?: { completed: boolean };
-  error?: string;
-}> {
-  try {
-    const { supabase, userId } = await getAuthContext();
-    // PR 22: 일 단위 토글로 변경. week_start는 호환성 위해 함께 저장.
-    const today = getTodayDateString();
-    const weekStart = getCurrentWeekStartDate();
-
-    const { data: routine, error: routineError } = await supabase
-      .from("routines")
-      .select("id, title, bucket_id")
-      .eq("id", routineId)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (routineError || !routine) {
-      throw new Error(ROUTINE_ERRORS.ACCESS_DENIED);
-    }
-
-    const { data: existingCompletion, error: completionError } = await supabase
-      .from("routine_completions")
-      .select("id")
-      .eq("routine_id", routine.id)
-      .eq("user_id", userId)
-      .eq("completion_date", today)
-      .maybeSingle();
-
-    if (completionError) {
-      throw completionError;
-    }
-
-    if (existingCompletion?.id) {
-      const { error: deleteError } = await supabase
-        .from("routine_completions")
-        .delete()
-        .eq("id", existingCompletion.id)
-        .eq("user_id", userId);
-
-      if (deleteError) {
-        throw deleteError;
-      }
-
-      const { data: latestLog } = await supabase
-        .from("action_logs")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("item_type", "routine")
-        .eq("item_id", routine.id)
-        .order("completed_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (latestLog?.id) {
-        await supabase
-          .from("action_logs")
-          .delete()
-          .eq("id", latestLog.id)
-          .eq("user_id", userId);
-      }
-
-      revalidatePath("/dashboard");
-      revalidatePath("/review");
-      return { success: true, data: { completed: false } };
-    }
-
-    const completedAt = new Date().toISOString();
-
-    const { error: insertError } = await supabase
-      .from("routine_completions")
-      .insert({
-        routine_id: routine.id,
-        user_id: userId,
-        completion_date: today,
-        week_start: weekStart, // 호환성 유지
-        completed_at: completedAt,
-      });
-
-    if (insertError) {
-      throw insertError;
-    }
-
-    const { error: logError } = await supabase.from("action_logs").insert({
-      user_id: userId,
-      bucket_id: routine.bucket_id,
-      item_type: "routine",
-      item_id: routine.id,
-      title: routine.title,
-      ai_advice: null,
-      completed_at: completedAt,
-    });
-
-    if (logError) {
-      throw logError;
-    }
-
-    revalidatePath("/dashboard");
-    revalidatePath("/review");
-
-    return { success: true, data: { completed: true } };
-  } catch (error) {
-    return {
-      success: false,
-      error: toClientErrorMessage(error, ROUTINE_ERRORS.COMPLETE_FAILED),
-    };
-  }
-}
-
-export async function generateWeeklyItemsAction(bucketId: string): Promise<{
-  success: boolean;
-  data?: { addedDailyTodos: number; addedRoutines: number };
-  error?: string;
-}> {
-  try {
-    const { supabase, userId } = await getAuthContext();
-    const weekStart = getCurrentWeekStartDate();
-
-    const [bucketResult, analysisResult, dailyResult, routineResult] = await Promise.all([
-      supabase
-        .from("buckets")
-        .select("id, title, life_area:life_areas(name)")
-        .eq("id", bucketId)
-        .eq("user_id", userId)
-        .maybeSingle(),
-      supabase
-        .from("stride_plans")
-        .select("strides, life_area")
-        .eq("bucket_id", bucketId)
-        .eq("user_id", userId)
-        .maybeSingle(),
-      supabase
-        .from("daily_todos")
-        .select("title, sort_order")
-        .eq("user_id", userId)
-        .eq("bucket_id", bucketId)
-        .eq("week_start", weekStart),
-      supabase
-        .from("routines")
-        .select("title, sort_order")
-        .eq("user_id", userId)
-        .eq("bucket_id", bucketId)
-        .eq("is_active", true),
-    ]);
-
-    if (bucketResult.error || !bucketResult.data) {
-      throw new Error(BUCKET_ERRORS.INFO_NOT_FOUND);
-    }
-    if (analysisResult.error || !analysisResult.data) {
-      throw new Error(BUCKET_ERRORS.STRIDE_PLAN_REQUIRED);
-    }
-    if (dailyResult.error) throw dailyResult.error;
-    if (routineResult.error) throw routineResult.error;
-
-    const bucket = bucketResult.data as {
-      id: string;
-      title: string;
-      life_area?: { name?: string } | { name?: string }[] | null;
-    };
-
-    const lifeAreaRaw = bucket.life_area;
-    const lifeArea = Array.isArray(lifeAreaRaw)
-      ? lifeAreaRaw[0]?.name ?? null
-      : lifeAreaRaw?.name ?? null;
-
-    const dailyRows = (dailyResult.data as Array<{ title: string; sort_order: number | null }> | null) ?? [];
-    const routineRows = (routineResult.data as Array<{ title: string; sort_order: number | null }> | null) ?? [];
-
-    const existingTitles = [
-      ...dailyRows.map((item) => item.title),
-      ...routineRows.map((item) => item.title),
-    ];
-
-    const VALID_STRIDE_LEVELS = [
-      "today",
-      "this_week",
-      "this_month",
-      "this_season",
-      "this_year",
-      "five_years",
-      "decade",
-      "someday",
-    ] as const;
-
-    const weeklyItems = await generateWeeklyItems({
-      bucketTitle: bucket.title,
-      lifeArea: lifeArea ?? (analysisResult.data.life_area as string) ?? "성장",
-      strides: Array.isArray(analysisResult.data.strides)
-        ? (analysisResult.data.strides as Array<{ level: string; label: string; action: string }>).map((item) => ({
-            level: (VALID_STRIDE_LEVELS as readonly string[]).includes(item.level)
-              ? (item.level as (typeof VALID_STRIDE_LEVELS)[number])
-              : "this_week",
-            label: item.label,
-            action: item.action,
-          }))
-        : [],
-      existingTitles,
-    });
-
-    const dailyStartSortOrder =
-      dailyRows.reduce((max, row) => Math.max(max, row.sort_order ?? 0), -1) + 1;
-    const routineStartSortOrder =
-      routineRows.reduce((max, row) => Math.max(max, row.sort_order ?? 0), -1) + 1;
-
-    if (weeklyItems.dailyTodos.length > 0) {
-      const { error: insertDailyError } = await supabase.from("daily_todos").insert(
-        weeklyItems.dailyTodos.map((item, index) => ({
-          user_id: userId,
-          bucket_id: bucket.id,
-          title: item.title,
-          status: "pending",
-          source: "ai_generated",
-          week_start: weekStart,
-          sort_order: dailyStartSortOrder + index,
-        }))
-      );
-
-      if (insertDailyError) {
-        throw insertDailyError;
-      }
-    }
-
-    if (weeklyItems.routines.length > 0) {
-      const { error: insertRoutineError } = await supabase.from("routines").insert(
-        weeklyItems.routines.map((item, index) => ({
-          user_id: userId,
-          bucket_id: bucket.id,
-          title: item.title,
-          source: "ai_generated",
-          repeat_unit: item.repeatUnit,
-          repeat_value: item.repeatValue,
-          is_active: true,
-          sort_order: routineStartSortOrder + index,
-        }))
-      );
-
-      if (insertRoutineError) {
-        throw insertRoutineError;
-      }
-    }
-
-    revalidatePath("/dashboard");
-
-    return {
-      success: true,
-      data: {
-        addedDailyTodos: weeklyItems.dailyTodos.length,
-        addedRoutines: weeklyItems.routines.length,
-      },
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: toClientErrorMessage(error, TODO_ERRORS.WEEKLY_GENERATE_FAILED),
-    };
-  }
-}
-
-/**
- * "한걸음 더" 시트 — 버킷의 발걸음/영역 컨텍스트와 기존 항목 제목을 함께 로드.
- * 단건 추천(미리보기)와 적용 액션에서 공통으로 사용.
- */
+// AI 추천 컨텍스트 로드 — 버킷/발걸음/기존 할일(중복 방지용 제목)
 async function loadNextStepContext(bucketId: string) {
   const { supabase, userId } = await getAuthContext();
-  const weekStart = getCurrentWeekStartDate();
 
-  const [bucketResult, analysisResult, dailyResult, routineResult] = await Promise.all([
+  const [bucketResult, analysisResult, todosResult] = await Promise.all([
     supabase
       .from("buckets")
       .select("id, title, life_area:life_areas(name)")
@@ -499,14 +132,8 @@ async function loadNextStepContext(bucketId: string) {
       .eq("user_id", userId)
       .maybeSingle(),
     supabase
-      .from("daily_todos")
-      .select("title, sort_order")
-      .eq("user_id", userId)
-      .eq("bucket_id", bucketId)
-      .eq("week_start", weekStart),
-    supabase
-      .from("routines")
-      .select("title, sort_order")
+      .from("todos")
+      .select("title, repeat_type")
       .eq("user_id", userId)
       .eq("bucket_id", bucketId)
       .eq("is_active", true),
@@ -518,8 +145,7 @@ async function loadNextStepContext(bucketId: string) {
   if (analysisResult.error || !analysisResult.data) {
     throw new Error(BUCKET_ERRORS.STRIDE_PLAN_REQUIRED);
   }
-  if (dailyResult.error) throw dailyResult.error;
-  if (routineResult.error) throw routineResult.error;
+  if (todosResult.error) throw todosResult.error;
 
   const bucket = bucketResult.data as {
     id: string;
@@ -532,10 +158,8 @@ async function loadNextStepContext(bucketId: string) {
     ? lifeAreaRaw[0]?.name ?? null
     : lifeAreaRaw?.name ?? null;
 
-  const dailyRows =
-    (dailyResult.data as Array<{ title: string; sort_order: number | null }> | null) ?? [];
-  const routineRows =
-    (routineResult.data as Array<{ title: string; sort_order: number | null }> | null) ?? [];
+  const todoRows =
+    (todosResult.data as Array<{ title: string; repeat_type: string | null }> | null) ?? [];
 
   const VALID_STRIDE_LEVELS = [
     "today",
@@ -563,12 +187,10 @@ async function loadNextStepContext(bucketId: string) {
   return {
     supabase,
     userId,
-    weekStart,
     bucket,
     lifeArea: bucketLifeArea ?? (analysisResult.data.life_area as string) ?? "성장",
     strides,
-    dailyRows,
-    routineRows,
+    todoRows,
   };
 }
 
@@ -584,10 +206,8 @@ export async function generateNextStepPreviewAction(
 ): Promise<{ success: boolean; data?: SingleNextStepResult; error?: string }> {
   try {
     const ctx = await loadNextStepContext(bucketId);
-    const existingSameType =
-      type === "daily_todo"
-        ? ctx.dailyRows.map((row) => row.title)
-        : ctx.routineRows.map((row) => row.title);
+    // 통합 모델: 반복 여부와 무관하게 전체 할 일 제목을 중복 방지에 사용
+    const existingSameType = ctx.todoRows.map((row) => row.title);
 
     const result = await generateSingleNextStep({
       bucketTitle: ctx.bucket.title,
@@ -605,210 +225,6 @@ export async function generateNextStepPreviewAction(
     };
   }
 }
-
-/**
- * "한걸음 더" 시트의 "적용하기" — 미리보기로 받은 데일리/루틴을 DB에 저장.
- * daily / routine 둘 다 옵션이며, 적어도 하나는 있어야 함.
- */
-export async function applyNextStepAction(
-  bucketId: string,
-  payload: {
-    daily?: { title: string; strideLevel: DailyTodoStrideLevel } | null;
-    routine?: {
-      title: string;
-      repeatUnit: RoutineRepeatUnit;
-      repeatValue: number;
-      /** PR 19: 루틴 시간대. NULL 허용. */
-      timeSlot?: RoutineTimeSlot | null;
-    } | null;
-  }
-): Promise<{
-  success: boolean;
-  data?: { addedDailyTodos: number; addedRoutines: number };
-  error?: string;
-}> {
-  try {
-    const dailyTitle = payload.daily?.title.trim();
-    const routineTitle = payload.routine?.title.trim();
-
-    if (!dailyTitle && !routineTitle) {
-      throw new Error("적용할 항목을 선택해 주세요.");
-    }
-
-    // PR 18: stride_level은 'this_month'만 허용 (실행계획 단순화).
-    if (payload.daily && payload.daily.strideLevel !== "this_month") {
-      throw new Error("기간 선택이 올바르지 않습니다.");
-    }
-
-    // PR 19: time_slot 검증 (CHECK 제약과 일치)
-    const allowedTimeSlots: RoutineTimeSlot[] = ["morning", "afternoon", "evening", "night"];
-    if (
-      payload.routine?.timeSlot &&
-      !allowedTimeSlots.includes(payload.routine.timeSlot)
-    ) {
-      throw new Error("시간대 선택이 올바르지 않습니다.");
-    }
-
-    const ctx = await loadNextStepContext(bucketId);
-
-    const dailyStartSortOrder =
-      ctx.dailyRows.reduce((max, row) => Math.max(max, row.sort_order ?? 0), -1) + 1;
-    const routineStartSortOrder =
-      ctx.routineRows.reduce((max, row) => Math.max(max, row.sort_order ?? 0), -1) + 1;
-
-    let addedDailyTodos = 0;
-    let addedRoutines = 0;
-
-    if (dailyTitle && payload.daily) {
-      const { error } = await ctx.supabase.from("daily_todos").insert({
-        user_id: ctx.userId,
-        bucket_id: ctx.bucket.id,
-        title: dailyTitle,
-        status: "pending",
-        source: "ai_generated" as const,
-        stride_level: payload.daily.strideLevel,
-        week_start: ctx.weekStart,
-        sort_order: dailyStartSortOrder,
-      });
-      if (error) throw error;
-      addedDailyTodos = 1;
-    }
-
-    if (routineTitle && payload.routine) {
-      const { error } = await ctx.supabase.from("routines").insert({
-        user_id: ctx.userId,
-        bucket_id: ctx.bucket.id,
-        title: routineTitle,
-        source: "ai_generated" as const,
-        repeat_unit: payload.routine.repeatUnit,
-        repeat_value: payload.routine.repeatValue,
-        time_slot: payload.routine.timeSlot ?? null, // PR 19
-        is_active: true,
-        sort_order: routineStartSortOrder,
-      });
-      if (error) throw error;
-      addedRoutines = 1;
-    }
-
-    revalidatePath("/dashboard");
-
-    return { success: true, data: { addedDailyTodos, addedRoutines } };
-  } catch (error) {
-    return {
-      success: false,
-      error: toClientErrorMessage(error, TODO_ERRORS.ADD_FAILED),
-    };
-  }
-}
-
-export async function addDailyTodoAction(
-  bucketId: string,
-  title: string,
-  source: ItemSource = "manual"
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const { supabase, userId } = await getAuthContext();
-    const trimmedTitle = title.trim();
-
-    if (!trimmedTitle) {
-      throw new Error(TODO_ERRORS.TITLE_REQUIRED);
-    }
-
-    const weekStart = getCurrentWeekStartDate();
-
-    const { data: maxRow } = await supabase
-      .from("daily_todos")
-      .select("sort_order")
-      .eq("user_id", userId)
-      .eq("bucket_id", bucketId)
-      .eq("week_start", weekStart)
-      .order("sort_order", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const nextSortOrder = (maxRow?.sort_order ?? -1) + 1;
-
-    const { error } = await supabase.from("daily_todos").insert({
-      user_id: userId,
-      bucket_id: bucketId,
-      title: trimmedTitle,
-      status: "pending",
-      source: normalizeSource(source),
-      week_start: weekStart,
-      sort_order: nextSortOrder,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    revalidatePath("/dashboard");
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: toClientErrorMessage(error, TODO_ERRORS.ADD_FAILED),
-    };
-  }
-}
-
-export async function addRoutineAction(
-  bucketId: string,
-  title: string,
-  source: ItemSource = "manual",
-  repeatUnit: RoutineRepeatUnit = "weekly",
-  repeatValue = 1
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const { supabase, userId } = await getAuthContext();
-    const trimmedTitle = title.trim();
-
-    if (!trimmedTitle) {
-      throw new Error(ROUTINE_ERRORS.TITLE_REQUIRED);
-    }
-
-    const normalizedRepeatUnit = normalizeRepeatUnit(repeatUnit);
-    const normalizedRepeatValue = normalizeRepeatValue(repeatValue, normalizedRepeatUnit);
-
-    const { data: maxRow } = await supabase
-      .from("routines")
-      .select("sort_order")
-      .eq("user_id", userId)
-      .eq("bucket_id", bucketId)
-      .order("sort_order", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const nextSortOrder = (maxRow?.sort_order ?? -1) + 1;
-
-    const { error } = await supabase.from("routines").insert({
-      user_id: userId,
-      bucket_id: bucketId,
-      title: trimmedTitle,
-      source: normalizeSource(source),
-      repeat_unit: normalizedRepeatUnit,
-      repeat_value: normalizedRepeatValue,
-      is_active: true,
-      sort_order: nextSortOrder,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    revalidatePath("/dashboard");
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: toClientErrorMessage(error, ROUTINE_ERRORS.ADD_FAILED),
-    };
-  }
-}
-
-// ============================================================================
-// 나의 발걸음(stride) 편집 / 재생성 액션
-// ============================================================================
 
 function normalizeDraftStrides(raw: unknown): StrideItem[] {
   if (!Array.isArray(raw)) {
@@ -980,70 +396,6 @@ export async function deleteBucketAction(
  * daily_todos 자체에 대한 FK 정책이 없어 삭제해도 logs는 그대로 남음(고아 참조).
  * 통계/회고용으로 historical record는 의도된 보존.
  */
-export async function deleteDailyTodoAction(
-  todoId: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const { supabase, userId } = await getAuthContext();
-
-    const trimmed = todoId?.trim();
-    if (!trimmed) {
-      return { success: false, error: TODO_ERRORS.NOT_FOUND };
-    }
-
-    const { error } = await supabase
-      .from("daily_todos")
-      .delete()
-      .eq("id", trimmed)
-      .eq("user_id", userId);
-
-    if (error) throw error;
-
-    revalidatePath("/dashboard");
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: toClientErrorMessage(error, TODO_ERRORS.DELETE_FAILED),
-    };
-  }
-}
-
-/**
- * PR 37: 루틴 비활성화 (soft delete) — 발걸음 수정 시트의 trash 아이콘에서 호출.
- *
- * is_active=false로 update. 모든 쿼리가 .eq("is_active", true)로 필터링하므로
- * 자동으로 UI에서 사라짐. routine_completions / action_logs / 캘린더 히스토리 전부 보존.
- */
-export async function deactivateRoutineAction(
-  routineId: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const { supabase, userId } = await getAuthContext();
-
-    const trimmed = routineId?.trim();
-    if (!trimmed) {
-      return { success: false, error: ROUTINE_ERRORS.NOT_FOUND };
-    }
-
-    const { error } = await supabase
-      .from("routines")
-      .update({ is_active: false })
-      .eq("id", trimmed)
-      .eq("user_id", userId);
-
-    if (error) throw error;
-
-    revalidatePath("/dashboard");
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: toClientErrorMessage(error, ROUTINE_ERRORS.DEACTIVATE_FAILED),
-    };
-  }
-}
-
 // PR 15: 단계별 타이틀 이력에 prepend (최대 20개까지 누적, 시트 picker는 최근 5개만 표시)
 const TITLE_HISTORY_MAX = 20;
 
@@ -1191,42 +543,262 @@ export async function updateStrideItemAction(
   }
 }
 
+// ── Phase B: 통합 todos 액션 ──
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidWeekday(n: unknown): n is number {
+  return typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 6;
+}
+
+// TodoRepeatInput → todos 컬럼 값 (서버측 검증 포함)
+function normalizeRepeatInput(repeat: TodoRepeatInput | null | undefined): {
+  repeat_type: TodoRepeatType | null;
+  repeat_weekdays: number[] | null;
+  repeat_month_day: number | null;
+  repeat_month: number | null;
+} {
+  if (!repeat) {
+    return { repeat_type: null, repeat_weekdays: null, repeat_month_day: null, repeat_month: null };
+  }
+  switch (repeat.type) {
+    case "daily":
+      return { repeat_type: "daily", repeat_weekdays: null, repeat_month_day: null, repeat_month: null };
+    case "weekly": {
+      const weekdays = [...new Set((repeat.weekdays ?? []).filter(isValidWeekday))].sort(
+        (a, b) => a - b
+      );
+      if (weekdays.length === 0) {
+        throw new Error("반복 요일을 선택해주세요.");
+      }
+      return { repeat_type: "weekly", repeat_weekdays: weekdays, repeat_month_day: null, repeat_month: null };
+    }
+    case "monthly": {
+      const day = repeat.monthDay;
+      if (!day || !Number.isInteger(day) || day < 1 || day > 31) {
+        throw new Error("반복 일자가 올바르지 않습니다.");
+      }
+      return { repeat_type: "monthly", repeat_weekdays: null, repeat_month_day: day, repeat_month: null };
+    }
+    case "yearly": {
+      const day = repeat.monthDay;
+      const month = repeat.month;
+      if (!day || !Number.isInteger(day) || day < 1 || day > 31) {
+        throw new Error("반복 일자가 올바르지 않습니다.");
+      }
+      if (!month || !Number.isInteger(month) || month < 1 || month > 12) {
+        throw new Error("반복 월이 올바르지 않습니다.");
+      }
+      return { repeat_type: "yearly", repeat_weekdays: null, repeat_month_day: day, repeat_month: month };
+    }
+    default:
+      throw new Error("반복 유형이 올바르지 않습니다.");
+  }
+}
+
 /**
- * PR 22: 특정 루틴의 월별 완료 일자 조회 (캘린더 시트용).
- * 반환: ["YYYY-MM-DD", ...] — 해당 월에 완료된 날짜 배열.
+ * 할 일 추가 (반복 옵션 포함 — 반복을 켜면 구 "루틴"이 된다).
+ * scheduledDate: 클라이언트 로컬 기준 날짜(캘린더 선택 날짜, 기본 오늘) — TZ 어긋남 방지.
  */
-export async function getRoutineCompletionsForMonthAction(
-  routineId: string,
+export async function addTodoAction(
+  bucketId: string,
+  input: {
+    title: string;
+    scheduledDate: string;
+    repeat?: TodoRepeatInput | null;
+    source?: ItemSource;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const title = input.title?.trim();
+    if (!title) throw new Error("할 일 내용을 입력해주세요.");
+    if (!DATE_RE.test(input.scheduledDate)) throw new Error("날짜 형식이 올바르지 않습니다.");
+
+    const repeatCols = normalizeRepeatInput(input.repeat);
+
+    const { error } = await supabase.from("todos").insert({
+      user_id: userId,
+      bucket_id: bucketId,
+      title,
+      source: normalizeSource(input.source),
+      scheduled_date: input.scheduledDate,
+      ...repeatCols,
+    });
+
+    if (error) throw error;
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, "할 일 추가에 실패했어요."),
+    };
+  }
+}
+
+/**
+ * 할 일 완료 토글 (날짜 단위).
+ * 반복/1회성 공통: 해당 날짜의 completion 행을 넣거나 뺀다. 회고용 action_logs 동기화.
+ */
+export async function toggleTodoCompletionAction(
+  todoId: string,
+  dateStr: string
+): Promise<{ success: boolean; data?: { completed: boolean }; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+    if (!DATE_RE.test(dateStr)) throw new Error("날짜 형식이 올바르지 않습니다.");
+
+    const { data: todo, error: todoError } = await supabase
+      .from("todos")
+      .select("id, title, bucket_id")
+      .eq("id", todoId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (todoError) throw todoError;
+    if (!todo) throw new Error("할 일을 찾을 수 없습니다.");
+
+    const { data: existing, error: existingError } = await supabase
+      .from("todo_completions")
+      .select("id")
+      .eq("todo_id", todoId)
+      .eq("completion_date", dateStr)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    if (existing) {
+      // 완료 취소 — completion 삭제 + 최근 action_log 제거
+      const { error: deleteError } = await supabase
+        .from("todo_completions")
+        .delete()
+        .eq("id", existing.id);
+      if (deleteError) throw deleteError;
+
+      const { data: recentLog } = await supabase
+        .from("action_logs")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("item_type", "todo")
+        .eq("item_id", todoId)
+        .order("completed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (recentLog) {
+        await supabase.from("action_logs").delete().eq("id", recentLog.id);
+      }
+
+      return { success: true, data: { completed: false } };
+    }
+
+    // 완료 — completion 추가 + action_log 기록
+    const { error: insertError } = await supabase.from("todo_completions").insert({
+      todo_id: todoId,
+      user_id: userId,
+      completion_date: dateStr,
+    });
+    if (insertError) throw insertError;
+
+    await supabase.from("action_logs").insert({
+      user_id: userId,
+      bucket_id: todo.bucket_id,
+      item_type: "todo",
+      item_id: todoId,
+      title: todo.title,
+      completed_at: new Date().toISOString(),
+    });
+
+    return { success: true, data: { completed: true } };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, "상태 변경에 실패했어요."),
+    };
+  }
+}
+
+/**
+ * 할 일 삭제.
+ * 반복 없는 1회성 → hard delete / 반복 있음 → is_active=false (달성 기록 보존).
+ */
+export async function deleteTodoAction(
+  todoId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const { data: todo, error: todoError } = await supabase
+      .from("todos")
+      .select("id, repeat_type")
+      .eq("id", todoId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (todoError) throw todoError;
+    if (!todo) throw new Error("할 일을 찾을 수 없습니다.");
+
+    if (todo.repeat_type) {
+      const { error } = await supabase
+        .from("todos")
+        .update({ is_active: false })
+        .eq("id", todoId)
+        .eq("user_id", userId);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from("todos")
+        .delete()
+        .eq("id", todoId)
+        .eq("user_id", userId);
+      if (error) throw error;
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, "할 일 삭제에 실패했어요."),
+    };
+  }
+}
+
+/**
+ * 특정 할 일의 월별 완료 일자 조회 (달성 기록 캘린더 시트용).
+ * 구 routine_completions → todo_completions. id가 이관 시 보존되어 과거 기록도 조회된다.
+ */
+export async function getTodoCompletionsForMonthAction(
+  todoId: string,
   year: number,
-  month: number // 1-12 (사용자 친화적으로)
+  month: number
 ): Promise<{ success: boolean; dates?: string[]; error?: string }> {
   try {
     const { supabase, userId } = await getAuthContext();
 
-    // month는 1-12로 받지만 Date 생성 시는 0-11로 변환
-    const monthIndex = month - 1;
-    if (monthIndex < 0 || monthIndex > 11) {
-      throw new Error("월 값이 올바르지 않습니다.");
+    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+      throw new Error("조회 기간이 올바르지 않습니다.");
     }
 
-    // 월의 시작/끝 ("YYYY-MM-DD" 형식)
-    const start = new Date(year, monthIndex, 1);
-    const end = new Date(year, monthIndex + 1, 1); // 다음 달 1일 (exclusive)
-    const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
-    const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-01`;
+    const start = `${year}-${String(month).padStart(2, "0")}-01`;
+    const nextMonth = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
     const { data, error } = await supabase
-      .from("routine_completions")
+      .from("todo_completions")
       .select("completion_date")
-      .eq("routine_id", routineId)
       .eq("user_id", userId)
-      .gte("completion_date", startStr)
-      .lt("completion_date", endStr);
+      .eq("todo_id", todoId)
+      .gte("completion_date", start)
+      .lt("completion_date", nextMonth);
 
     if (error) throw error;
 
-    const dates = (data ?? []).map((row) => row.completion_date as string);
-    return { success: true, dates };
+    return {
+      success: true,
+      dates: ((data as Array<{ completion_date: string }> | null) ?? []).map(
+        (row) => row.completion_date
+      ),
+    };
   } catch (error) {
     return {
       success: false,

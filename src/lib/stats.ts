@@ -16,7 +16,8 @@ const REVIEW_ACTION_LIMIT = 120;
 
 interface ActionLogRow {
   id: string;
-  item_type: "daily_todo" | "routine";
+  // 'todo' = Phase B 통합 이후 로그. daily_todo/routine은 과거 로그(보존).
+  item_type: "daily_todo" | "routine" | "todo";
   title: string;
   completed_at: string;
   bucket?:
@@ -117,41 +118,42 @@ export async function getTaskStats(
 ): Promise<TaskStats> {
   const weekStart = getCurrentWeekStartDate();
 
-  const [dailyTodosResult, routinesResult, routineCompletionsResult, actionLogsResult] =
-    await Promise.all([
-      supabase
-        .from("daily_todos")
-        .select("status, completed_at")
-        .eq("user_id", userId),
-      supabase
-        .from("routines")
-        .select("id, is_active")
-        .eq("user_id", userId),
-      supabase
-        .from("routine_completions")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("week_start", weekStart),
-      supabase
-        .from("action_logs")
-        .select("completed_at")
-        .eq("user_id", userId),
-    ]);
+  // Phase B: 통합 todos — 반복 없음=구 투두, 반복 있음=구 루틴 의미로 집계
+  const [todosResult, completionsResult, actionLogsResult] = await Promise.all([
+    supabase
+      .from("todos")
+      .select("id, repeat_type, is_active")
+      .eq("user_id", userId),
+    supabase
+      .from("todo_completions")
+      .select("todo_id, completion_date")
+      .eq("user_id", userId),
+    supabase
+      .from("action_logs")
+      .select("completed_at")
+      .eq("user_id", userId),
+  ]);
 
-  if (dailyTodosResult.error) throw new Error(dailyTodosResult.error.message);
-  if (routinesResult.error) throw new Error(routinesResult.error.message);
-  if (routineCompletionsResult.error) throw new Error(routineCompletionsResult.error.message);
+  if (todosResult.error) throw new Error(todosResult.error.message);
+  if (completionsResult.error) throw new Error(completionsResult.error.message);
   if (actionLogsResult.error) throw new Error(actionLogsResult.error.message);
 
-  const dailyTodos =
-    (dailyTodosResult.data as Array<{ status: "pending" | "completed"; completed_at: string | null }> | null) ??
-    [];
-  const routines =
-    (routinesResult.data as Array<{ id: string; is_active: boolean }> | null) ?? [];
-  const routineCompletions =
-    (routineCompletionsResult.data as Array<{ id: string }> | null) ?? [];
+  const todos =
+    (todosResult.data as Array<{
+      id: string;
+      repeat_type: string | null;
+      is_active: boolean;
+    }> | null) ?? [];
+  const completions =
+    (completionsResult.data as Array<{ todo_id: string; completion_date: string }> | null) ?? [];
   const actionLogs =
     (actionLogsResult.data as Array<{ completed_at: string | null }> | null) ?? [];
+
+  const repeatingIds = new Set(todos.filter((t) => t.repeat_type).map((t) => t.id));
+  const onceTodos = todos.filter((t) => !t.repeat_type);
+  const completedOnceIds = new Set(
+    completions.filter((c) => !repeatingIds.has(c.todo_id)).map((c) => c.todo_id)
+  );
 
   const completedInLast14Days = actionLogs.filter((item) => {
     if (!item.completed_at) return false;
@@ -159,10 +161,12 @@ export async function getTaskStats(
   }).length;
 
   return {
-    totalDailyTodos: dailyTodos.length,
-    completedDailyTodos: dailyTodos.filter((item) => item.status === "completed").length,
-    totalRoutines: routines.filter((item) => item.is_active).length,
-    completedRoutinesThisWeek: routineCompletions.length,
+    totalDailyTodos: onceTodos.length,
+    completedDailyTodos: onceTodos.filter((t) => completedOnceIds.has(t.id)).length,
+    totalRoutines: todos.filter((t) => t.repeat_type && t.is_active).length,
+    completedRoutinesThisWeek: completions.filter(
+      (c) => repeatingIds.has(c.todo_id) && c.completion_date >= weekStart
+    ).length,
     totalActionsCompleted: actionLogs.length,
     completedInLast14Days,
   };
@@ -185,6 +189,7 @@ export async function getReviewPageData(
   weekEndDate.setDate(weekEndDate.getDate() + 7);
   const weekEndStr = weekEndDate.toISOString().slice(0, 10);
 
+  // Phase B: 통합 todos — 반복 있는 할 일(구 루틴) 기준으로 주간 달성률 계산
   const [actionsResult, routinesResult, weekCompletionsResult] = await Promise.all([
     supabase
       .from("action_logs")
@@ -193,13 +198,14 @@ export async function getReviewPageData(
       .order("completed_at", { ascending: false })
       .limit(REVIEW_ACTION_LIMIT),
     supabase
-      .from("routines")
-      .select("id, repeat_unit, repeat_value")
+      .from("todos")
+      .select("id, repeat_type, repeat_weekdays")
       .eq("user_id", userId)
-      .eq("is_active", true),
+      .eq("is_active", true)
+      .not("repeat_type", "is", null),
     supabase
-      .from("routine_completions")
-      .select("id, routine_id, completion_date")
+      .from("todo_completions")
+      .select("id, todo_id, completion_date")
       .eq("user_id", userId)
       .gte("completion_date", weekStartStr)
       .lt("completion_date", weekEndStr),
@@ -243,15 +249,22 @@ export async function getReviewPageData(
 
   const insight = buildReviewInsight(actions.length, strongestBand, completedInLast14Days);
 
-  // PR 24: 이번 주 루틴 달성률 — 이번 주 가능한 총 횟수 vs 실제 완료 횟수
-  // - daily 루틴: 7회 가능 (단순화: repeat_value 무시 — 개념적 1주 단위 달성률)
-  // - weekly 루틴: 1회 가능
+  // 이번 주 반복 할 일 달성률 — 이번 주 가능한 총 횟수 vs 실제 완료 횟수
+  // - daily: 7회 / weekly: 선택 요일 수 / monthly·yearly: 1회(단순화)
   const activeRoutines =
-    (routinesResult.data as Array<{ id: string; repeat_unit: "daily" | "weekly"; repeat_value: number }> | null) ?? [];
+    (routinesResult.data as Array<{
+      id: string;
+      repeat_type: "daily" | "weekly" | "monthly" | "yearly";
+      repeat_weekdays: number[] | null;
+    }> | null) ?? [];
   const weekCompletions =
-    (weekCompletionsResult.data as Array<{ id: string; routine_id: string; completion_date: string }> | null) ?? [];
+    (weekCompletionsResult.data as Array<{ id: string; todo_id: string; completion_date: string }> | null) ?? [];
 
-  const totalPossible = activeRoutines.reduce((sum, r) => sum + (r.repeat_unit === "daily" ? 7 : 1), 0);
+  const totalPossible = activeRoutines.reduce((sum, r) => {
+    if (r.repeat_type === "daily") return sum + 7;
+    if (r.repeat_type === "weekly") return sum + (r.repeat_weekdays?.length ?? 1);
+    return sum + 1;
+  }, 0);
   const totalCompleted = weekCompletions.length;
   const weeklyRoutineRate: ReviewPageData["weeklyRoutineRate"] = {
     completed: totalCompleted,

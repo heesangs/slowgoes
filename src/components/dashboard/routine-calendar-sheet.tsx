@@ -15,7 +15,7 @@
 import { useEffect, useState } from "react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useToast } from "@/components/ui/toast";
-import { getRoutineCompletionsForMonthAction } from "@/app/(main)/dashboard/actions";
+import { getTodoCompletionsForMonthAction } from "@/app/(main)/dashboard/actions";
 import { cn } from "@/lib/utils";
 
 interface RoutineCalendarSheetProps {
@@ -81,7 +81,7 @@ export function RoutineCalendarSheet({
     let cancelled = false;
     void (async () => {
       setIsLoading(true);
-      const result = await getRoutineCompletionsForMonthAction(
+      const result = await getTodoCompletionsForMonthAction(
         routineId,
         year,
         monthIndex + 1

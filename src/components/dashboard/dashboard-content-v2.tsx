@@ -8,27 +8,27 @@ import { ExecutionPlanSection } from "@/components/dashboard/execution-plan-sect
 import { InsightSection } from "@/components/dashboard/insight-section";
 import { LifeClockHeader } from "@/components/dashboard/life-clock-header";
 import { RoutineCalendarSheet } from "@/components/dashboard/routine-calendar-sheet";
+import { RepeatOptionsSheet } from "@/components/dashboard/repeat-options-sheet";
 import { KeyboardAccessoryInput } from "@/components/ui/keyboard-accessory-input";
 import { useToast } from "@/components/ui/toast";
 import {
-  applyNextStepAction,
-  deactivateRoutineAction,
+  addTodoAction,
   deleteBucketAction,
-  deleteDailyTodoAction,
+  deleteTodoAction,
   generateNextStepPreviewAction,
-  toggleDailyTodoAction,
-  toggleRoutineCompletionAction,
+  toggleTodoCompletionAction,
   updateStrideItemAction,
 } from "@/app/(main)/dashboard/actions";
 import { useTrackLastViewedBucket } from "@/hooks/use-track-last-viewed-bucket";
 import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { FEATURE_NAMES } from "@/lib/constants";
+import { formatRepeatInputLabel, getTodayDateString } from "@/lib/todos/repeat";
 import type {
-  DailyTodo,
   DashboardV2Data,
-  RoutineWithCompletion,
   StrideItem,
   StrideLevel,
+  TodoRepeatInput,
+  TodoWithCompletion,
 } from "@/types";
 
 interface DashboardContentV2Props {
@@ -63,32 +63,22 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [isSubmittingInput, setIsSubmittingInput] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
+  // Phase B: [반복] 버튼 — 선택 시 할 일이 루틴이 된다
+  const [repeatSheetOpen, setRepeatSheetOpen] = useState(false);
+  const [selectedRepeat, setSelectedRepeat] = useState<TodoRepeatInput | null>(null);
+
   // DirectionSection / ExecutionPlanSection prop 호환용 (AI 재생성 제거로 항상 null)
   const regeneratingLevel: StrideLevel | null = null;
-  // PR 22 — 루틴 캘린더 시트 상태
-  const [calendarRoutine, setCalendarRoutine] = useState<RoutineWithCompletion | null>(null);
+  // 달성 기록 캘린더 시트 (반복 있는 할 일)
+  const [calendarTodo, setCalendarTodo] = useState<TodoWithCompletion | null>(null);
 
-  // PR 25 — Optimistic UI: 토글 즉시 반영, 실패 시 자동 rollback
+  // Optimistic UI: 토글 즉시 반영, 실패 시 자동 rollback (통합 todos 단일 리스트)
   const [, startTransition] = useTransition();
-  const [optimisticDailyTodos, applyOptimisticDaily] = useOptimistic(
-    data.dailyTodos,
-    (state: DailyTodo[], todoId: string) =>
+  const [optimisticTodos, applyOptimisticTodo] = useOptimistic(
+    data.todos,
+    (state: TodoWithCompletion[], todoId: string) =>
       state.map((t) =>
-        t.id === todoId
-          ? {
-              ...t,
-              status: t.status === "completed" ? "pending" : "completed",
-            }
-          : t
-      )
-  );
-  const [optimisticRoutines, applyOptimisticRoutine] = useOptimistic(
-    data.routines,
-    (state: RoutineWithCompletion[], routineId: string) =>
-      state.map((r) =>
-        r.id === routineId
-          ? { ...r, is_completed_today: !Boolean(r.is_completed_today) }
-          : r
+        t.id === todoId ? { ...t, is_completed: !t.is_completed } : t
       )
   );
 
@@ -153,13 +143,14 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     setInputMode({ type: "edit", stride: item });
   }
 
-  // FAB(+) → 키보드 입력창 (직접 입력 + AI)
+  // FAB(+) → 키보드 입력창 (직접 입력 + AI + 반복)
   function handleAddOpen() {
     if (!data.selectedBucket?.id) {
       toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
       return;
     }
     setInputValue("");
+    setSelectedRepeat(null);
     setInputMode({ type: "add" });
   }
 
@@ -169,7 +160,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     if (!bucketId || isGeneratingAI) return;
     setIsGeneratingAI(true);
     try {
-      const existingTitles = data.dailyTodos.map((t) => t.title);
+      const existingTitles = data.todos.map((t) => t.title);
       const result = await generateNextStepPreviewAction(bucketId, "daily_todo", existingTitles);
       if (result.success && result.data) {
         setInputValue(result.data.title);
@@ -194,14 +185,18 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     setIsSubmittingInput(true);
     try {
       if (inputMode.type === "add") {
-        const result = await applyNextStepAction(bucketId, {
-          daily: { title: value, strideLevel: "this_month" },
-          routine: null,
+        // Phase B: 통합 todos — 반복 선택 시 루틴이 된다 (기준일 = 오늘)
+        const result = await addTodoAction(bucketId, {
+          title: value,
+          scheduledDate: getTodayDateString(),
+          repeat: selectedRepeat,
+          source: "manual",
         });
         if (!result.success) {
           toast(result.error ?? "추가에 실패했어요.", "error");
           return;
         }
+        setSelectedRepeat(null);
       } else {
         const result = await updateStrideItemAction(bucketId, inputMode.stride.level, value);
         if (!result.success) {
@@ -216,11 +211,11 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     }
   }
 
-  // PR 25 — 실행계획 카드 안 투두 토글: useOptimistic으로 즉시 반영
-  function handleToggleTodoFromCard(todoId: string) {
+  // 할 일 완료 토글 — useOptimistic 즉시 반영 (통합: 반복 여부 무관 날짜 단위)
+  function handleToggleTodo(todoId: string) {
     startTransition(async () => {
-      applyOptimisticDaily(todoId);
-      const result = await toggleDailyTodoAction(todoId);
+      applyOptimisticTodo(todoId);
+      const result = await toggleTodoCompletionAction(todoId, getTodayDateString());
       if (!result.success) {
         toast(result.error ?? "상태 변경에 실패했어요.", "error");
       }
@@ -231,17 +226,14 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     });
   }
 
-  // PR 25 — 실행계획 카드 안 루틴 토글 (오늘 단위, 일 단위)
-  function handleToggleRoutineFromCard(routineId: string) {
-    startTransition(async () => {
-      applyOptimisticRoutine(routineId);
-      const result = await toggleRoutineCompletionAction(routineId);
-      if (!result.success) {
-        toast(result.error ?? "상태 변경에 실패했어요.", "error");
-      }
-      queryClient.invalidateQueries({ queryKey: ["review"] });
-      await invalidateDashboard();
-    });
+  // 할 일 삭제 — 1회성=hard delete, 반복=비활성(서버 판단)
+  async function handleDeleteTodo(todo: TodoWithCompletion) {
+    const result = await deleteTodoAction(todo.id);
+    if (result.success) {
+      invalidateDashboard();
+    } else {
+      toast(result.error ?? "할 일 삭제에 실패했어요.", "error");
+    }
   }
 
   // PR 34: 전체 발걸음 재생성 삭제. Phase A: 수정 시 AI 재생성도 제거(텍스트 수정만).
@@ -264,37 +256,13 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           />
           <ExecutionPlanSection
             items={strideGroups.execution}
-            // PR 25: Optimistic — 토글 즉시 반영, transition 종료 시 server data로 정합성 복구
-            dailyTodos={optimisticDailyTodos}
-            routines={optimisticRoutines}
+            // Phase B: 통합 todos — Optimistic 토글 즉시 반영
+            todos={optimisticTodos}
             onEditLevel={handleEditOpen}
-            onToggleTodo={handleToggleTodoFromCard}
-            onToggleRoutine={handleToggleRoutineFromCard}
-            onOpenRoutineCalendar={(routine) => {
-              setCalendarRoutine(routine);
-            }}
+            onToggleTodo={handleToggleTodo}
+            onDeleteTodo={handleDeleteTodo}
+            onOpenTodoCalendar={(todo) => setCalendarTodo(todo)}
             regeneratingLevel={regeneratingLevel}
-            // PR 25: Optimistic UI가 즉시 반영하므로 disable 불필요 (사용자 체감 0ms).
-            // 빠른 연속 클릭은 useTransition이 자동 큐잉.
-            togglingTodoId={null}
-            togglingRoutineId={null}
-            // 행 단위 삭제/비활성 — 구 StepSheet 삭제 섹션을 행 ⋮ 메뉴로 이관
-            onDeleteTodo={async (id) => {
-              const r = await deleteDailyTodoAction(id);
-              if (r.success) {
-                invalidateDashboard();
-              } else {
-                toast(r.error ?? `${FEATURE_NAMES.DAILY_TODO} 삭제에 실패했어요.`, "error");
-              }
-            }}
-            onDeactivateRoutine={async (id) => {
-              const r = await deactivateRoutineAction(id);
-              if (r.success) {
-                invalidateDashboard();
-              } else {
-                toast(r.error ?? `${FEATURE_NAMES.ROUTINE} 비활성화에 실패했어요.`, "error");
-              }
-            }}
             onDeleteBucket={data.selectedBucket ? handleDeleteBucket : undefined}
             isDeletingBucket={isDeletingBucket}
           />
@@ -331,6 +299,23 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         }
         submitLabel={inputMode?.type === "edit" ? "저장" : "추가"}
         isSubmitting={isSubmittingInput}
+        leftActions={
+          inputMode?.type === "add" ? (
+            <button
+              type="button"
+              onClick={() => setRepeatSheetOpen(true)}
+              aria-label="반복 설정"
+              aria-pressed={selectedRepeat !== null}
+              className={
+                selectedRepeat
+                  ? "shrink-0 whitespace-nowrap rounded-lg border border-foreground bg-foreground px-2.5 py-2 text-xs text-background"
+                  : "shrink-0 whitespace-nowrap rounded-lg border border-foreground/20 px-2.5 py-2 text-xs text-foreground/70 transition-colors hover:bg-foreground/5"
+              }
+            >
+              🔁 {formatRepeatInputLabel(selectedRepeat)}
+            </button>
+          ) : undefined
+        }
         rightActions={
           inputMode?.type === "add" ? (
             <button
@@ -346,12 +331,21 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         }
       />
 
-      {/* PR 22: 루틴 달성 캘린더 시트 */}
+      {/* [반복] 옵션 시트 — 선택 시 할 일이 루틴이 된다 */}
+      <RepeatOptionsSheet
+        open={repeatSheetOpen}
+        onClose={() => setRepeatSheetOpen(false)}
+        baseDate={getTodayDateString()}
+        selected={selectedRepeat}
+        onSelect={setSelectedRepeat}
+      />
+
+      {/* 반복 있는 할 일 달성 기록 캘린더 시트 */}
       <RoutineCalendarSheet
-        open={calendarRoutine !== null}
-        onClose={() => setCalendarRoutine(null)}
-        routineId={calendarRoutine?.id ?? null}
-        routineTitle={calendarRoutine?.title ?? null}
+        open={calendarTodo !== null}
+        onClose={() => setCalendarTodo(null)}
+        routineId={calendarTodo?.id ?? null}
+        routineTitle={calendarTodo?.title ?? null}
       />
     </div>
   );

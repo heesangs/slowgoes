@@ -29,7 +29,9 @@ function shortDate(value: string) {
   });
 }
 
-function itemTypeLabel(type: "daily_todo" | "routine" | undefined) {
+function itemTypeLabel(type: "daily_todo" | "routine" | "todo" | undefined) {
+  // Phase B 통합 이후 새 로그는 'todo'. 과거 로그(daily_todo/routine) 라벨은 보존.
+  if (type === "todo") return "할 일";
   if (type === "daily_todo") return FEATURE_NAMES.DAILY_TODO;
   if (type === "routine") return FEATURE_NAMES.ROUTINE;
   return "행동";

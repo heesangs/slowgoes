@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { featureFlags } from "@/lib/flags";
 import { analyzeLifeScene } from "@/lib/ai/analyze";
 import { redirect } from "next/navigation";
-import { getCurrentWeekStartDate } from "@/lib/utils";
+import { getTodayDateString } from "@/lib/todos/repeat";
 import {
   AUTH_ERRORS,
   PROFILE_ERRORS,
@@ -471,72 +471,55 @@ export async function addItemsToExistingBucketAction(data: {
       return { success: false, error: BUCKET_ERRORS.NOT_FOUND_OR_ACCESS_DENIED };
     }
 
-    const weekStart = getCurrentWeekStartDate();
+    // Phase B: 통합 todos — 반복 없는 할 일 + 반복 있는 할 일(구 루틴)을 한 테이블에 저장
+    const todayStr = getTodayDateString();
+    const todayDow = new Date().getDay(); // 0=일 ~ 6=토
 
-    // 기존 daily_todos의 max sort_order 조회
     const { data: existingTodos } = await supabase
-      .from("daily_todos")
+      .from("todos")
       .select("sort_order")
       .eq("bucket_id", data.bucketId)
       .eq("user_id", user.id)
       .order("sort_order", { ascending: false })
       .limit(1);
 
-    const todoStartOrder = (existingTodos?.[0]?.sort_order ?? -1) + 1;
+    const startOrder = (existingTodos?.[0]?.sort_order ?? -1) + 1;
 
-    // 기존 routines의 max sort_order 조회
-    const { data: existingRoutines } = await supabase
-      .from("routines")
-      .select("sort_order")
-      .eq("bucket_id", data.bucketId)
-      .eq("user_id", user.id)
-      .order("sort_order", { ascending: false })
-      .limit(1);
-
-    const routineStartOrder = (existingRoutines?.[0]?.sort_order ?? -1) + 1;
-
-    // daily_todos INSERT
-    const todosToInsert = data.selectedDailyTodos
+    const onceToInsert = data.selectedDailyTodos
       .filter((item) => item.title.trim().length > 0)
       .map((item, index) => ({
         user_id: user.id,
         bucket_id: data.bucketId,
         title: item.title.trim(),
-        status: "pending" as const,
         source: item.source ?? "onboarding",
-        week_start: weekStart,
-        sort_order: todoStartOrder + index,
+        scheduled_date: todayStr,
+        sort_order: startOrder + index,
       }));
 
-    if (todosToInsert.length > 0) {
-      const { error: todoError } = await supabase
-        .from("daily_todos")
-        .insert(todosToInsert);
+    // 구 repeatUnit 매핑: daily→매일 / weekly→매주(오늘 요일)
+    const repeatingToInsert = data.selectedRoutines
+      .filter((item) => item.title.trim().length > 0)
+      .map((item, index) => ({
+        user_id: user.id,
+        bucket_id: data.bucketId,
+        title: item.title.trim(),
+        source: item.source ?? "onboarding",
+        scheduled_date: todayStr,
+        repeat_type: item.repeatUnit === "daily" ? "daily" : "weekly",
+        repeat_weekdays: item.repeatUnit === "daily" ? null : [todayDow],
+        is_active: true,
+        sort_order: startOrder + onceToInsert.length + index,
+      }));
 
+    if (onceToInsert.length > 0) {
+      const { error: todoError } = await supabase.from("todos").insert(onceToInsert);
       if (todoError) {
         return { success: false, error: TODO_ERRORS.ADD_FAILED };
       }
     }
 
-    // routines INSERT
-    const routinesToInsert = data.selectedRoutines
-      .filter((item) => item.title.trim().length > 0)
-      .map((item, index) => ({
-        user_id: user.id,
-        bucket_id: data.bucketId,
-        title: item.title.trim(),
-        source: item.source ?? "onboarding",
-        repeat_unit: item.repeatUnit === "daily" ? "daily" : "weekly",
-        repeat_value: Math.max(1, Math.min(31, Math.round(item.repeatValue || 1))),
-        is_active: true,
-        sort_order: routineStartOrder + index,
-      }));
-
-    if (routinesToInsert.length > 0) {
-      const { error: routineError } = await supabase
-        .from("routines")
-        .insert(routinesToInsert);
-
+    if (repeatingToInsert.length > 0) {
+      const { error: routineError } = await supabase.from("todos").insert(repeatingToInsert);
       if (routineError) {
         return { success: false, error: ROUTINE_ERRORS.ADD_FAILED };
       }

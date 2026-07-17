@@ -1,10 +1,9 @@
 export {
-  getDailyTodos,
+  getTodosForDate,
   getStridePlan,
   getLifeBalance,
   getProfile,
   getProfileForRequest,
-  getRoutinesWithCompletions,
   getSelectedBucket,
   getUserBuckets,
   getUserBucketsForRequest,
