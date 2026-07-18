@@ -3,7 +3,13 @@
 // 요일 규약: 0=일 ~ 6=토 (JS getDay() = Postgres EXTRACT(DOW))
 // 서버/클라이언트 공용 — 순수 함수만.
 
-import type { Todo, TodoRepeatInput, TodoRepeatType } from "@/types";
+import type {
+  BucketTodosData,
+  Todo,
+  TodoRepeatInput,
+  TodoRepeatType,
+  TodoWithCompletion,
+} from "@/types";
 
 export const WEEKDAY_SHORT_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
@@ -119,6 +125,44 @@ export function buildRepeatOptions(baseDateStr: string): RepeatOption[] {
     },
     { key: "custom", label: "사용자 설정", input: null },
   ];
+}
+
+/**
+ * 버킷 단위 캐시 → 선택 날짜의 할 일 목록 파생 (클라이언트 계산).
+ *
+ * 서버 왕복 없이 어떤 날짜든 즉시 전환하기 위해, 서버는 버킷 전체
+ * todos+completions만 내려주고 날짜 필터/완료 판정은 여기서 수행한다.
+ *
+ * 표시 규칙 (구 getTodosForDate와 동일):
+ *   - 반복 있음: occursOn(date) 발생일에 표시. 완료 = 그 날짜의 completion 존재
+ *   - 반복 없음: scheduled_date 당일에만 표시. 예외로 미완료인 채 지난 할 일은
+ *     오늘 뷰에 한해 이월(overdue rollover). 완료 = completion 존재(어느 날짜든)
+ */
+export function deriveTodosForDate(
+  data: BucketTodosData,
+  dateStr: string,
+  todayStr: string
+): TodoWithCompletion[] {
+  const completedOnDate = new Set(
+    data.completions.filter((c) => c.completion_date === dateStr).map((c) => c.todo_id)
+  );
+  const completedAny = new Set(data.completions.map((c) => c.todo_id));
+
+  return data.todos
+    .filter((todo) => {
+      if (todo.repeat_type) return occursOn(todo, dateStr);
+      if (todo.scheduled_date === dateStr) return true;
+      // 미완료 이월은 오늘 뷰에서만 (미래 날짜에 따라다니지 않게)
+      return (
+        dateStr === todayStr && todo.scheduled_date < dateStr && !completedAny.has(todo.id)
+      );
+    })
+    .map((todo) => ({
+      ...todo,
+      is_completed: todo.repeat_type
+        ? completedOnDate.has(todo.id)
+        : completedAny.has(todo.id),
+    }));
 }
 
 /** TodoRepeatInput → 라벨 (입력창 [반복] 버튼 표시용) */

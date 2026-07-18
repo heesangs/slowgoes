@@ -8,6 +8,7 @@ import { cookies } from "next/headers";
 import { getUserBucketsForRequest, getProfileForRequest } from "@/lib/dashboard";
 import { LAST_VIEWED_BUCKET_COOKIE_NAME } from "@/hooks/use-track-last-viewed-bucket";
 import { MainNavBar } from "@/components/layout/main-nav-bar";
+import { APP } from "@/lib/constants";
 import type { Gender, PaceType, PersonalityType } from "@/types";
 
 export async function MainNavBarLoader({ userId }: { userId: string }) {
@@ -35,6 +36,15 @@ export async function MainNavBarLoader({ userId }: { userId: string }) {
     };
   }
 
+  // 나의 시간 바 — 프로필이 부분완성이어도 age만 유효하면 노출
+  const lifeClock =
+    profile && profile.life_clock_age != null && profile.life_clock_age >= 0 && profile.life_clock_age <= 100
+      ? {
+          age: profile.life_clock_age,
+          displayName: profile.display_name ?? APP.DEFAULT_USER_NAME,
+        }
+      : null;
+
   const cookieStore = await cookies();
   const cookieSelectedBucketId =
     cookieStore.get(LAST_VIEWED_BUCKET_COOKIE_NAME)?.value ?? null;
@@ -44,6 +54,7 @@ export async function MainNavBarLoader({ userId }: { userId: string }) {
       buckets={bucketsForNav}
       cookieSelectedBucketId={cookieSelectedBucketId}
       prefillProfile={prefillProfile}
+      lifeClock={lifeClock}
     />
   );
 }

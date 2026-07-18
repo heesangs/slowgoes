@@ -1,15 +1,14 @@
 import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { occursOn } from "@/lib/todos/repeat";
 import type {
   Bucket,
+  BucketTodosData,
   StridePlan,
   LifeBalanceInsight,
   LifeArea,
   Profile,
   Todo,
-  TodoWithCompletion,
 } from "@/types";
 
 type DashboardSupabase = SupabaseClient;
@@ -131,24 +130,17 @@ export async function getSelectedBucket(
   }
 }
 
-// Phase B: 투두/루틴 통합 — 선택 날짜의 할 일 목록 (완료 여부 포함).
+// 버킷 단위 todos 캐시 소스 (날짜 전환 0-RTT).
 //
-// 표시 규칙:
-//   - 반복 있음: occursOn(date) 발생일에 표시. 완료 = 그 날짜의 completion 존재
-//   - 반복 없음: scheduled_date **당일에만** 표시. 예외로 미완료인 채 지난 할 일은
-//     **오늘 뷰에 한해** 이월(overdue rollover — 완료 전까지 사라지지 않게).
-//     ⚠️ 이월을 모든 날짜에 적용하면 미완료 할 일이 미래 전 날짜에 따라다닌다(버그였음).
-//     완료 = completion 존재(1회성이므로 어느 날짜든)
-//
-// todayStr: 클라이언트 로컬 기준 "오늘" — 서버는 클라 타임존을 모르므로 함께 받는다.
-export async function getTodosForDate(
+// 날짜 필터/완료 판정은 클라이언트의 deriveTodosForDate(lib/todos/repeat.ts)가 수행 —
+// 서버는 버킷 전체 todos + 그 completions만 내려준다. 캘린더에서 어떤 날짜를 탭해도
+// 추가 왕복이 없다. (completions 전체 조회는 개인 규모라 수용 — 커지면 12개월 윈도우로 제한 여지)
+export async function getBucketTodos(
   supabase: DashboardSupabase,
   userId: string,
-  bucketId: string | null,
-  dateStr: string,
-  todayStr: string
-): Promise<TodoWithCompletion[]> {
-  if (!bucketId) return [];
+  bucketId: string | null
+): Promise<BucketTodosData> {
+  if (!bucketId) return { todos: [], completions: [] };
 
   try {
     const todosResult = await supabase
@@ -163,62 +155,25 @@ export async function getTodosForDate(
     if (todosResult.error) throw todosResult.error;
 
     const todos = (todosResult.data as Todo[] | null) ?? [];
-    if (todos.length === 0) return [];
+    if (todos.length === 0) return { todos: [], completions: [] };
 
-    const repeatingIds = todos.filter((t) => t.repeat_type).map((t) => t.id);
-    const onceIds = todos.filter((t) => !t.repeat_type).map((t) => t.id);
+    const completionsResult = await supabase
+      .from("todo_completions")
+      .select("todo_id, completion_date")
+      .eq("user_id", userId)
+      .in(
+        "todo_id",
+        todos.map((t) => t.id)
+      );
 
-    // 반복: 해당 날짜의 완료만 / 1회성: 어느 날짜든 완료 여부
-    const [dateCompletionsResult, onceCompletionsResult] = await Promise.all([
-      repeatingIds.length > 0
-        ? supabase
-            .from("todo_completions")
-            .select("todo_id")
-            .eq("user_id", userId)
-            .eq("completion_date", dateStr)
-            .in("todo_id", repeatingIds)
-        : Promise.resolve({ data: [], error: null }),
-      onceIds.length > 0
-        ? supabase
-            .from("todo_completions")
-            .select("todo_id")
-            .eq("user_id", userId)
-            .in("todo_id", onceIds)
-        : Promise.resolve({ data: [], error: null }),
-    ]);
+    if (completionsResult.error) throw completionsResult.error;
 
-    if (dateCompletionsResult.error) throw dateCompletionsResult.error;
-    if (onceCompletionsResult.error) throw onceCompletionsResult.error;
-
-    const completedOnDate = new Set(
-      ((dateCompletionsResult.data as Array<{ todo_id: string }> | null) ?? []).map(
-        (c) => c.todo_id
-      )
-    );
-    const completedOnce = new Set(
-      ((onceCompletionsResult.data as Array<{ todo_id: string }> | null) ?? []).map(
-        (c) => c.todo_id
-      )
-    );
-
-    return todos
-      .filter((todo) => {
-        if (todo.repeat_type) return occursOn(todo, dateStr);
-        // 1회성: 등록한 날짜에만 표시
-        if (todo.scheduled_date === dateStr) return true;
-        // 미완료 이월은 "오늘 뷰"에서만 — 미래 날짜에 따라다니지 않게
-        return (
-          dateStr === todayStr &&
-          todo.scheduled_date < dateStr &&
-          !completedOnce.has(todo.id)
-        );
-      })
-      .map((todo) => ({
-        ...todo,
-        is_completed: todo.repeat_type
-          ? completedOnDate.has(todo.id)
-          : completedOnce.has(todo.id),
-      }));
+    return {
+      todos,
+      completions:
+        (completionsResult.data as Array<{ todo_id: string; completion_date: string }> | null) ??
+        [],
+    };
   } catch (error) {
     throw toClientError(error, "할 일을 불러오지 못했습니다.");
   }

@@ -88,6 +88,12 @@ export interface TodoWithCompletion extends Todo {
   is_completed: boolean;
 }
 
+/** 버킷 단위 todos 캐시 (날짜 필터는 클라이언트에서 파생 — deriveTodosForDate) */
+export interface BucketTodosData {
+  todos: Todo[];
+  completions: Array<Pick<TodoCompletion, "todo_id" | "completion_date">>;
+}
+
 /** 입력창 [반복] 버튼에서 선택하는 반복 규칙 */
 export interface TodoRepeatInput {
   type: TodoRepeatType;

@@ -1,5 +1,5 @@
 export {
-  getTodosForDate,
+  getBucketTodos,
   getStridePlan,
   getLifeBalance,
   getProfile,

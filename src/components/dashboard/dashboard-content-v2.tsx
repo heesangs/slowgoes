@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { CalendarSection } from "@/components/dashboard/calendar-section";
 import { DirectionSection } from "@/components/dashboard/direction-section";
 import { InsightSection } from "@/components/dashboard/insight-section";
-import { LifeClockHeader } from "@/components/dashboard/life-clock-header";
 import { RepeatOptionsSheet } from "@/components/dashboard/repeat-options-sheet";
 import {
   KeyboardAccessoryInput,
@@ -22,11 +21,17 @@ import {
   updateStrideItemAction,
 } from "@/app/(main)/dashboard/actions";
 import { useTrackLastViewedBucket } from "@/hooks/use-track-last-viewed-bucket";
-import { useTodos } from "@/hooks/use-todos";
+import { useBucketTodos } from "@/hooks/use-todos";
 import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { FEATURE_NAMES } from "@/lib/constants";
-import { formatRepeatInputLabel, getTodayDateString, parseDateString } from "@/lib/todos/repeat";
+import {
+  deriveTodosForDate,
+  formatRepeatInputLabel,
+  getTodayDateString,
+  parseDateString,
+} from "@/lib/todos/repeat";
 import type {
+  BucketTodosData,
   DashboardV2Data,
   StrideItem,
   StrideLevel,
@@ -77,26 +82,23 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   // DirectionSection prop 호환용 (AI 재생성 제거로 항상 null)
   const regeneratingLevel: StrideLevel | null = null;
 
-  // Phase C: 캘린더 선택 날짜 (기본 오늘). 날짜별 todos는 독립 쿼리 —
-  // 방문했던 날짜는 캐시로 즉시 표시된다 (['todos', bucketId, date]).
+  // 캘린더 선택 날짜 (기본 오늘).
+  // todos는 **버킷 단위 캐시**(['todos', bucketId]) — 날짜 필터는 클라 파생이라
+  // 어떤 날짜를 탭해도 서버 왕복 0회(버킷당 최초 1회만 로드).
   const [selectedDate, setSelectedDate] = useState(() => getTodayDateString());
-  const { data: todosData, isLoading: isLoadingTodos } = useTodos(
-    data.selectedBucket?.id ?? null,
-    selectedDate
-  );
-  const todos = useMemo(() => todosData ?? [], [todosData]);
+  const bucketId = data.selectedBucket?.id ?? null;
+  const { data: bucketTodos, isLoading: isLoadingTodos } = useBucketTodos(bucketId);
+  const todosKey = useMemo(() => ["todos", bucketId] as const, [bucketId]);
 
-  const invalidateTodos = () => queryClient.invalidateQueries({ queryKey: ["todos"] });
-
-  // Optimistic UI: 토글 즉시 반영, 실패 시 자동 rollback
-  const [, startTransition] = useTransition();
-  const [optimisticTodos, applyOptimisticTodo] = useOptimistic(
-    todos,
-    (state: TodoWithCompletion[], todoId: string) =>
-      state.map((t) =>
-        t.id === todoId ? { ...t, is_completed: !t.is_completed } : t
-      )
+  const todos = useMemo(
+    () =>
+      bucketTodos
+        ? deriveTodosForDate(bucketTodos, selectedDate, getTodayDateString())
+        : [],
+    [bucketTodos, selectedDate]
   );
+
+  const invalidateTodos = () => queryClient.invalidateQueries({ queryKey: todosKey });
 
   // IA v2 목표 5: /actions 폐기로 "더보기" 링크가 사라져 extraCount/detailHref도 불필요.
   //   완료 항목 진입은 ExecutionPlanSection 헤더 탭이 대신한다.
@@ -210,16 +212,19 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           repeat: selectedRepeat,
           source: "manual",
         });
-        if (!result.success) {
+        if (!result.success || !result.todo) {
           toast(result.error ?? "추가에 실패했어요.", "error");
           return;
         }
-        // 성공 시에만 드래프트/반복 초기화
+        // 성공 시에만 드래프트/반복 초기화 + 생성 row를 캐시에 직접 append (재페치 0)
+        const created = result.todo;
+        queryClient.setQueryData<BucketTodosData>(todosKey, (old) =>
+          old ? { ...old, todos: [...old.todos, created] } : old
+        );
         addDraftRef.current = "";
         setInputValue("");
         setSelectedRepeat(null);
         setInputMode(null);
-        invalidateTodos();
       } else {
         const result = await updateStrideItemAction(bucketId, inputMode.stride.level, value);
         if (!result.success) {
@@ -234,29 +239,53 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     }
   }
 
-  // 할 일 완료 토글 — useOptimistic 즉시 반영 (선택 날짜 단위)
+  // 할 일 완료 토글 — 캐시(completions)에 직접 반영(체감 0ms) → 서버는 백그라운드.
+  // 서버 toggleTodoCompletionAction과 동일 규칙: (todoId, selectedDate) completion 행 유무 토글.
   function handleToggleTodo(todoId: string) {
-    startTransition(async () => {
-      applyOptimisticTodo(todoId);
-      const result = await toggleTodoCompletionAction(todoId, selectedDate);
+    queryClient.setQueryData<BucketTodosData>(todosKey, (old) => {
+      if (!old) return old;
+      const exists = old.completions.some(
+        (c) => c.todo_id === todoId && c.completion_date === selectedDate
+      );
+      return {
+        ...old,
+        completions: exists
+          ? old.completions.filter(
+              (c) => !(c.todo_id === todoId && c.completion_date === selectedDate)
+            )
+          : [...old.completions, { todo_id: todoId, completion_date: selectedDate }],
+      };
+    });
+
+    void toggleTodoCompletionAction(todoId, selectedDate).then((result) => {
       if (!result.success) {
+        // 실패 → 서버 진실로 롤백
         toast(result.error ?? "상태 변경에 실패했어요.", "error");
+        invalidateTodos();
+        return;
       }
-      // 회고 통계(action_logs)도 영향 → 무효화. todos는 await로 base 갱신을 기다려
-      // optimistic 값이 깜빡이지 않게 한다.
+      // 회고 통계(action_logs) 영향만 무효화 — todos는 캐시가 이미 진실
       queryClient.invalidateQueries({ queryKey: ["review"] });
-      await invalidateTodos();
     });
   }
 
-  // 할 일 삭제 — 1회성=hard delete, 반복=비활성(서버 판단)
-  async function handleDeleteTodo(todo: TodoWithCompletion) {
-    const result = await deleteTodoAction(todo.id);
-    if (result.success) {
-      invalidateTodos();
-    } else {
-      toast(result.error ?? "할 일 삭제에 실패했어요.", "error");
-    }
+  // 할 일 삭제 — 캐시에서 즉시 제거(체감 0ms) → 서버(1회성=hard, 반복=비활성)는 백그라운드
+  function handleDeleteTodo(todo: TodoWithCompletion) {
+    queryClient.setQueryData<BucketTodosData>(todosKey, (old) =>
+      old
+        ? {
+            todos: old.todos.filter((t) => t.id !== todo.id),
+            completions: old.completions.filter((c) => c.todo_id !== todo.id),
+          }
+        : old
+    );
+
+    void deleteTodoAction(todo.id).then((result) => {
+      if (!result.success) {
+        toast(result.error ?? "할 일 삭제에 실패했어요.", "error");
+        invalidateTodos();
+      }
+    });
   }
 
   // 캘린더 헤더의 이번달 발걸음 (수정 진입 대상)
@@ -272,7 +301,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
 
   return (
     <div className="flex flex-col gap-4 pb-24">
-      <LifeClockHeader age={data.profile.life_clock_age} />
+      {/* 나의 시간은 상단 네비(MyTimeBar)로 이동 — 본문 카드 제거 */}
 
       {/* 발걸음 3섹션 (PR 8): 인사이트 → 지향점 → 실행계획
           PR 29: InsightSection은 현재 버킷 + 대화 placeholder만 표시.
@@ -290,7 +319,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           <CalendarSection
             thisMonthStride={thisMonthStride}
             onEditThisMonth={handleEditOpen}
-            todos={optimisticTodos}
+            todos={todos}
             isLoadingTodos={isLoadingTodos}
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
