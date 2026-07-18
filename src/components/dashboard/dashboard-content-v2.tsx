@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
+import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { CalendarSection } from "@/components/dashboard/calendar-section";
@@ -8,7 +8,10 @@ import { DirectionSection } from "@/components/dashboard/direction-section";
 import { InsightSection } from "@/components/dashboard/insight-section";
 import { LifeClockHeader } from "@/components/dashboard/life-clock-header";
 import { RepeatOptionsSheet } from "@/components/dashboard/repeat-options-sheet";
-import { KeyboardAccessoryInput } from "@/components/ui/keyboard-accessory-input";
+import {
+  KeyboardAccessoryInput,
+  type KeyboardAccessoryInputHandle,
+} from "@/components/ui/keyboard-accessory-input";
 import { useToast } from "@/components/ui/toast";
 import {
   addTodoAction,
@@ -62,6 +65,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [inputValue, setInputValue] = useState("");
   const [isSubmittingInput, setIsSubmittingInput] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  // iOS 키보드 즉시 오픈용 — 클릭 핸들러에서 동기 focus 호출
+  const inputHandleRef = useRef<KeyboardAccessoryInputHandle | null>(null);
+  // add 모드 드래프트 — 배경 탭으로 닫아도 유지, 성공 제출 시에만 초기화 (탭 이동/페이지 이탈은 언마운트로 자연 초기화)
+  const addDraftRef = useRef("");
 
   // Phase B: [반복] 버튼 — 선택 시 할 일이 루틴이 된다
   const [repeatSheetOpen, setRepeatSheetOpen] = useState(false);
@@ -150,17 +157,19 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   function handleEditOpen(item: StrideItem) {
     setInputValue(item.action);
     setInputMode({ type: "edit", stride: item });
+    // 클릭 제스처 안에서 동기 focus → iOS 소프트 키보드 즉시 오픈
+    inputHandleRef.current?.focus();
   }
 
-  // FAB(+) → 키보드 입력창 (직접 입력 + AI + 반복)
+  // FAB(+) → 키보드 입력창 (직접 입력 + AI + 반복). 드래프트가 있으면 복원.
   function handleAddOpen() {
     if (!data.selectedBucket?.id) {
       toast(`먼저 ${FEATURE_NAMES.BUCKET}을 선택해주세요.`, "error");
       return;
     }
-    setInputValue("");
-    setSelectedRepeat(null);
+    setInputValue(addDraftRef.current);
     setInputMode({ type: "add" });
+    inputHandleRef.current?.focus();
   }
 
   // [AI] 버튼 — 추천 타이틀을 입력창에 채움(사용자가 수정 후 확정)
@@ -205,6 +214,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           toast(result.error ?? "추가에 실패했어요.", "error");
           return;
         }
+        // 성공 시에만 드래프트/반복 초기화
+        addDraftRef.current = "";
+        setInputValue("");
         setSelectedRepeat(null);
         setInputMode(null);
         invalidateTodos();
@@ -306,50 +318,60 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         +
       </button>
 
-      {/* 키보드 상단 입력창 — 추가/수정 공용 (Input Accessory View 패턴) */}
+      {/* 키보드 상단 입력창 — 추가/수정 공용 (피그마 32502-1352: 2단, 시스템 테마 서피스) */}
       <KeyboardAccessoryInput
+        ref={inputHandleRef}
         open={inputMode !== null}
         onClose={() => setInputMode(null)}
         onSubmit={handleInputSubmit}
         value={inputValue}
-        onValueChange={setInputValue}
+        onValueChange={(v) => {
+          setInputValue(v);
+          // add 드래프트 동기 저장 — 배경 탭으로 닫아도 유지
+          if (inputMode?.type === "add") addDraftRef.current = v;
+        }}
         placeholder={
           inputMode?.type === "edit"
             ? `${inputMode.stride.label} 내용을 수정하세요`
             : selectedDate === getTodayDateString()
-              ? "할 일을 입력하세요"
-              : `${parseDateString(selectedDate).getMonth() + 1}월 ${parseDateString(selectedDate).getDate()}일의 할 일을 입력하세요`
+              ? "무엇이 하고싶으신가요?"
+              : `${parseDateString(selectedDate).getMonth() + 1}월 ${parseDateString(selectedDate).getDate()}일에 무엇이 하고싶으신가요?`
         }
-        submitLabel={inputMode?.type === "edit" ? "저장" : "추가"}
         isSubmitting={isSubmittingInput}
-        leftActions={
+        isBusy={isGeneratingAI}
+        busyPlaceholder={`${data.selectedBucket?.title ?? "버킷"} 관련 추천중...`}
+        actions={
           inputMode?.type === "add" ? (
-            <button
-              type="button"
-              onClick={() => setRepeatSheetOpen(true)}
-              aria-label="반복 설정"
-              aria-pressed={selectedRepeat !== null}
-              className={
-                selectedRepeat
-                  ? "shrink-0 whitespace-nowrap rounded-lg border border-foreground bg-foreground px-2.5 py-2 text-xs text-background"
-                  : "shrink-0 whitespace-nowrap rounded-lg border border-foreground/20 px-2.5 py-2 text-xs text-foreground/70 transition-colors hover:bg-foreground/5"
-              }
-            >
-              🔁 {formatRepeatInputLabel(selectedRepeat)}
-            </button>
-          ) : undefined
-        }
-        rightActions={
-          inputMode?.type === "add" ? (
-            <button
-              type="button"
-              onClick={handleGenerateAI}
-              disabled={isGeneratingAI}
-              aria-label="AI 추천 받기"
-              className="shrink-0 rounded-lg border border-foreground/20 px-3 py-2 text-sm text-foreground transition-colors hover:bg-foreground/5 disabled:opacity-50"
-            >
-              {isGeneratingAI ? "…" : "AI"}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setRepeatSheetOpen(true)}
+                aria-label="반복 설정"
+                aria-pressed={selectedRepeat !== null}
+                className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border px-2 text-xs transition-opacity hover:opacity-80"
+                style={
+                  selectedRepeat
+                    ? {
+                        background: "var(--kai-accent)",
+                        color: "var(--kai-accent-text)",
+                        borderColor: "var(--kai-accent)",
+                      }
+                    : { color: "var(--kai-text)", borderColor: "var(--kai-border)" }
+                }
+              >
+                🔁 {formatRepeatInputLabel(selectedRepeat)}
+              </button>
+              <button
+                type="button"
+                onClick={handleGenerateAI}
+                disabled={isGeneratingAI}
+                aria-label="AI 추천 받기"
+                className="inline-flex h-8 shrink-0 items-center rounded-lg border px-2.5 text-xs transition-opacity hover:opacity-80 disabled:opacity-50"
+                style={{ color: "var(--kai-text)", borderColor: "var(--kai-border)" }}
+              >
+                {isGeneratingAI ? "…" : "AI"}
+              </button>
+            </>
           ) : undefined
         }
       />

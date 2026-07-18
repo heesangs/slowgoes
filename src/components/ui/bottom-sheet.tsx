@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import { cn } from "@/lib/utils";
 
 interface BottomSheetProps {
@@ -20,6 +21,9 @@ interface BottomSheetProps {
 //   ancestor 내부 하단을 가리킴 → 시트가 화면 상단/중앙 등 엉뚱한 위치에 노출.
 //   Portal로 body 자식이 되면 어떤 부모 transform도 영향을 못 미침.
 export function BottomSheet({ open, onClose, title, children, footer, size = "default" }: BottomSheetProps) {
+  // 시트 오픈 동안 배경 스크롤 잠금 (iOS 대응 포함)
+  useLockBodyScroll(open);
+
   useEffect(() => {
     if (!open) return;
 
@@ -41,7 +45,7 @@ export function BottomSheet({ open, onClose, title, children, footer, size = "de
     <div className="fixed inset-0 z-50">
       <button
         type="button"
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 touch-none overscroll-contain bg-black/40"
         onClick={onClose}
         aria-label="바텀시트 닫기"
       />

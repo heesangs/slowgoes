@@ -106,16 +106,20 @@ export async function fetchDashboardDataAction(
 }
 
 // 선택 날짜의 할 일 목록 (React Query queryFn — 키: ['todos', bucketId, date])
+// todayStr: 클라이언트 로컬 기준 오늘 — 미완료 이월(overdue rollover)을 오늘 뷰에만 적용하기 위함.
 export async function fetchTodosForDateAction(
   bucketId: string | null,
-  dateStr: string
+  dateStr: string,
+  todayStr: string
 ): Promise<TodoWithCompletion[]> {
   const user = await getAuthUser();
   if (!user) throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
-  if (!DATE_RE.test(dateStr)) throw new Error("날짜 형식이 올바르지 않습니다.");
+  if (!DATE_RE.test(dateStr) || !DATE_RE.test(todayStr)) {
+    throw new Error("날짜 형식이 올바르지 않습니다.");
+  }
 
   const supabase = await createClient();
-  return getTodosForDate(supabase, user.id, bucketId, dateStr);
+  return getTodosForDate(supabase, user.id, bucketId, dateStr, todayStr);
 }
 
 function normalizeSource(source: ItemSource | undefined): ItemSource {

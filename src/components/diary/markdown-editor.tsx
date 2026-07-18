@@ -15,6 +15,7 @@
 // 컬러: 하늘색 미사용. 앱 기존 블랙 계열 토큰(foreground)만 사용.
 // 본문 폰트: 작성화면 스크린샷 기준 17px.
 
+import { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TaskList from "@tiptap/extension-task-list";
@@ -74,6 +75,14 @@ export function MarkdownEditor({ initialContent = "", onChange }: MarkdownEditor
       onChange(editor.getHTML(), editor.getText());
     },
   });
+
+  // immediatelyRender:false 때문에 autofocus 옵션이 실효가 없어 마운트 후 명시 포커스.
+  // 데스크톱/안드로이드는 바로 입력 가능. iOS는 페이지 네비게이션 뒤라 커서는 놓이지만
+  // 소프트 키보드 자동 오픈은 OS 제약상 보장되지 않음(첫 탭 한 번 필요할 수 있음).
+  useEffect(() => {
+    if (!editor) return;
+    editor.commands.focus("end");
+  }, [editor]);
 
   return (
     <div className={EDITOR_WRAPPER_CLASS}>

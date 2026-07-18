@@ -186,7 +186,7 @@ export function StepScene({
           rows={3}
           maxLength={SCENE_MAX_LENGTH + 20} // 살짝 여유를 두고 카운터로만 안내(즉시 잘리지 않음)
           aria-invalid={customTooShort || customTooLong}
-          className="min-h-[88px] w-full rounded-lg border border-foreground/20 bg-transparent px-4 py-3 text-sm placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-foreground/20"
+          className="min-h-[88px] w-full rounded-lg border border-foreground/20 bg-transparent px-4 py-3 text-base placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-foreground/20"
         />
         {customTooShort && (
           <p className="text-xs text-red-500">
