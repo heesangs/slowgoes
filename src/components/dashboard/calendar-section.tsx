@@ -11,7 +11,7 @@
 //
 // 선택 날짜만 흑색 하이라이트(달성 도트 없음 — 기록은 하단 리스트로 확인).
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -65,6 +65,9 @@ interface CalendarSectionProps {
   selectedDate: string;
   onSelectDate: (dateStr: string) => void;
   onToggleTodo: (todoId: string) => void;
+  /** R2: 텍스트 영역 탭 → 키보드 입력창으로 수정 (타이틀+반복) */
+  onEditTodo: (todo: TodoWithCompletion) => void;
+  /** R2: 좌측 스와이프 → 삭제 버튼 탭 (2단계 제스처라 confirm 없음) */
   onDeleteTodo: (todo: TodoWithCompletion) => void;
 }
 
@@ -76,6 +79,7 @@ export function CalendarSection({
   selectedDate,
   onSelectDate,
   onToggleTodo,
+  onEditTodo,
   onDeleteTodo,
 }: CalendarSectionProps) {
   // 주 ↔ 월 확장 상태 (전환은 핸들 버튼 단일 — 드래그 제스처는 날짜 탭과 충돌해 제거)
@@ -231,6 +235,7 @@ export function CalendarSection({
                     key={todo.id}
                     todo={todo}
                     onToggle={onToggleTodo}
+                    onEdit={onEditTodo}
                     onDelete={onDeleteTodo}
                   />
                 ))}
@@ -247,6 +252,7 @@ export function CalendarSection({
                     key={todo.id}
                     todo={todo}
                     onToggle={onToggleTodo}
+                    onEdit={onEditTodo}
                     onDelete={onDeleteTodo}
                   />
                 ))}
@@ -259,86 +265,170 @@ export function CalendarSection({
   );
 }
 
-// 할 일 행 — 체크박스 · 타이틀 · (시간 · 🔁반복) · ⋮삭제 (피그마 행 구조)
+// 할 일 행 (R2) — 체크박스 · 타이틀(탭=수정) · 시간·🔁반복
+// 좌측 스와이프(터치/마우스 드래그 공통, Pointer Events) → 삭제 버튼 노출 → 탭 삭제.
+// 스와이프 + 버튼 탭의 2단계 제스처라 confirm 창은 두지 않는다.
+
+const DELETE_REVEAL_PX = 72;
+const DRAG_START_THRESHOLD = 8;
+
 function TodoRow({
   todo,
   onToggle,
+  onEdit,
   onDelete,
 }: {
   todo: TodoWithCompletion;
   onToggle: (todoId: string) => void;
+  onEdit: (todo: TodoWithCompletion) => void;
   onDelete: (todo: TodoWithCompletion) => void;
 }) {
   const repeatLabel = formatRepeatLabel(todo);
   const time = formatTime(todo.scheduled_time);
   const isCompleted = todo.is_completed;
 
+  // 스와이프 상태 — offsetX: 0(닫힘) ~ -DELETE_REVEAL_PX(열림)
+  const [offsetX, setOffsetX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const gesture = useRef<{
+    startX: number;
+    startY: number;
+    base: number;
+    active: boolean;
+    moved: boolean;
+  } | null>(null);
+
+  function handlePointerDown(e: React.PointerEvent) {
+    gesture.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      base: offsetX,
+      active: true,
+      moved: false,
+    };
+  }
+
+  function handlePointerMove(e: React.PointerEvent) {
+    const g = gesture.current;
+    if (!g?.active) return;
+    const dx = e.clientX - g.startX;
+    const dy = e.clientY - g.startY;
+
+    if (!dragging) {
+      // 가로 이동이 우세할 때만 스와이프 시작 (세로 스크롤과 간섭 방지)
+      if (Math.abs(dx) > DRAG_START_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+        setDragging(true);
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } else if (Math.abs(dy) > DRAG_START_THRESHOLD) {
+        g.active = false; // 세로 스크롤에 양보
+      }
+      return;
+    }
+
+    g.moved = true;
+    setOffsetX(Math.max(-DELETE_REVEAL_PX, Math.min(0, g.base + dx)));
+  }
+
+  function handlePointerEnd() {
+    const g = gesture.current;
+    if (g?.active && dragging) {
+      // 절반 이상 밀렸으면 열림으로 스냅
+      setOffsetX((x) => (x < -DELETE_REVEAL_PX / 2 ? -DELETE_REVEAL_PX : 0));
+    }
+    setDragging(false);
+    if (g) g.active = false;
+  }
+
+  // 스와이프 직후의 클릭은 무시 (제스처와 탭 충돌 방지)
+  function guardClick(action: () => void) {
+    return () => {
+      const g = gesture.current;
+      if (g?.moved) {
+        g.moved = false;
+        return;
+      }
+      if (offsetX !== 0) {
+        setOffsetX(0); // 열림 상태에서 본문 탭 = 닫기
+        return;
+      }
+      action();
+    };
+  }
+
   return (
-    <li
-      className={cn(
-        // 말줄임 제거 → 여러 줄 허용. 체크박스/메타/메뉴는 첫 줄 기준 상단 정렬
-        "flex items-start gap-1 rounded-lg bg-foreground/[0.04] px-2 py-1.5",
-        isCompleted && "opacity-60"
-      )}
-    >
+    <li className="relative overflow-hidden rounded-lg">
+      {/* 뒤: 삭제 버튼 — 스와이프로 노출 */}
       <button
         type="button"
-        onClick={() => onToggle(todo.id)}
-        aria-pressed={isCompleted}
-        aria-label={`${todo.title} ${isCompleted ? "완료 취소" : "완료"}`}
-        className="shrink-0 rounded-md p-1 hover:bg-foreground/5"
+        onClick={() => onDelete(todo)}
+        aria-label={`${todo.title} 삭제`}
+        tabIndex={offsetX === 0 ? -1 : 0}
+        // 닫혀 있을 땐 완전히 숨겨 라운드 코너 틈으로 빨간색이 비치지 않게 한다
+        className="absolute inset-y-0 right-0 flex items-center justify-center bg-red-500 text-xs font-medium text-white"
+        style={{ width: DELETE_REVEAL_PX, opacity: offsetX < 0 ? 1 : 0 }}
       >
-        <span
-          className={cn(
-            "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-            isCompleted
-              ? "border-foreground bg-foreground text-background"
-              : "border-foreground/30 bg-transparent"
-          )}
-          aria-hidden
-        >
-          {isCompleted && (
-            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-        </span>
+        삭제
       </button>
 
-      <span
+      {/* 앞: 행 본문 — Pointer 드래그로 좌측 이동 */}
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
         className={cn(
-          "min-w-0 flex-1 break-words py-0.5 text-sm leading-snug",
-          isCompleted && "text-foreground/45 line-through"
+          // 배경은 불투명해야 뒤의 삭제 버튼이 비치지 않는다.
+          // color-mix로 foreground 4% 틴트를 background에 섞어 불투명 색을 만든다(라이트/다크 공통).
+          "flex touch-pan-y items-start gap-1 rounded-lg bg-[color-mix(in_srgb,var(--foreground)_4%,var(--background))] px-2 py-1.5",
+          !dragging && "transition-transform duration-200"
         )}
+        // 완료 상태는 체크박스+취소선 텍스트로 표현(행 전체 opacity는 삭제 버튼이 비쳐서 제거)
+        style={{ transform: `translateX(${offsetX}px)` }}
       >
-        {todo.title}
-      </span>
+        <button
+          type="button"
+          onClick={guardClick(() => onToggle(todo.id))}
+          aria-pressed={isCompleted}
+          aria-label={`${todo.title} ${isCompleted ? "완료 취소" : "완료"}`}
+          className="shrink-0 rounded-md p-1 hover:bg-foreground/5"
+        >
+          <span
+            className={cn(
+              "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+              isCompleted
+                ? "border-foreground bg-foreground text-background"
+                : "border-foreground/30 bg-transparent"
+            )}
+            aria-hidden
+          >
+            {isCompleted && (
+              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </span>
+        </button>
 
-      {(time || repeatLabel) && (
-        <span className="mt-1 flex shrink-0 items-center gap-1 text-[10px] text-foreground/40">
-          {time && <span>{time}</span>}
-          {repeatLabel && <span>🔁 {repeatLabel}</span>}
-        </span>
-      )}
+        {/* 타이틀 — 탭하면 키보드 입력창으로 수정 */}
+        <button
+          type="button"
+          onClick={guardClick(() => onEdit(todo))}
+          aria-label={`${todo.title} 수정`}
+          className={cn(
+            "min-w-0 flex-1 break-words py-0.5 text-left text-sm leading-snug",
+            isCompleted && "text-foreground/45 line-through"
+          )}
+        >
+          {todo.title}
+        </button>
 
-      <MoreActionsMenu
-        ariaLabel={`${todo.title} 관리`}
-        align="right"
-        actions={[
-          {
-            label: "삭제",
-            onClick: () => {
-              const message = todo.repeat_type
-                ? `'${todo.title}'을(를) 삭제할까요?\n과거 달성 기록은 보존돼요.`
-                : `'${todo.title}'을(를) 삭제할까요?`;
-              if (window.confirm(message)) {
-                onDelete(todo);
-              }
-            },
-            variant: "danger",
-          },
-        ]}
-      />
+        {(time || repeatLabel) && (
+          <span className="mt-1 flex shrink-0 items-center gap-1 text-[10px] text-foreground/40">
+            {time && <span>{time}</span>}
+            {repeatLabel && <span>🔁 {repeatLabel}</span>}
+          </span>
+        )}
+      </div>
     </li>
   );
 }

@@ -10,12 +10,12 @@ import {
   getStridePlan,
 } from "@/lib/dashboard";
 import {
-  generateSingleNextStep,
+  generateTodoSuggestions,
   regenerateSingleStride,
   STRIDE_ORDER,
   STRIDE_LABELS,
-  type SingleNextStepResult,
 } from "@/lib/ai/analyze";
+import { getRecentDiaryExcerpts } from "@/lib/diary/queries";
 import {
   AUTH_ERRORS,
   AI_ERRORS,
@@ -206,33 +206,120 @@ async function loadNextStepContext(bucketId: string) {
 }
 
 /**
- * "한걸음 더" 시트의 단건 미리보기. DB 저장 없이 추천만 반환.
- * type: 'daily_todo' | 'routine'
- * excludeTitles: 부분 새로고침 시 현재 표시 중인 동종 항목 제목(중복 방지)
+ * R2: AI 투두 3개 추천 — aiprompt.md 규칙(지향점+MBTI+나이+최근 일기) 기반.
+ * DB 저장 없음 — 유저가 AiSuggestionsSheet에서 선택 후 addTodosAction으로 등록.
  */
-export async function generateNextStepPreviewAction(
+export async function generateTodoSuggestionsAction(
   bucketId: string,
-  type: "daily_todo" | "routine",
-  excludeTitles: string[] = []
-): Promise<{ success: boolean; data?: SingleNextStepResult; error?: string }> {
+  baseDate?: string
+): Promise<{ success: boolean; todos?: string[]; error?: string }> {
   try {
     const ctx = await loadNextStepContext(bucketId);
-    // 통합 모델: 반복 여부와 무관하게 전체 할 일 제목을 중복 방지에 사용
-    const existingSameType = ctx.todoRows.map((row) => row.title);
 
-    const result = await generateSingleNextStep({
+    // 추가 컨텍스트: MBTI/나이(profiles) + 최근 일기 발췌 (aiprompt.md ③④⑤)
+    const [profileResult, diaryNotes] = await Promise.all([
+      ctx.supabase
+        .from("profiles")
+        .select("personality_type, life_clock_age")
+        .eq("id", ctx.userId)
+        .maybeSingle(),
+      getRecentDiaryExcerpts(ctx.supabase, ctx.userId, 3),
+    ]);
+    const profile = profileResult.data as {
+      personality_type: string | null;
+      life_clock_age: number | null;
+    } | null;
+
+    const todos = await generateTodoSuggestions({
       bucketTitle: ctx.bucket.title,
       lifeArea: ctx.lifeArea,
       strides: ctx.strides,
-      type,
-      excludeTitles: [...existingSameType, ...excludeTitles].filter(Boolean),
+      personalityType: profile?.personality_type ?? null,
+      age: profile?.life_clock_age ?? null,
+      recentDiaryNotes: diaryNotes,
+      existingTitles: ctx.todoRows.map((row) => row.title),
+      baseDate,
     });
 
-    return { success: true, data: result };
+    return { success: true, todos };
   } catch (error) {
     return {
       success: false,
       error: toClientErrorMessage(error, TODO_ERRORS.WEEKLY_GENERATE_FAILED),
+    };
+  }
+}
+
+/**
+ * R2: AI 추천 선택 등록 — 여러 개를 한 번에 추가.
+ * 생성 rows를 반환해 클라이언트가 캐시에 직접 append (재페치 0).
+ */
+export async function addTodosAction(
+  bucketId: string,
+  input: { titles: string[]; scheduledDate: string }
+): Promise<{ success: boolean; todos?: Todo[]; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const titles = (input.titles ?? []).map((t) => t.trim()).filter(Boolean);
+    if (titles.length === 0) throw new Error("등록할 항목을 선택해주세요.");
+    if (!DATE_RE.test(input.scheduledDate)) throw new Error("날짜 형식이 올바르지 않습니다.");
+
+    const { data, error } = await supabase
+      .from("todos")
+      .insert(
+        titles.map((title) => ({
+          user_id: userId,
+          bucket_id: bucketId,
+          title,
+          source: "ai_generated",
+          scheduled_date: input.scheduledDate,
+        }))
+      )
+      .select("*");
+
+    if (error) throw error;
+
+    return { success: true, todos: (data as Todo[] | null) ?? [] };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, "할 일 추가에 실패했어요."),
+    };
+  }
+}
+
+/**
+ * R2: 할 일 수정 — 타이틀 + 반복 규칙 (텍스트 영역 탭 → 입력창에서 진입).
+ * 반복 변경으로 투두 ↔ 루틴 전환이 가능하다.
+ */
+export async function updateTodoAction(
+  todoId: string,
+  input: { title: string; repeat?: TodoRepeatInput | null }
+): Promise<{ success: boolean; todo?: Todo; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const title = input.title?.trim();
+    if (!title) throw new Error("할 일 내용을 입력해주세요.");
+
+    const repeatCols = normalizeRepeatInput(input.repeat);
+
+    const { data, error } = await supabase
+      .from("todos")
+      .update({ title, ...repeatCols })
+      .eq("id", todoId)
+      .eq("user_id", userId)
+      .select("*")
+      .single();
+
+    if (error) throw error;
+
+    return { success: true, todo: data as Todo };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, "할 일 수정에 실패했어요."),
     };
   }
 }

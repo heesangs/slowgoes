@@ -800,65 +800,104 @@ ${stridesSummary || "- 정보 없음"}
 }
 
 /**
- * "한걸음 더" 시트용 — 데일리 투두 1개 또는 루틴 1개만 단건 추천.
- * 사용자가 시트를 열거나 부분 새로고침(↻)을 누를 때 호출.
+ * AI 투두 자동생성 — 정확히 3개의 실행 가능한 투두를 추천.
  *
- * 미리보기용 — DB 저장은 별도 applyNextStepAction에서 처리.
+ * 품질 규칙의 단일 기준은 루트 `aiprompt.md` — 이 프롬프트는 그 규칙을 구현한다.
+ * (규칙 변경 시 aiprompt.md와 이 함수를 함께 수정)
+ *
+ * 컨텍스트: 지향점 3단(핵심) + MBTI + 나이 + 최근 일기 발췌 + 기존 제목(중복 금지).
  */
-interface GenerateSingleNextStepInput {
+export interface GenerateTodoSuggestionsInput {
   bucketTitle: string;
   lifeArea: string;
+  /** 지향점: 언젠가/올해안/해당 달 발걸음 */
   strides: StrideItem[];
-  type: "daily_todo" | "routine";
-  /** 중복 방지를 위해 이미 표시 중인 항목 제목 (부분 새로고침 시) */
-  excludeTitles?: string[];
+  personalityType?: string | null;
+  age?: number | null;
+  /** 최근 일기 발췌 (각 ~200자) — 현재 관심사 반영용 */
+  recentDiaryNotes?: string[];
+  /** 중복 금지 목록 */
+  existingTitles?: string[];
+  /** 기준 날짜 (캘린더 선택 날짜, YYYY-MM-DD) */
+  baseDate?: string;
 }
 
-export type SingleNextStepDailyResult = { type: "daily_todo"; title: string };
-export type SingleNextStepRoutineResult = {
-  type: "routine";
-  title: string;
-  repeatUnit: SuggestedRoutine["repeatUnit"];
-  repeatValue: SuggestedRoutine["repeatValue"];
-};
-export type SingleNextStepResult = SingleNextStepDailyResult | SingleNextStepRoutineResult;
-
-export async function generateSingleNextStep(
-  input: GenerateSingleNextStepInput
-): Promise<SingleNextStepResult> {
+export async function generateTodoSuggestions(
+  input: GenerateTodoSuggestionsInput
+): Promise<string[]> {
   const bucketTitle = input.bucketTitle.trim();
   const lifeArea = input.lifeArea.trim();
 
   if (!bucketTitle) throw new Error(BUCKET_ERRORS.TITLE_EMPTY);
   if (!lifeArea) throw new Error(STRIDE_ERRORS.LIFE_AREA_EMPTY);
 
-  // 단건 호출이라도 generateWeeklyItems를 재사용해 응답 구조의 일관성 유지.
-  // type에 따라 결과의 첫 번째 항목만 추출.
-  const weekly = await generateWeeklyItems({
-    bucketTitle,
-    lifeArea,
-    strides: input.strides,
-    existingTitles: input.excludeTitles ?? [],
-  });
+  const stridesSummary = input.strides
+    .map((item) => `- ${item.label}: ${item.action}`)
+    .join("\n");
+  const existingTitles =
+    (input.existingTitles ?? []).filter(Boolean).join(" | ") || "없음";
+  const diaryNotes =
+    (input.recentDiaryNotes ?? [])
+      .filter(Boolean)
+      .map((note, i) => `${i + 1}. ${note}`)
+      .join("\n") || "없음";
 
-  if (input.type === "daily_todo") {
-    const first = weekly.dailyTodos[0];
-    if (!first) {
-      throw new Error("새 데일리 투두 추천 결과가 비어 있습니다.");
-    }
-    return { type: "daily_todo", title: first.title };
+  // aiprompt.md 규칙 구현 프롬프트
+  const prompt = `당신은 slowgoes 앱의 실행 코치입니다.
+유저가 "지금 바로 시작할 수 있는" 투두 3개를 추천하세요.
+완벽한 계획이 아니라 "70점짜리 행동" — 어설퍼도 오늘 착수할 수 있는 행동 — 을 지향합니다.
+
+컨텍스트:
+- 버킷: ${bucketTitle}
+- 삶의 영역: ${lifeArea}
+- 지향점 (투두는 가장 짧은 지평의 발걸음에 직결되어야 하고, 나머지는 방향의 배경):
+${stridesSummary || "- 정보 없음"}
+- 유저 성향(MBTI): ${input.personalityType ?? "정보 없음"} (I형이면 혼자 시작 가능한 행동 우선, E형이면 사람과 연결되는 행동 허용, J형이면 계획·정리형, P형이면 즉흥·탐색형으로 조정)
+- 나이: ${input.age != null ? `${input.age}세` : "정보 없음"}
+- 최근 일기 발췌 (관심사·막힘이 드러나면 1개는 이것과 연결):
+${diaryNotes}
+- 기존 투두 제목(의미 중복 금지): ${existingTitles}
+- 기준 날짜: ${input.baseDate ?? "오늘"}
+
+품질 규칙:
+1. 구체적 행동 동사로 시작 ("~알아보기" 같은 추상 금지, "~검색해서 후보 3개 적기"처럼)
+2. 30~60분에 한 번에 끝낼 수 있는 크기
+3. 완벽한 준비보다 어설픈 착수를 우선하는 문장
+4. 개수·시간·산출물이 문장에 있어 완료 판정 가능할 것
+5. 위 지향점을 실제로 전진시키는 행동만
+6. 3개가 서로 다른 유형이 되게: 조사·준비형 / 실행·산출형 / 사람·환경 연결형 중 조합
+7. "매일 ~하기" 같은 반복 전제 문장 금지 (반복은 유저가 별도 설정)
+
+각 제목은 한국어, 40자 이내. 동기부여 문구·이모지·설명 없이 행동 문장만.
+아래 JSON만 응답하세요:
+{ "todos": [ { "title": "..." }, { "title": "..." }, { "title": "..." } ] }`;
+
+  let parsed: unknown;
+  try {
+    const result = await geminiModel.generateContent(prompt);
+    parsed = parseJsonResponse(result.response.text());
+  } catch (error) {
+    throw mapGeminiError(error);
   }
 
-  const firstRoutine = weekly.routines[0];
-  if (!firstRoutine) {
-    throw new Error("새 루틴 추천 결과가 비어 있습니다.");
+  // 정규화: 문자열 3개로 (중복·공백 제거, 최대 3개)
+  const raw = (parsed as { todos?: Array<{ title?: unknown }> })?.todos;
+  if (!Array.isArray(raw)) {
+    throw new Error("AI 추천 결과 형식이 올바르지 않습니다.");
   }
-  return {
-    type: "routine",
-    title: firstRoutine.title,
-    repeatUnit: firstRoutine.repeatUnit,
-    repeatValue: firstRoutine.repeatValue,
-  };
+  const seen = new Set<string>();
+  const titles: string[] = [];
+  for (const item of raw) {
+    const title = typeof item?.title === "string" ? item.title.trim() : "";
+    if (!title || seen.has(title)) continue;
+    seen.add(title);
+    titles.push(title);
+    if (titles.length >= 3) break;
+  }
+  if (titles.length === 0) {
+    throw new Error("AI 추천 결과가 비어 있습니다.");
+  }
+  return titles;
 }
 
 /**

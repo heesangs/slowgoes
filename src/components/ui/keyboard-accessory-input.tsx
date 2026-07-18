@@ -42,6 +42,13 @@ interface KeyboardAccessoryInputProps {
   value: string;
   onValueChange: (value: string) => void;
   placeholder?: string;
+  /**
+   * R2: 입력값이 없을 때 번갈아 보여줄 안내 문구들 (타이포 애니메이션).
+   * 지정 시 placeholder 대신 페이드 교차로 표시된다.
+   */
+  animatedPlaceholders?: string[];
+  /** R2: 하단 행 맨 앞의 버킷 뱃지 (등록 대상 표시, 피그마 32502-1212) */
+  badge?: string;
   /** 하단 행 좌측 액션들 (반복·AI 버튼 등) */
   actions?: ReactNode;
   /** 전송 진행 중 — 입력/전송 잠금 */
@@ -51,6 +58,8 @@ interface KeyboardAccessoryInputProps {
   /** isBusy 동안 표시할 안내 (예: "{버킷} 관련 추천중...") */
   busyPlaceholder?: string;
 }
+
+const PLACEHOLDER_ROTATE_MS = 3500;
 
 export const KeyboardAccessoryInput = forwardRef<
   KeyboardAccessoryInputHandle,
@@ -63,6 +72,8 @@ export const KeyboardAccessoryInput = forwardRef<
     value,
     onValueChange,
     placeholder,
+    animatedPlaceholders,
+    badge,
     actions,
     isSubmitting = false,
     isBusy = false,
@@ -73,6 +84,19 @@ export const KeyboardAccessoryInput = forwardRef<
   const [mounted, setMounted] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // 안내 문구 교차 (타이포 애니메이션) — 입력값 없고 busy 아닐 때만 회전
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  const showAnimated =
+    !!animatedPlaceholders?.length && value.length === 0 && !isBusy && open;
+  useEffect(() => {
+    if (!showAnimated || (animatedPlaceholders?.length ?? 0) < 2) return;
+    const timer = setInterval(
+      () => setPlaceholderIdx((i) => i + 1),
+      PLACEHOLDER_ROTATE_MS
+    );
+    return () => clearInterval(timer);
+  }, [showAnimated, animatedPlaceholders?.length]);
 
   useEffect(() => setMounted(true), []);
 
@@ -176,32 +200,68 @@ export const KeyboardAccessoryInput = forwardRef<
             keyboardOffset === 0 ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]" : "pb-3"
           )}
         >
-          {/* 1단: 자동 확장 입력 */}
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={(e) => {
-              onValueChange(e.target.value);
-              resizeTextarea();
-            }}
-            onKeyDown={(e) => {
-              // 데스크톱 보조: Cmd/Ctrl+Enter 전송 (Enter는 줄바꿈)
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
-            placeholder={isBusy ? (busyPlaceholder ?? placeholder) : placeholder}
-            readOnly={locked}
-            rows={1}
-            tabIndex={open ? 0 : -1}
-            className="w-full resize-none bg-transparent text-[16px] leading-6 outline-none placeholder:text-[var(--kai-placeholder)]"
-            style={{ color: "var(--kai-text)" }}
-          />
+          {/* 1단: 자동 확장 입력 + 오버레이(교차 안내문 / AI 추천중) */}
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={(e) => {
+                onValueChange(e.target.value);
+                resizeTextarea();
+              }}
+              onKeyDown={(e) => {
+                // 데스크톱 보조: Cmd/Ctrl+Enter 전송 (Enter는 줄바꿈)
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+              // 교차 안내문(animatedPlaceholders) 사용 시 네이티브 placeholder는 비움(이중 표시 방지)
+              placeholder={showAnimated ? "" : placeholder}
+              readOnly={locked}
+              rows={1}
+              tabIndex={open ? 0 : -1}
+              className="w-full resize-none bg-transparent text-[16px] leading-6 outline-none placeholder:text-[var(--kai-placeholder)]"
+              style={{ color: "var(--kai-text)" }}
+            />
 
-          {/* 2단: 좌측 액션(반복·AI) + 우측 ↑ 전송 */}
+            {/* 교차 안내문 — 페이드 전환 (입력값 없을 때만) */}
+            {showAnimated && animatedPlaceholders && (
+              <span
+                key={placeholderIdx % animatedPlaceholders.length}
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 top-0 animate-[kai-fade_0.5s_ease] text-[16px] leading-6"
+                style={{ color: "var(--kai-placeholder)" }}
+              >
+                {animatedPlaceholders[placeholderIdx % animatedPlaceholders.length]}
+              </span>
+            )}
+
+            {/* AI 추천중 오버레이 — 기존 입력값이 있어도 진행 상태가 보이게 (피그마 상태 3) */}
+            {isBusy && (
+              <span
+                className="pointer-events-none absolute inset-0 flex items-start text-[16px] leading-6"
+                style={{ background: "var(--kai-surface)", color: "var(--kai-placeholder)" }}
+              >
+                {busyPlaceholder ?? "추천중..."}
+              </span>
+            )}
+          </div>
+
+          {/* 2단: 뱃지(등록 대상 버킷) + 좌측 액션(반복·AI) + 우측 ↑ 전송 */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">{actions}</div>
+            <div className="flex min-w-0 items-center gap-1.5">
+              {badge && (
+                <span
+                  className="inline-flex h-8 max-w-[40%] shrink items-center truncate rounded-lg border px-2 text-xs"
+                  style={{ color: "var(--kai-placeholder)", borderColor: "var(--kai-border)" }}
+                  title={badge}
+                >
+                  {badge}
+                </span>
+              )}
+              {actions}
+            </div>
             {(trimmed.length > 0 || isBusy) && (
               <button
                 type="button"
