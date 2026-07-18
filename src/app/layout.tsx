@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/ui/toast";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -18,6 +18,14 @@ export const metadata: Metadata = {
   title: "slowgoes - 나의 속도로, 천천히",
   description:
     "내 속도에 맞게 삶의 목표를 실행가능한 리듬으로 바꾼다",
+};
+
+// maximumScale: 1 — iOS Safari의 인풋 포커스 자동 확대 억제.
+// iOS는 이 설정에서도 사용자 핀치줌은 계속 허용하므로 접근성 훼손 없음.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({

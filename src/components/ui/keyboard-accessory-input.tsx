@@ -1,88 +1,110 @@
 "use client";
 
-// 키보드 상단 고정 입력창 (Input Accessory View 패턴).
+// 키보드 상단 고정 입력창 (Input Accessory View 패턴) — 피그마 32502-1352 / 상태정의 32502-1212.
 //
-// 모바일 소프트 키보드가 올라올 때 입력 바가 키보드 상단에 딱 붙는다.
-// - Android: 뷰포트 자체가 축소 → visualViewport.height 반영으로 자동 대응
-// - iOS Safari: 키보드가 뷰포트를 덮고 스크롤이 밀림 → visualViewport의
-//   height/offsetTop을 구독해 bottom(px)을 동적 계산으로 방어
-// - 키보드 내려간 상태: env(safe-area-inset-bottom)으로 홈 인디케이터 회피
+// 구조: [자동 확장 textarea(1~5줄, 초과 시 내부 스크롤)]
+//       [하단 행: 액션 버튼들(반복·AI 등)  ···  ↑ 전송(텍스트 있을 때만)]
 //
-// 재사용: 좌/우 액션 슬롯(leftActions/rightActions)로 AI 버튼·반복 버튼 등 확장.
+// 모바일 대응:
+// - visualViewport 구독 → 키보드 높이만큼 paddingBottom을 채워 서피스가 키보드에 밀착
+//   (bottom 오프셋 방식과 달리 반영이 늦어도 갭이 배경색으로 채워진다)
+// - 시스템(OS) 테마 추종 서피스(--kai-*): 키보드가 OS 테마를 따르므로 한 몸처럼 보이게
+// - iOS 키보드 즉시 오픈: 항상 마운트(닫힘=opacity-0) + ref.focus()를 클릭 핸들러에서
+//   동기 호출하면 사용자 제스처 컨텍스트가 유지되어 키보드가 뜬다
+// - 오픈 동안 배경 스크롤 잠금(useLockBodyScroll)
+// - textarea 16px → iOS 포커스 자동 확대 없음 (viewport maximumScale과 이중 방어)
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import { cn } from "@/lib/utils";
+
+const MAX_LINES = 5;
+const LINE_HEIGHT_PX = 24; // 16px * 1.5
+
+export interface KeyboardAccessoryInputHandle {
+  /** 클릭 핸들러에서 동기 호출 — iOS 소프트 키보드 오픈 보장용 */
+  focus: () => void;
+}
 
 interface KeyboardAccessoryInputProps {
   open: boolean;
   onClose: () => void;
   /** 확정(전송) — 공백이면 호출되지 않음 */
   onSubmit: (value: string) => void;
-  /** 오픈 시 초기값 (수정 모드 프리필) */
-  initialValue?: string;
+  value: string;
+  onValueChange: (value: string) => void;
   placeholder?: string;
-  /** 전송 버튼 라벨 (기본 "추가") */
-  submitLabel?: string;
-  /** 입력창 좌측 슬롯 (예: 반복 버튼) */
-  leftActions?: ReactNode;
-  /** 입력창 우측 슬롯 (예: AI 생성 버튼) */
-  rightActions?: ReactNode;
-  /** 외부에서 입력값을 갱신해야 할 때(예: AI 생성 결과 주입) 사용 */
-  value?: string;
-  onValueChange?: (value: string) => void;
-  /** 전송 진행 중 비활성화 */
+  /** 하단 행 좌측 액션들 (반복·AI 버튼 등) */
+  actions?: ReactNode;
+  /** 전송 진행 중 — 입력/전송 잠금 */
   isSubmitting?: boolean;
+  /** AI 생성 중 — 입력 잠금 + busyPlaceholder 표시 */
+  isBusy?: boolean;
+  /** isBusy 동안 표시할 안내 (예: "{버킷} 관련 추천중...") */
+  busyPlaceholder?: string;
 }
 
-export function KeyboardAccessoryInput({
-  open,
-  onClose,
-  onSubmit,
-  initialValue = "",
-  placeholder,
-  submitLabel = "추가",
-  leftActions,
-  rightActions,
-  value: controlledValue,
-  onValueChange,
-  isSubmitting = false,
-}: KeyboardAccessoryInputProps) {
+export const KeyboardAccessoryInput = forwardRef<
+  KeyboardAccessoryInputHandle,
+  KeyboardAccessoryInputProps
+>(function KeyboardAccessoryInput(
+  {
+    open,
+    onClose,
+    onSubmit,
+    value,
+    onValueChange,
+    placeholder,
+    actions,
+    isSubmitting = false,
+    isBusy = false,
+    busyPlaceholder,
+  },
+  ref
+) {
   const [mounted, setMounted] = useState(false);
-  const [innerValue, setInnerValue] = useState(initialValue);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  const isControlled = controlledValue !== undefined;
-  const value = isControlled ? controlledValue : innerValue;
-
-  function setValue(next: string) {
-    if (onValueChange) onValueChange(next);
-    if (!isControlled) setInnerValue(next);
-  }
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => setMounted(true), []);
 
-  // 오픈 시 초기값 리셋 + 포커스(키보드 유도)
-  useEffect(() => {
-    if (!open) return;
-    if (!isControlled) setInnerValue(initialValue);
-    // iOS는 사용자 제스처 직후가 아니면 포커스로 키보드가 안 뜰 수 있어
-    // 다음 프레임에 시도(최선 노력).
-    const t = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  useImperativeHandle(ref, () => ({
+    focus: () => textareaRef.current?.focus(),
+  }));
 
-  // visualViewport 구독 — 키보드 높이만큼 입력 바를 끌어올린다.
+  // 오픈 동안 배경 스크롤 잠금
+  useLockBodyScroll(open);
+
+  // textarea 자동 확장 (1~5줄, 초과 시 내부 스크롤)
+  function resizeTextarea() {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const maxHeight = MAX_LINES * LINE_HEIGHT_PX;
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+  }
+
+  // 값이 외부에서 바뀔 때(AI 주입/드래프트 복원)도 높이 갱신
+  useEffect(() => {
+    resizeTextarea();
+  }, [value, open]);
+
+  // visualViewport 구독 — 키보드 높이만큼 하단을 서피스로 채운다
   useEffect(() => {
     if (!open) return;
     const vv = window.visualViewport;
-    if (!vv) return; // 미지원 브라우저: safe-area 패딩만으로 동작
+    if (!vv) return;
 
     const update = () => {
-      // 레이아웃 뷰포트 대비 가시 영역이 줄어든 만큼(키보드 높이)을 bottom으로.
-      // iOS에서 페이지가 밀렸을 때는 offsetTop이 보정해준다.
       const offset = window.innerHeight - vv.height - vv.offsetTop;
       setKeyboardOffset(Math.max(0, Math.round(offset)));
     };
@@ -107,10 +129,11 @@ export function KeyboardAccessoryInput({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!mounted || !open) return null;
+  if (!mounted) return null;
 
   const trimmed = value.trim();
-  const canSubmit = trimmed.length > 0 && !isSubmitting;
+  const locked = isSubmitting || isBusy;
+  const canSubmit = trimmed.length > 0 && !locked;
 
   function handleSubmit() {
     if (!canSubmit) return;
@@ -118,56 +141,89 @@ export function KeyboardAccessoryInput({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
-      {/* 오버레이 — 탭하면 닫힘 */}
+    // 항상 마운트 — 닫힘 상태는 opacity-0 (visibility:hidden은 focus 불가라 사용 금지)
+    <div
+      className={cn(
+        "fixed inset-0 z-50 transition-opacity",
+        open ? "opacity-100" : "pointer-events-none opacity-0"
+      )}
+      aria-hidden={!open}
+      role="dialog"
+      aria-modal={open || undefined}
+    >
+      {/* 오버레이 — 탭하면 닫힘. 배경 오버스크롤 차단 */}
       <button
         type="button"
         aria-label="닫기"
+        tabIndex={open ? 0 : -1}
         onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-black/30"
+        className="absolute inset-0 h-full w-full cursor-default touch-none overscroll-contain bg-black/30"
       />
 
-      {/* 입력 바 — 키보드 상단 고정. keyboardOffset(px)으로 동적 부착 */}
+      {/* 입력 서피스 — 키보드 상단 밀착. paddingBottom으로 키보드까지 배경을 채움 */}
       <div
-        className="fixed inset-x-0 w-full bg-background shadow-[0_-4px_16px_rgba(0,0,0,0.08)]"
-        style={{ bottom: keyboardOffset }}
+        className="fixed inset-x-0 bottom-0 w-full"
+        style={{
+          background: "var(--kai-surface)",
+          color: "var(--kai-text)",
+          paddingBottom: keyboardOffset,
+        }}
       >
         <div
           className={cn(
-            "mx-auto flex max-w-2xl items-center gap-2 px-3 py-2",
-            // 키보드가 내려가 있을 때만 홈 인디케이터 회피 (키보드 위에서는 불필요)
-            keyboardOffset === 0 && "pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+            "mx-auto flex max-w-2xl flex-col gap-2 px-4 pt-3",
+            // 키보드 없을 때만 홈 인디케이터 회피
+            keyboardOffset === 0 ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]" : "pb-3"
           )}
         >
-          {leftActions}
-          <input
-            ref={inputRef}
-            type="text"
+          {/* 1단: 자동 확장 입력 */}
+          <textarea
+            ref={textareaRef}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => {
+              onValueChange(e.target.value);
+              resizeTextarea();
+            }}
             onKeyDown={(e) => {
-              // 한글 조합 중 Enter 중복 방지
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+              // 데스크톱 보조: Cmd/Ctrl+Enter 전송 (Enter는 줄바꿈)
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
                 e.preventDefault();
                 handleSubmit();
               }
             }}
-            placeholder={placeholder}
-            disabled={isSubmitting}
-            className="min-w-0 flex-1 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-[15px] text-foreground outline-none placeholder:text-foreground/35 focus:border-foreground/40 disabled:opacity-50"
+            placeholder={isBusy ? (busyPlaceholder ?? placeholder) : placeholder}
+            readOnly={locked}
+            rows={1}
+            tabIndex={open ? 0 : -1}
+            className="w-full resize-none bg-transparent text-[16px] leading-6 outline-none placeholder:text-[var(--kai-placeholder)]"
+            style={{ color: "var(--kai-text)" }}
           />
-          {rightActions}
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="shrink-0 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background transition-opacity disabled:opacity-30"
-          >
-            {isSubmitting ? "…" : submitLabel}
-          </button>
+
+          {/* 2단: 좌측 액션(반복·AI) + 우측 ↑ 전송 */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">{actions}</div>
+            {(trimmed.length > 0 || isBusy) && (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+                aria-label="전송"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity disabled:opacity-40"
+                style={{ background: "var(--kai-accent)", color: "var(--kai-accent-text)" }}
+              >
+                {isSubmitting ? (
+                  <span className="text-xs">…</span>
+                ) : (
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5M5 12l7-7 7 7" />
+                  </svg>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>,
     document.body
   );
-}
+});

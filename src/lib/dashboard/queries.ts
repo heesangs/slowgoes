@@ -135,14 +135,18 @@ export async function getSelectedBucket(
 //
 // 표시 규칙:
 //   - 반복 있음: occursOn(date) 발생일에 표시. 완료 = 그 날짜의 completion 존재
-//   - 반복 없음: scheduled_date 당일 표시. 단, 미완료인 채 지난 할 일은
-//     오늘 뷰로 이월(overdue rollover — 완료 전까지 사라지지 않게)
+//   - 반복 없음: scheduled_date **당일에만** 표시. 예외로 미완료인 채 지난 할 일은
+//     **오늘 뷰에 한해** 이월(overdue rollover — 완료 전까지 사라지지 않게).
+//     ⚠️ 이월을 모든 날짜에 적용하면 미완료 할 일이 미래 전 날짜에 따라다닌다(버그였음).
 //     완료 = completion 존재(1회성이므로 어느 날짜든)
+//
+// todayStr: 클라이언트 로컬 기준 "오늘" — 서버는 클라 타임존을 모르므로 함께 받는다.
 export async function getTodosForDate(
   supabase: DashboardSupabase,
   userId: string,
   bucketId: string | null,
-  dateStr: string
+  dateStr: string,
+  todayStr: string
 ): Promise<TodoWithCompletion[]> {
   if (!bucketId) return [];
 
@@ -200,9 +204,14 @@ export async function getTodosForDate(
     return todos
       .filter((todo) => {
         if (todo.repeat_type) return occursOn(todo, dateStr);
-        // 1회성: 당일 표시 + 미완료 이월(과거 날짜인데 아직 미완료면 오늘 뷰에 표시)
+        // 1회성: 등록한 날짜에만 표시
         if (todo.scheduled_date === dateStr) return true;
-        return todo.scheduled_date < dateStr && !completedOnce.has(todo.id);
+        // 미완료 이월은 "오늘 뷰"에서만 — 미래 날짜에 따라다니지 않게
+        return (
+          dateStr === todayStr &&
+          todo.scheduled_date < dateStr &&
+          !completedOnce.has(todo.id)
+        );
       })
       .map((todo) => ({
         ...todo,

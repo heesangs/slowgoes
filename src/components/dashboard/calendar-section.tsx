@@ -3,14 +3,15 @@
 // 캘린더 섹션 (Phase C) — 구 "나의 발걸음" 실행 영역을 캘린더 중심으로 재구성.
 //
 // 구조 (피그마 32455-984):
-//   헤더: [이번주|M월 라벨] [이번달 발걸음 타이틀] [⋮ 수정/버킷삭제]
+//   헤더: [이번달|M월 라벨] [이번달 발걸음 타이틀] [⋮ 수정/버킷삭제]
 //   일~토 요일 행 + 날짜 그리드 (주 1행 ↔ 월 5~6행)
-//   ─ 주↔월 전환: 그리드 영역 세로 드래그(터치) 또는 하단 핸들 클릭
+//   ─ 주↔월 전환: 하단 핸들 버튼 단일 진입점
+//     (터치 드래그 전환은 날짜 탭과 제스처가 충돌해 제거됨 — 사용성 피드백)
 //   날짜 탭 → 그 날짜의 할 일: "오늘/M월 D일"(진행중) / "완료" 상하 섹션 (탭 없음)
 //
 // 선택 날짜만 흑색 하이라이트(달성 도트 없음 — 기록은 하단 리스트로 확인).
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -22,8 +23,6 @@ import {
   WEEKDAY_SHORT_LABELS,
 } from "@/lib/todos/repeat";
 import type { StrideItem, TodoWithCompletion } from "@/types";
-
-const DRAG_THRESHOLD_PX = 30;
 
 // "HH:MM:SS" → "HH:MM"
 function formatTime(time: string | null): string | null {
@@ -83,9 +82,8 @@ export function CalendarSection({
   onDeleteBucket,
   isDeletingBucket = false,
 }: CalendarSectionProps) {
-  // 주 ↔ 월 확장 상태
+  // 주 ↔ 월 확장 상태 (전환은 핸들 버튼 단일 — 드래그 제스처는 날짜 탭과 충돌해 제거)
   const [expanded, setExpanded] = useState(false);
-  const touchStartY = useRef<number | null>(null);
 
   const today = getTodayDateString();
   const selected = parseDateString(selectedDate);
@@ -103,25 +101,12 @@ export function CalendarSection({
   const dateLabel = isToday
     ? "오늘"
     : `${selected.getMonth() + 1}월 ${selected.getDate()}일`;
-  // 주 뷰: 오늘이 포함된 주만 "이번주", 아니면 "M월 N주차" 대신 간결하게 "M월"
-  const weekContainsToday = !expanded && dates.includes(today);
-  const headerLabel = expanded
-    ? `${selected.getMonth() + 1}월`
-    : weekContainsToday
-      ? "이번주"
-      : `${selected.getMonth() + 1}월`;
-
-  // 터치 드래그로 주↔월 전환 (아래로=확장, 위로=축소)
-  function handleTouchStart(e: React.TouchEvent) {
-    touchStartY.current = e.touches[0]?.clientY ?? null;
-  }
-  function handleTouchEnd(e: React.TouchEvent) {
-    if (touchStartY.current === null) return;
-    const delta = (e.changedTouches[0]?.clientY ?? touchStartY.current) - touchStartY.current;
-    touchStartY.current = null;
-    if (delta > DRAG_THRESHOLD_PX) setExpanded(true);
-    else if (delta < -DRAG_THRESHOLD_PX) setExpanded(false);
-  }
+  // 헤더 라벨: 선택 날짜가 현재 달이면 "이번달", 다른 달이면 "M월" (주/월 뷰 공통)
+  const todayDate = parseDateString(today);
+  const isCurrentMonth =
+    selected.getFullYear() === todayDate.getFullYear() &&
+    selected.getMonth() === todayDate.getMonth();
+  const headerLabel = isCurrentMonth ? "이번달" : `${selected.getMonth() + 1}월`;
 
   const menuActions = [
     ...(thisMonthStride
@@ -155,8 +140,8 @@ export function CalendarSection({
         )}
       </div>
 
-      {/* 달력 그리드 — 터치 드래그로 주↔월 전환 */}
-      <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      {/* 달력 그리드 — 주↔월 전환은 하단 핸들 버튼 */}
+      <div>
         {/* 요일 행 (일~토) */}
         <div className="mt-2 grid grid-cols-7 text-center">
           {WEEKDAY_SHORT_LABELS.map((label) => (

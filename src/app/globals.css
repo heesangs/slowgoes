@@ -31,3 +31,27 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* 키보드 상단 입력창(Input Accessory) 전용 서피스 —
+   앱 테마(data-theme)가 아니라 **시스템(OS) 테마만** 추종한다.
+   소프트 키보드가 OS 테마를 따르므로, 입력창이 키보드와 한 몸처럼 보이게 하기 위함
+   (피그마 32502-1352: 다크 키보드 위 다크 서피스 밀착). */
+:root {
+  --kai-surface: #f2f2f4;
+  --kai-text: #1a1a1a;
+  --kai-placeholder: rgba(26, 26, 26, 0.4);
+  --kai-border: rgba(0, 0, 0, 0.15);
+  --kai-accent: #1a1a1a;
+  --kai-accent-text: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --kai-surface: #2a2a2c;
+    --kai-text: #f2f2f2;
+    --kai-placeholder: rgba(242, 242, 242, 0.45);
+    --kai-border: rgba(255, 255, 255, 0.22);
+    --kai-accent: #ffffff;
+    --kai-accent-text: #1a1a1a;
+  }
+}
