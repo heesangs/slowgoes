@@ -66,8 +66,6 @@ interface CalendarSectionProps {
   onSelectDate: (dateStr: string) => void;
   onToggleTodo: (todoId: string) => void;
   onDeleteTodo: (todo: TodoWithCompletion) => void;
-  onDeleteBucket?: () => void;
-  isDeletingBucket?: boolean;
 }
 
 export function CalendarSection({
@@ -79,8 +77,6 @@ export function CalendarSection({
   onSelectDate,
   onToggleTodo,
   onDeleteTodo,
-  onDeleteBucket,
-  isDeletingBucket = false,
 }: CalendarSectionProps) {
   // 주 ↔ 월 확장 상태 (전환은 핸들 버튼 단일 — 드래그 제스처는 날짜 탭과 충돌해 제거)
   const [expanded, setExpanded] = useState(false);
@@ -108,21 +104,10 @@ export function CalendarSection({
     selected.getMonth() === todayDate.getMonth();
   const headerLabel = isCurrentMonth ? "이번달" : `${selected.getMonth() + 1}월`;
 
-  const menuActions = [
-    ...(thisMonthStride
-      ? [{ label: "수정", onClick: () => onEditThisMonth(thisMonthStride) }]
-      : []),
-    ...(onDeleteBucket
-      ? [
-          {
-            label: `${FEATURE_NAMES.BUCKET} 삭제`,
-            onClick: onDeleteBucket,
-            disabled: isDeletingBucket,
-            variant: "danger" as const,
-          },
-        ]
-      : []),
-  ];
+  // R1: 버킷 삭제는 버킷 카드 ⋯로 이동 — 캘린더 ⋮는 "수정"만
+  const menuActions = thisMonthStride
+    ? [{ label: "수정", onClick: () => onEditThisMonth(thisMonthStride) }]
+    : [];
 
   return (
     <section className="rounded-xl border border-foreground/10 px-4 py-4">
