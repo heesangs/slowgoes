@@ -401,6 +401,50 @@ export async function deleteBucketAction(
 }
 
 /**
+ * R1: 버킷 타이틀 수정 — 버킷 카드 ⋯ "수정"에서 호출.
+ * 활성 버킷 unique(user_id, life_area_id, title) 인덱스 충돌 시 안내 메시지.
+ */
+export async function updateBucketTitleAction(
+  bucketId: string,
+  newTitle: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const trimmedId = bucketId?.trim();
+    const title = newTitle?.trim();
+    if (!trimmedId) {
+      return { success: false, error: BUCKET_ERRORS.NOT_FOUND_OR_ACCESS_DENIED };
+    }
+    if (!title) {
+      return { success: false, error: "버킷 이름을 입력해주세요." };
+    }
+
+    const { error } = await supabase
+      .from("buckets")
+      .update({ title })
+      .eq("id", trimmedId)
+      .eq("user_id", userId);
+
+    if (error) {
+      // 활성 버킷 (user, life_area, title) unique 충돌
+      if (error.code === "23505") {
+        return { success: false, error: "같은 이름의 버킷이 이미 있어요." };
+      }
+      throw error;
+    }
+
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, "버킷 이름 수정에 실패했어요."),
+    };
+  }
+}
+
+/**
  * PR 37: 데일리투두 삭제 — 발걸음 수정 시트의 trash 아이콘에서 호출.
  *
  * Hard delete. action_logs는 `bucket_id ON DELETE SET NULL`이 아니라 별도 컬럼이며,

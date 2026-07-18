@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { BucketCard } from "@/components/dashboard/bucket-card";
 import { CalendarSection } from "@/components/dashboard/calendar-section";
 import { DirectionSection } from "@/components/dashboard/direction-section";
-import { InsightSection } from "@/components/dashboard/insight-section";
+import { ExploreNewSceneSheet } from "@/components/dashboard/explore-new-scene-sheet";
 import { RepeatOptionsSheet } from "@/components/dashboard/repeat-options-sheet";
 import {
   KeyboardAccessoryInput,
@@ -18,6 +19,7 @@ import {
   deleteTodoAction,
   generateNextStepPreviewAction,
   toggleTodoCompletionAction,
+  updateBucketTitleAction,
   updateStrideItemAction,
 } from "@/app/(main)/dashboard/actions";
 import { useTrackLastViewedBucket } from "@/hooks/use-track-last-viewed-bucket";
@@ -33,6 +35,9 @@ import {
 import type {
   BucketTodosData,
   DashboardV2Data,
+  Gender,
+  PaceType,
+  PersonalityType,
   StrideItem,
   StrideLevel,
   TodoRepeatInput,
@@ -65,8 +70,11 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [inputMode, setInputMode] = useState<
     | { type: "add" }
     | { type: "edit"; stride: StrideItem }
+    | { type: "bucket-edit" }
     | null
   >(null);
+  // R1: 새 버킷 추가 시트 (구 BucketSwitcher + 칩에서 버킷 카드 시트로 이동)
+  const [exploreOpen, setExploreOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [isSubmittingInput, setIsSubmittingInput] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -163,6 +171,32 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     inputHandleRef.current?.focus();
   }
 
+  // 버킷 카드 ⋯ "수정" → 키보드 입력창으로 버킷 타이틀 수정
+  function handleEditBucketTitle() {
+    if (!data.selectedBucket) return;
+    setInputValue(data.selectedBucket.title);
+    setInputMode({ type: "bucket-edit" });
+    inputHandleRef.current?.focus();
+  }
+
+  // 새 장면 탐색 프리필 — 프로필이 완전할 때만 (구 MainNavBarLoader 로직 이식)
+  const prefillProfile = useMemo(() => {
+    const p = data.profile;
+    if (
+      p.life_clock_age != null &&
+      (p.gender === "male" || p.gender === "female") &&
+      p.personality_type != null
+    ) {
+      return {
+        age: p.life_clock_age,
+        gender: p.gender as Gender,
+        personalityType: p.personality_type as PersonalityType,
+        paceType: (p.pace_type ?? undefined) as PaceType | undefined,
+      };
+    }
+    return null;
+  }, [data.profile]);
+
   // FAB(+) → 키보드 입력창 (직접 입력 + AI + 반복). 드래프트가 있으면 복원.
   function handleAddOpen() {
     if (!data.selectedBucket?.id) {
@@ -201,6 +235,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       setInputMode(null);
       return;
     }
+    if (inputMode.type === "bucket-edit" && value === data.selectedBucket?.title.trim()) {
+      setInputMode(null);
+      return;
+    }
 
     setIsSubmittingInput(true);
     try {
@@ -225,6 +263,15 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         setInputValue("");
         setSelectedRepeat(null);
         setInputMode(null);
+      } else if (inputMode.type === "bucket-edit") {
+        // R1: 버킷 타이틀 수정
+        const result = await updateBucketTitleAction(bucketId, value);
+        if (!result.success) {
+          toast(result.error ?? "버킷 이름 수정에 실패했어요.", "error");
+          return;
+        }
+        setInputMode(null);
+        invalidateDashboard();
       } else {
         const result = await updateStrideItemAction(bucketId, inputMode.stride.level, value);
         if (!result.success) {
@@ -303,10 +350,15 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     <div className="flex flex-col gap-4 pb-24">
       {/* 나의 시간은 상단 네비(MyTimeBar)로 이동 — 본문 카드 제거 */}
 
-      {/* 발걸음 3섹션 (PR 8): 인사이트 → 지향점 → 실행계획
-          PR 29: InsightSection은 현재 버킷 + 대화 placeholder만 표시.
-          IA v2 목표 3: 버킷 전환은 헤더 BucketSwitcher로 일원화 — 드롭다운 prop 제거. */}
-      <InsightSection bucketTitle={data.selectedBucket?.title ?? null} />
+      {/* R1: 버킷 카드 — 단일 버킷 중심 UI. 전환/추가는 카드 시트, 수정/삭제는 ⋯ */}
+      <BucketCard
+        buckets={data.buckets}
+        selectedBucket={data.selectedBucket}
+        onEditTitle={handleEditBucketTitle}
+        onDelete={handleDeleteBucket}
+        isDeleting={isDeletingBucket}
+        onAddBucket={() => setExploreOpen(true)}
+      />
 
       {data.stridePlan && (
         <>
@@ -325,8 +377,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             onSelectDate={setSelectedDate}
             onToggleTodo={handleToggleTodo}
             onDeleteTodo={handleDeleteTodo}
-            onDeleteBucket={data.selectedBucket ? handleDeleteBucket : undefined}
-            isDeletingBucket={isDeletingBucket}
           />
         </>
       )}
@@ -362,7 +412,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         placeholder={
           inputMode?.type === "edit"
             ? `${inputMode.stride.label} 내용을 수정하세요`
-            : selectedDate === getTodayDateString()
+            : inputMode?.type === "bucket-edit"
+              ? `${FEATURE_NAMES.BUCKET} 이름을 수정하세요`
+              : selectedDate === getTodayDateString()
               ? "무엇이 하고싶으신가요?"
               : `${parseDateString(selectedDate).getMonth() + 1}월 ${parseDateString(selectedDate).getDate()}일에 무엇이 하고싶으신가요?`
         }
@@ -412,6 +464,18 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         baseDate={selectedDate}
         selected={selectedRepeat}
         onSelect={setSelectedRepeat}
+      />
+
+      {/* R1: 새 버킷(장면) 추가 — 버킷 카드 시트의 "+ 버킷 추가"에서 진입 */}
+      <ExploreNewSceneSheet
+        open={exploreOpen}
+        onClose={() => setExploreOpen(false)}
+        prefillProfile={prefillProfile}
+        onComplete={() => {
+          setExploreOpen(false);
+          invalidateDashboard();
+          toast("새로운 행동이 추가되었어요 ✨", "success");
+        }}
       />
     </div>
   );
