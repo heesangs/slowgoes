@@ -19,13 +19,28 @@ export function getStrideTone(level: StrideLevel) {
   return "border-foreground/10 bg-foreground/[0.02]";
 }
 
-export type LifeClockInfo = { label: string; handClassName: string };
+export type LifeClockInfo = {
+  label: string;
+  handClassName: string;
+  /** 24시간제 시 (0~23) — 인생시계 바늘 각도 계산용 */
+  hour24: number;
+  /** 분 (0~59) */
+  minute: number;
+  /** 초 (0~59) — (age/100)×24h 변환에서 분의 소수부. 정수 나이도 초가 살아있다 (예: 42세=10:04:48) */
+  second: number;
+  /** 12시간제 시 (1~12) */
+  hour12: number;
+  /** "오전" | "오후" */
+  meridiem: string;
+};
 
 export function computeLifeClock(age: number | null): LifeClockInfo | null {
   if (age === null || age < 0 || age > 100) return null;
   const totalHours = (age / 100) * 24;
   const hour24 = Math.floor(totalHours);
-  const minute = Math.floor((totalHours - hour24) * 60);
+  const totalMinutes = (totalHours - hour24) * 60;
+  const minute = Math.floor(totalMinutes);
+  const second = Math.floor((totalMinutes - minute) * 60);
   const meridiem = hour24 < 12 ? "오전" : "오후";
   const hour12Raw = hour24 % 12;
   const hour12 = hour12Raw === 0 ? 12 : hour12Raw;
@@ -37,5 +52,13 @@ export function computeLifeClock(age: number | null): LifeClockInfo | null {
       Math.floor((hour24 / 24) * CLOCK_HAND_ROTATION_CLASSES.length)
     )
   );
-  return { label, handClassName: CLOCK_HAND_ROTATION_CLASSES[handIndex] };
+  return {
+    label,
+    handClassName: CLOCK_HAND_ROTATION_CLASSES[handIndex],
+    hour24,
+    minute,
+    second,
+    hour12,
+    meridiem,
+  };
 }

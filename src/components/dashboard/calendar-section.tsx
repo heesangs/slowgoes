@@ -126,18 +126,31 @@ export function CalendarSection({
 
   return (
     <section className="rounded-xl border border-foreground/10 px-4 py-4">
-      {/* 섹션 타이틀 */}
-      <p className="text-sm font-medium text-foreground/70">{FEATURE_NAMES.CALENDAR}</p>
-
-      {/* 헤더: 주/월 라벨 + 이번달 발걸음 타이틀 + ⋮ */}
-      <div className="mt-3 flex items-center justify-between gap-2 border-b border-foreground/10 pb-2">
-        <p className="shrink-0 text-sm font-semibold">{headerLabel}</p>
-        <p className="min-w-0 flex-1 truncate text-right text-xs text-foreground/55">
-          {thisMonthStride?.action ?? ""}
-        </p>
+      {/* 섹션 타이틀 행 — ⋮는 여기(캘린더의 가장 오른쪽)에 배치 */}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-foreground/70">{FEATURE_NAMES.CALENDAR}</p>
         {menuActions.length > 0 && (
           <MoreActionsMenu ariaLabel={`${FEATURE_NAMES.CALENDAR} 더보기`} align="right" actions={menuActions} />
         )}
+      </div>
+
+      {/* 헤더: 주/월 라벨 + 이번달 발걸음 타이틀
+          — 달력을 펼치면(월 뷰) 말줄임 없이 전체 표시 */}
+      <div
+        className={cn(
+          "mt-3 flex justify-between gap-2 border-b border-foreground/10 pb-2",
+          expanded ? "items-start" : "items-center"
+        )}
+      >
+        <p className="shrink-0 text-sm font-semibold">{headerLabel}</p>
+        <p
+          className={cn(
+            "min-w-0 flex-1 text-right text-xs leading-relaxed text-foreground/55",
+            !expanded && "truncate"
+          )}
+        >
+          {thisMonthStride?.action ?? ""}
+        </p>
       </div>
 
       {/* 달력 그리드 — 주↔월 전환은 하단 핸들 버튼 */}
@@ -278,7 +291,8 @@ function TodoRow({
   return (
     <li
       className={cn(
-        "flex items-center gap-1 rounded-lg bg-foreground/[0.04] px-2 py-1.5",
+        // 말줄임 제거 → 여러 줄 허용. 체크박스/메타/메뉴는 첫 줄 기준 상단 정렬
+        "flex items-start gap-1 rounded-lg bg-foreground/[0.04] px-2 py-1.5",
         isCompleted && "opacity-60"
       )}
     >
@@ -308,7 +322,7 @@ function TodoRow({
 
       <span
         className={cn(
-          "min-w-0 flex-1 truncate text-sm",
+          "min-w-0 flex-1 break-words py-0.5 text-sm leading-snug",
           isCompleted && "text-foreground/45 line-through"
         )}
       >
@@ -316,7 +330,7 @@ function TodoRow({
       </span>
 
       {(time || repeatLabel) && (
-        <span className="flex shrink-0 items-center gap-1 text-[10px] text-foreground/40">
+        <span className="mt-1 flex shrink-0 items-center gap-1 text-[10px] text-foreground/40">
           {time && <span>{time}</span>}
           {repeatLabel && <span>🔁 {repeatLabel}</span>}
         </span>

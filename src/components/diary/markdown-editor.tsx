@@ -66,6 +66,10 @@ export function MarkdownEditor({ initialContent = "", onChange }: MarkdownEditor
     autofocus: "end",
     // SSR hydration mismatch 방지 (Next.js App Router)
     immediatelyRender: false,
+    // 에디터 생성 직후 텍스트 포커스 (키보드 오픈이 아닌 커서 배치가 목적)
+    onCreate: ({ editor }) => {
+      editor.commands.focus("end");
+    },
     editorProps: {
       attributes: {
         class: "prose-none",

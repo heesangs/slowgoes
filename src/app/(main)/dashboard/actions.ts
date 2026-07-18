@@ -6,7 +6,7 @@ import { getAuthUser } from "@/lib/supabase/auth";
 import {
   getProfileForRequest,
   getUserBucketsForRequest,
-  getTodosForDate,
+  getBucketTodos,
   getStridePlan,
 } from "@/lib/dashboard";
 import {
@@ -34,7 +34,8 @@ import type {
   StrideTitleHistoryEntry,
   TodoRepeatInput,
   TodoRepeatType,
-  TodoWithCompletion,
+  BucketTodosData,
+  Todo,
 } from "@/types";
 
 function toClientErrorMessage(error: unknown, fallback: string): string {
@@ -105,21 +106,16 @@ export async function fetchDashboardDataAction(
   return { profile, buckets, selectedBucket, stridePlan };
 }
 
-// 선택 날짜의 할 일 목록 (React Query queryFn — 키: ['todos', bucketId, date])
-// todayStr: 클라이언트 로컬 기준 오늘 — 미완료 이월(overdue rollover)을 오늘 뷰에만 적용하기 위함.
-export async function fetchTodosForDateAction(
-  bucketId: string | null,
-  dateStr: string,
-  todayStr: string
-): Promise<TodoWithCompletion[]> {
+// 버킷 단위 todos 캐시 (React Query queryFn — 키: ['todos', bucketId]).
+// 날짜 필터는 클라이언트 deriveTodosForDate가 수행 → 날짜 전환 시 왕복 0회.
+export async function fetchBucketTodosAction(
+  bucketId: string | null
+): Promise<BucketTodosData> {
   const user = await getAuthUser();
   if (!user) throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
-  if (!DATE_RE.test(dateStr) || !DATE_RE.test(todayStr)) {
-    throw new Error("날짜 형식이 올바르지 않습니다.");
-  }
 
   const supabase = await createClient();
-  return getTodosForDate(supabase, user.id, bucketId, dateStr, todayStr);
+  return getBucketTodos(supabase, user.id, bucketId);
 }
 
 function normalizeSource(source: ItemSource | undefined): ItemSource {
@@ -623,7 +619,7 @@ export async function addTodoAction(
     repeat?: TodoRepeatInput | null;
     source?: ItemSource;
   }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; todo?: Todo; error?: string }> {
   try {
     const { supabase, userId } = await getAuthContext();
 
@@ -633,18 +629,23 @@ export async function addTodoAction(
 
     const repeatCols = normalizeRepeatInput(input.repeat);
 
-    const { error } = await supabase.from("todos").insert({
-      user_id: userId,
-      bucket_id: bucketId,
-      title,
-      source: normalizeSource(input.source),
-      scheduled_date: input.scheduledDate,
-      ...repeatCols,
-    });
+    // 생성 row 반환 — 클라이언트가 캐시에 직접 append (재페치 0)
+    const { data, error } = await supabase
+      .from("todos")
+      .insert({
+        user_id: userId,
+        bucket_id: bucketId,
+        title,
+        source: normalizeSource(input.source),
+        scheduled_date: input.scheduledDate,
+        ...repeatCols,
+      })
+      .select("*")
+      .single();
 
     if (error) throw error;
 
-    return { success: true };
+    return { success: true, todo: data as Todo };
   } catch (error) {
     return {
       success: false,

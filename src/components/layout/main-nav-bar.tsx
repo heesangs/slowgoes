@@ -22,6 +22,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { readLastViewedBucketCookie } from "@/hooks/use-track-last-viewed-bucket";
 import { BucketSwitcher } from "@/components/navigation/bucket-switcher";
+import { MyTimeBar } from "@/components/layout/my-time-bar";
 import { ExploreNewSceneSheet } from "@/components/dashboard/explore-new-scene-sheet";
 import { useToast } from "@/components/ui/toast";
 import type { Bucket, Gender, PaceType, PersonalityType } from "@/types";
@@ -37,6 +38,8 @@ interface MainNavBarProps {
     personalityType: PersonalityType;
     paceType?: PaceType;
   } | null;
+  /** 나의 시간 바 (피그마 32615-19100) — age 유효할 때만 노출 */
+  lifeClock: { age: number; displayName: string } | null;
 }
 
 // 버킷 스위처를 노출할 라우트 — 그 외에는 null 반환으로 헤더 하단 공간을 줄임.
@@ -47,6 +50,7 @@ export function MainNavBar({
   buckets,
   cookieSelectedBucketId,
   prefillProfile,
+  lifeClock,
 }: MainNavBarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -84,6 +88,13 @@ export function MainNavBar({
 
   return (
     <>
+      {/* 나의 시간 바 — 헤더와 버킷칩 사이 (피그마 32615-19100 순서) */}
+      {lifeClock && (
+        <div className="mx-auto max-w-2xl">
+          <MyTimeBar age={lifeClock.age} displayName={lifeClock.displayName} />
+        </div>
+      )}
+
       <div className="border-b border-foreground/10">
         <div className="mx-auto max-w-2xl">
           <BucketSwitcher
