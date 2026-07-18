@@ -31,7 +31,7 @@ export const STRIDE_LABELS: Record<StrideLevel, string> = {
   this_week: "이번 주",
   this_month: "이번 달",
   this_season: "이번 시즌",
-  this_year: "1년 안",
+  this_year: "올해안",
   five_years: "5년 안",
   decade: "10년 안",
   someday: "언젠가",
@@ -581,7 +581,7 @@ ${lifeAreaHintLine}
 
 어조 가이드 (PR 17):
 - "언젠가"(someday): 비전 문장. 어미는 "~한 사람이 되어 있다", "~을 즐기는 사람", "~의 길을 걸어가고 있다" 등 정체성 진술 형식.
-- "1년 안"(this_year): 마일스톤 문장. 어미는 "~한 모습으로 자리 잡는다", "~의 토대를 마련한다" 등 도달 상태 진술.
+- "올해안"(this_year): 마일스톤 문장. 어미는 "~한 모습으로 자리 잡는다", "~의 토대를 마련한다" 등 도달 상태 진술.
 - "이번 시즌/이번 달"(this_season/this_month): 시기 선언 문장. "이번 (시즌|달)은 ~을 하는 (시즌|달)이다", "~의 (시즌|달)이다" 형식 권장.
 - "이번 주/오늘"(this_week/today): 즉시 실행 가능한 구체 행동. "~을 실행한다", "~한다", "~을 시작한다" 등 능동적 어미.
 - 일관성: 어색하면 자연스러운 한국어 표현을 우선. 강제하지 말 것.
@@ -593,7 +593,7 @@ ${lifeAreaHintLine}
     { "level": "today", "label": "오늘", "action": "..." },
     { "level": "this_week", "label": "이번 주", "action": "..." },
     { "level": "this_month", "label": "이번 달", "action": "..." },
-    { "level": "this_year", "label": "1년 안", "action": "..." },
+    { "level": "this_year", "label": "올해안", "action": "..." },
     { "level": "someday", "label": "언젠가", "action": "..." }
   ],
   "suggestedRoutines": [

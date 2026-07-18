@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AiSuggestionsSheet } from "@/components/dashboard/ai-suggestions-sheet";
 import { BucketCard } from "@/components/dashboard/bucket-card";
 import { CalendarSection } from "@/components/dashboard/calendar-section";
-import { DirectionSection } from "@/components/dashboard/direction-section";
+import { DirectionSheet } from "@/components/dashboard/direction-sheet";
 import { ExploreNewSceneSheet } from "@/components/dashboard/explore-new-scene-sheet";
 import { RepeatOptionsSheet } from "@/components/dashboard/repeat-options-sheet";
 import {
@@ -43,7 +43,6 @@ import type {
   PaceType,
   PersonalityType,
   StrideItem,
-  StrideLevel,
   TodoRepeatInput,
   TodoWithCompletion,
 } from "@/types";
@@ -80,6 +79,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   >(null);
   // R1: 새 버킷 추가 시트 (구 BucketSwitcher + 칩에서 버킷 카드 시트로 이동)
   const [exploreOpen, setExploreOpen] = useState(false);
+  // R3: 지향점 시트 (구 DirectionSection → 캘린더 헤더 ▼로 진입)
+  const [directionOpen, setDirectionOpen] = useState(false);
   // R2: AI 추천 3개 선택 시트
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [aiSheetOpen, setAiSheetOpen] = useState(false);
@@ -97,9 +98,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   // Phase B: [반복] 버튼 — 선택 시 할 일이 루틴이 된다
   const [repeatSheetOpen, setRepeatSheetOpen] = useState(false);
   const [selectedRepeat, setSelectedRepeat] = useState<TodoRepeatInput | null>(null);
-
-  // DirectionSection prop 호환용 (AI 재생성 제거로 항상 null)
-  const regeneratingLevel: StrideLevel | null = null;
 
   // 캘린더 선택 날짜 (기본 오늘).
   // todos는 **버킷 단위 캐시**(['todos', bucketId]) — 날짜 필터는 클라 파생이라
@@ -180,6 +178,12 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     setInputMode({ type: "edit", stride: item });
     // 클릭 제스처 안에서 동기 focus → iOS 소프트 키보드 즉시 오픈
     inputHandleRef.current?.focus();
+  }
+
+  // R3: 지향점 시트 카드 탭 → 시트 닫고 키보드 입력창으로 수정
+  function handleEditStrideFromSheet(item: StrideItem) {
+    setDirectionOpen(false);
+    handleEditOpen(item);
   }
 
   // 버킷 카드 ⋯ "수정" → 키보드 입력창으로 버킷 타이틀 수정
@@ -427,6 +431,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     [strideGroups]
   );
 
+  // R3: 지향점 시트의 this_month 카드 라벨은 "이번 달" 대신 해당 달(예: "7월")
+  const monthLabel = `${parseDateString(getTodayDateString()).getMonth() + 1}월`;
+
   // PR 34: 전체 발걸음 재생성 삭제. Phase A: 수정 시 AI 재생성도 제거(텍스트 수정만).
 
   return (
@@ -444,25 +451,18 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       />
 
       {data.stridePlan && (
-        <>
-          <DirectionSection
-            items={strideGroups.direction}
-            onEditLevel={handleEditOpen}
-            regeneratingLevel={regeneratingLevel}
-          />
-          {/* Phase C: 캘린더 섹션 — 주↔월 전환 + 날짜 탭 + 진행중/완료 상하 구분 */}
-          <CalendarSection
-            thisMonthStride={thisMonthStride}
-            onEditThisMonth={handleEditOpen}
-            todos={todos}
-            isLoadingTodos={isLoadingTodos}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-            onToggleTodo={handleToggleTodo}
-            onEditTodo={handleEditTodo}
-            onDeleteTodo={handleDeleteTodo}
-          />
-        </>
+        /* R3: 지향점은 캘린더 헤더 ▼로 흡수 (DirectionSection 제거) */
+        <CalendarSection
+          thisMonthStride={thisMonthStride}
+          onOpenDirection={() => setDirectionOpen(true)}
+          todos={todos}
+          isLoadingTodos={isLoadingTodos}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          onToggleTodo={handleToggleTodo}
+          onEditTodo={handleEditTodo}
+          onDeleteTodo={handleDeleteTodo}
+        />
       )}
 
       {!data.stridePlan && (
@@ -556,6 +556,16 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             </>
           ) : undefined
         }
+      />
+
+      {/* R3: 지향점 시트 — 캘린더 헤더 ▼로 진입, 카드 탭 = 바로 수정 */}
+      <DirectionSheet
+        open={directionOpen}
+        onClose={() => setDirectionOpen(false)}
+        directionItems={strideGroups.direction}
+        monthStride={thisMonthStride}
+        monthLabel={monthLabel}
+        onEditStride={handleEditStrideFromSheet}
       />
 
       {/* R2: AI 추천 3개 선택 시트 — 등록 시 캐시 append (입력창 위에 오버레이) */}
