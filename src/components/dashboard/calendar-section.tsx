@@ -12,7 +12,6 @@
 // 선택 날짜만 흑색 하이라이트(달성 도트 없음 — 기록은 하단 리스트로 확인).
 
 import { useMemo, useRef, useState } from "react";
-import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
@@ -56,9 +55,10 @@ function buildMonthDates(selected: string): string[] {
 }
 
 interface CalendarSectionProps {
-  /** 이번달 발걸음 (헤더 타이틀 + ⋮ 수정 대상). 없으면 타이틀 영역 비움 */
+  /** 이번달 발걸음 (헤더 타이틀). 없으면 타이틀 영역 비움 */
   thisMonthStride: StrideItem | null;
-  onEditThisMonth: (item: StrideItem) => void;
+  /** R3: 헤더 우측 ▼ → 지향점 시트 열기 (수정은 시트 내 카드 탭) */
+  onOpenDirection: () => void;
   /** 선택 날짜의 할 일 (useTodos 결과) */
   todos: TodoWithCompletion[];
   isLoadingTodos?: boolean;
@@ -73,7 +73,7 @@ interface CalendarSectionProps {
 
 export function CalendarSection({
   thisMonthStride,
-  onEditThisMonth,
+  onOpenDirection,
   todos,
   isLoadingTodos = false,
   selectedDate,
@@ -108,38 +108,39 @@ export function CalendarSection({
     selected.getMonth() === todayDate.getMonth();
   const headerLabel = isCurrentMonth ? "이번달" : `${selected.getMonth() + 1}월`;
 
-  // R1: 버킷 삭제는 버킷 카드 ⋯로 이동 — 캘린더 ⋮는 "수정"만
-  const menuActions = thisMonthStride
-    ? [{ label: "수정", onClick: () => onEditThisMonth(thisMonthStride) }]
-    : [];
-
   return (
     <section className="rounded-xl border border-foreground/10 px-4 py-4">
-      {/* 섹션 타이틀 행 — ⋮는 여기(캘린더의 가장 오른쪽)에 배치 */}
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-foreground/70">{FEATURE_NAMES.CALENDAR}</p>
-        {menuActions.length > 0 && (
-          <MoreActionsMenu ariaLabel={`${FEATURE_NAMES.CALENDAR} 더보기`} align="right" actions={menuActions} />
-        )}
-      </div>
+      {/* 섹션 타이틀 행 — R3: ⋮ 제거(수정은 지향점 시트 카드 탭, 삭제는 버킷 카드로 이동) */}
+      <p className="text-sm font-medium text-foreground/70">{FEATURE_NAMES.CALENDAR}</p>
 
-      {/* 헤더: 주/월 라벨 + 이번달 발걸음 타이틀
+      {/* 헤더: 주/월 라벨 + 이번달 발걸음(왼쪽 정렬) + 우측 ▼ → 지향점 시트
           — 달력을 펼치면(월 뷰) 말줄임 없이 전체 표시 */}
       <div
         className={cn(
-          "mt-3 flex justify-between gap-2 border-b border-foreground/10 pb-2",
+          "mt-3 flex gap-2 border-b border-foreground/10 pb-2",
           expanded ? "items-start" : "items-center"
         )}
       >
         <p className="shrink-0 text-sm font-semibold">{headerLabel}</p>
         <p
           className={cn(
-            "min-w-0 flex-1 text-right text-xs leading-relaxed text-foreground/55",
+            "min-w-0 flex-1 text-xs leading-relaxed text-foreground/55",
             !expanded && "truncate"
           )}
         >
           {thisMonthStride?.action ?? ""}
         </p>
+        {/* ▼ 지향점 시트 열기 — 작은 아래꺽쇠 (피그마) */}
+        <button
+          type="button"
+          onClick={onOpenDirection}
+          aria-label={`${FEATURE_NAMES.DIRECTION} 열기`}
+          className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
       </div>
 
       {/* 달력 그리드 — 주↔월 전환은 하단 핸들 버튼 */}

@@ -21,7 +21,7 @@ export const FEATURE_NAMES = {
   FIND_ME: "숨은 나 찾기",
   // 발걸음 3섹션 라벨 (PR 6 신설, PR 8에서 컴포넌트 분리 시 사용)
   INSIGHT: "인사이트", // 구 "공감 메시지"
-  DIRECTION: "지향점", // 구 "방향" — 언젠가 + 1년 안
+  DIRECTION: "지향점", // 구 "방향" — 언젠가 + 올해안
   // PR 33: "실행계획" → MY_STRIDES 로 통합. 동일 의미 상수 2개로 갈리던 것을 정리.
   STRIDE_DETAIL: "한걸음 상세", // 구 "오늘의 한걸음 상세"
   // IA v2 목표 6: 헤더 nav 아이콘 라벨 (aria-label / 페이지 타이틀 통합)
