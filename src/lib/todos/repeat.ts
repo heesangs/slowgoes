@@ -165,6 +165,19 @@ export function deriveTodosForDate(
     }));
 }
 
+/** Todo의 반복 컬럼 → 입력창 [반복] 버튼용 TodoRepeatInput (수정 모드 프리필) */
+export function todoRepeatToInput(
+  todo: Pick<Todo, "repeat_type" | "repeat_weekdays" | "repeat_month_day" | "repeat_month">
+): TodoRepeatInput | null {
+  if (!todo.repeat_type) return null;
+  return {
+    type: todo.repeat_type,
+    weekdays: todo.repeat_weekdays ?? undefined,
+    monthDay: todo.repeat_month_day ?? undefined,
+    month: todo.repeat_month ?? undefined,
+  };
+}
+
 /** TodoRepeatInput → 라벨 (입력창 [반복] 버튼 표시용) */
 export function formatRepeatInputLabel(input: TodoRepeatInput | null): string {
   if (!input) return "반복";

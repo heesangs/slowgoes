@@ -22,6 +22,29 @@ export async function getDiaryEntries(
   return (data ?? []).map(toDiaryListItem);
 }
 
+// AI 투두 생성 컨텍스트용 — 최근 일기 발췌 (aiprompt.md ⑤).
+// plain_text 앞부분만 잘라 토큰을 아낀다. 실패해도 AI 생성은 계속돼야 하므로 throw 없이 빈 배열.
+const DIARY_EXCERPT_CHARS = 200;
+
+export async function getRecentDiaryExcerpts(
+  supabase: SupabaseClient,
+  userId: string,
+  limit = 3
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("diaries")
+    .select("plain_text")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) return [];
+
+  return ((data as Array<{ plain_text: string }> | null) ?? [])
+    .map((row) => row.plain_text.trim().slice(0, DIARY_EXCERPT_CHARS))
+    .filter(Boolean);
+}
+
 // 단건: 편집용 전체 조회. RLS + user_id 가드 이중.
 export async function getDiaryEntry(
   supabase: SupabaseClient,

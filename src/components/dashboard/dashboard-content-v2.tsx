@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { AiSuggestionsSheet } from "@/components/dashboard/ai-suggestions-sheet";
 import { BucketCard } from "@/components/dashboard/bucket-card";
 import { CalendarSection } from "@/components/dashboard/calendar-section";
 import { DirectionSection } from "@/components/dashboard/direction-section";
@@ -15,12 +16,14 @@ import {
 import { useToast } from "@/components/ui/toast";
 import {
   addTodoAction,
+  addTodosAction,
   deleteBucketAction,
   deleteTodoAction,
-  generateNextStepPreviewAction,
+  generateTodoSuggestionsAction,
   toggleTodoCompletionAction,
   updateBucketTitleAction,
   updateStrideItemAction,
+  updateTodoAction,
 } from "@/app/(main)/dashboard/actions";
 import { useTrackLastViewedBucket } from "@/hooks/use-track-last-viewed-bucket";
 import { useBucketTodos } from "@/hooks/use-todos";
@@ -31,6 +34,7 @@ import {
   formatRepeatInputLabel,
   getTodayDateString,
   parseDateString,
+  todoRepeatToInput,
 } from "@/lib/todos/repeat";
 import type {
   BucketTodosData,
@@ -71,10 +75,17 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     | { type: "add" }
     | { type: "edit"; stride: StrideItem }
     | { type: "bucket-edit" }
+    | { type: "todo-edit"; todo: TodoWithCompletion }
     | null
   >(null);
   // R1: 새 버킷 추가 시트 (구 BucketSwitcher + 칩에서 버킷 카드 시트로 이동)
   const [exploreOpen, setExploreOpen] = useState(false);
+  // R2: AI 추천 3개 선택 시트
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [aiSheetOpen, setAiSheetOpen] = useState(false);
+  const [isRegisteringAi, setIsRegisteringAi] = useState(false);
+  // add 모드의 반복 드래프트 — todo-edit가 selectedRepeat를 덮어써도 복원 가능하게
+  const addRepeatDraftRef = useRef<TodoRepeatInput | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [isSubmittingInput, setIsSubmittingInput] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -179,6 +190,25 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     inputHandleRef.current?.focus();
   }
 
+  // R2: 투두 텍스트 탭 → 키보드 입력창으로 수정 (타이틀 + 반복 프리필).
+  //   반복 변경으로 투두 ↔ 루틴 전환을 커버한다.
+  //   add 모드의 반복 드래프트는 보존했다가 닫을 때 복원.
+  function handleEditTodo(todo: TodoWithCompletion) {
+    addRepeatDraftRef.current = selectedRepeat;
+    setInputValue(todo.title);
+    setSelectedRepeat(todoRepeatToInput(todo));
+    setInputMode({ type: "todo-edit", todo });
+    inputHandleRef.current?.focus();
+  }
+
+  // 입력창 닫기 — todo-edit를 벗어날 땐 add 모드 반복 드래프트를 복원한다.
+  function handleCloseInput() {
+    if (inputMode?.type === "todo-edit") {
+      setSelectedRepeat(addRepeatDraftRef.current);
+    }
+    setInputMode(null);
+  }
+
   // 새 장면 탐색 프리필 — 프로필이 완전할 때만 (구 MainNavBarLoader 로직 이식)
   const prefillProfile = useMemo(() => {
     const p = data.profile;
@@ -208,21 +238,45 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     inputHandleRef.current?.focus();
   }
 
-  // [AI] 버튼 — 추천 타이틀을 입력창에 채움(사용자가 수정 후 확정)
+  // [AI] 버튼 — aiprompt.md 규칙으로 3개 추천 → AiSuggestionsSheet에서 선택 등록.
+  // busy 동안 입력창은 오버레이("...추천중")로 진행 상태를 보여준다.
   async function handleGenerateAI() {
     const bucketId = data.selectedBucket?.id;
     if (!bucketId || isGeneratingAI) return;
     setIsGeneratingAI(true);
     try {
-      const existingTitles = todos.map((t) => t.title);
-      const result = await generateNextStepPreviewAction(bucketId, "daily_todo", existingTitles);
-      if (result.success && result.data) {
-        setInputValue(result.data.title);
+      const result = await generateTodoSuggestionsAction(bucketId, selectedDate);
+      if (result.success && result.todos && result.todos.length > 0) {
+        setAiSuggestions(result.todos);
+        setAiSheetOpen(true);
       } else {
         toast(result.error ?? "AI 추천에 실패했어요.", "error");
       }
     } finally {
       setIsGeneratingAI(false);
+    }
+  }
+
+  // AiSuggestionsSheet "등록" — 선택 타이틀을 한 번에 저장하고 캐시에 append (재페치 0)
+  async function handleRegisterAiTodos(titles: string[]) {
+    const bucketId = data.selectedBucket?.id;
+    if (!bucketId || titles.length === 0 || isRegisteringAi) return;
+    setIsRegisteringAi(true);
+    try {
+      const result = await addTodosAction(bucketId, { titles, scheduledDate: selectedDate });
+      if (!result.success || !result.todos) {
+        toast(result.error ?? "등록에 실패했어요.", "error");
+        return;
+      }
+      const created = result.todos;
+      queryClient.setQueryData<BucketTodosData>(todosKey, (old) =>
+        old ? { ...old, todos: [...old.todos, ...created] } : old
+      );
+      setAiSheetOpen(false);
+      setInputMode(null);
+      toast(`${created.length}개 등록했어요 ✨`, "success");
+    } finally {
+      setIsRegisteringAi(false);
     }
   }
 
@@ -238,6 +292,17 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     if (inputMode.type === "bucket-edit" && value === data.selectedBucket?.title.trim()) {
       setInputMode(null);
       return;
+    }
+    // 투두 수정: 타이틀·반복 모두 그대로면 서버 호출 없이 닫기
+    if (inputMode.type === "todo-edit") {
+      const sameTitle = value === inputMode.todo.title.trim();
+      const sameRepeat =
+        JSON.stringify(selectedRepeat) ===
+        JSON.stringify(todoRepeatToInput(inputMode.todo));
+      if (sameTitle && sameRepeat) {
+        handleCloseInput();
+        return;
+      }
     }
 
     setIsSubmittingInput(true);
@@ -272,6 +337,24 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         }
         setInputMode(null);
         invalidateDashboard();
+      } else if (inputMode.type === "todo-edit") {
+        // R2: 투두 타이틀 + 반복 수정 → 캐시 todo 교체 (재페치 0)
+        const result = await updateTodoAction(inputMode.todo.id, {
+          title: value,
+          repeat: selectedRepeat,
+        });
+        if (!result.success || !result.todo) {
+          toast(result.error ?? "수정에 실패했어요.", "error");
+          return;
+        }
+        const updated = result.todo;
+        queryClient.setQueryData<BucketTodosData>(todosKey, (old) =>
+          old
+            ? { ...old, todos: old.todos.map((t) => (t.id === updated.id ? updated : t)) }
+            : old
+        );
+        setSelectedRepeat(addRepeatDraftRef.current); // add 모드 반복 드래프트 복원
+        setInputMode(null);
       } else {
         const result = await updateStrideItemAction(bucketId, inputMode.stride.level, value);
         if (!result.success) {
@@ -376,6 +459,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
             onToggleTodo={handleToggleTodo}
+            onEditTodo={handleEditTodo}
             onDeleteTodo={handleDeleteTodo}
           />
         </>
@@ -401,7 +485,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       <KeyboardAccessoryInput
         ref={inputHandleRef}
         open={inputMode !== null}
-        onClose={() => setInputMode(null)}
+        onClose={handleCloseInput}
         onSubmit={handleInputSubmit}
         value={inputValue}
         onValueChange={(v) => {
@@ -414,15 +498,29 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             ? `${inputMode.stride.label} 내용을 수정하세요`
             : inputMode?.type === "bucket-edit"
               ? `${FEATURE_NAMES.BUCKET} 이름을 수정하세요`
-              : selectedDate === getTodayDateString()
-              ? "무엇이 하고싶으신가요?"
-              : `${parseDateString(selectedDate).getMonth() + 1}월 ${parseDateString(selectedDate).getDate()}일에 무엇이 하고싶으신가요?`
+              : inputMode?.type === "todo-edit"
+                ? "할 일을 수정하세요"
+                : selectedDate === getTodayDateString()
+                ? "무엇이 하고싶으신가요?"
+                : `${parseDateString(selectedDate).getMonth() + 1}월 ${parseDateString(selectedDate).getDate()}일에 무엇이 하고싶으신가요?`
+        }
+        // R2: add 모드에서만 교차 안내문 애니메이션 (수정 모드는 프리필 값이 있음)
+        animatedPlaceholders={
+          inputMode?.type === "add"
+            ? ["작은 실천을 등록해볼까요?", "70점짜리 행동도 좋아요"]
+            : undefined
+        }
+        // R2: 등록/수정 대상 버킷 뱃지 (add·todo-edit에만 노출)
+        badge={
+          inputMode?.type === "add" || inputMode?.type === "todo-edit"
+            ? data.selectedBucket?.title
+            : undefined
         }
         isSubmitting={isSubmittingInput}
         isBusy={isGeneratingAI}
         busyPlaceholder={`${data.selectedBucket?.title ?? "버킷"} 관련 추천중...`}
         actions={
-          inputMode?.type === "add" ? (
+          inputMode?.type === "add" || inputMode?.type === "todo-edit" ? (
             <>
               <button
                 type="button"
@@ -442,19 +540,31 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
               >
                 🔁 {formatRepeatInputLabel(selectedRepeat)}
               </button>
-              <button
-                type="button"
-                onClick={handleGenerateAI}
-                disabled={isGeneratingAI}
-                aria-label="AI 추천 받기"
-                className="inline-flex h-8 shrink-0 items-center rounded-lg border px-2.5 text-xs transition-opacity hover:opacity-80 disabled:opacity-50"
-                style={{ color: "var(--kai-text)", borderColor: "var(--kai-border)" }}
-              >
-                {isGeneratingAI ? "…" : "AI"}
-              </button>
+              {/* AI 추천은 새 할 일 추가(add)에서만 */}
+              {inputMode?.type === "add" && (
+                <button
+                  type="button"
+                  onClick={handleGenerateAI}
+                  disabled={isGeneratingAI}
+                  aria-label="AI 추천 받기"
+                  className="inline-flex h-8 shrink-0 items-center rounded-lg border px-2.5 text-xs transition-opacity hover:opacity-80 disabled:opacity-50"
+                  style={{ color: "var(--kai-text)", borderColor: "var(--kai-border)" }}
+                >
+                  {isGeneratingAI ? "…" : "AI"}
+                </button>
+              )}
             </>
           ) : undefined
         }
+      />
+
+      {/* R2: AI 추천 3개 선택 시트 — 등록 시 캐시 append (입력창 위에 오버레이) */}
+      <AiSuggestionsSheet
+        open={aiSheetOpen}
+        onClose={() => setAiSheetOpen(false)}
+        suggestions={aiSuggestions}
+        onRegister={handleRegisterAiTodos}
+        isRegistering={isRegisteringAi}
       />
 
       {/* [반복] 옵션 시트 — 기준일은 캘린더 선택 날짜. 선택 시 할 일이 루틴이 된다 */}
