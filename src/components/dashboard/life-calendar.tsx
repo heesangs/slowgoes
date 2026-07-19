@@ -41,7 +41,7 @@ const MINUTE_OUTER = 0.68;
 const SECOND_OUTER = 0.82;
 const DIAL_LABELS = [3, 6, 9, 15, 18, 21]; // 12(하단)는 진한 점만
 
-type Phase = "grid" | "toClock" | "clock" | "toGrid";
+export type LifePhase = "grid" | "toClock" | "clock" | "toGrid";
 
 export interface LifeCellRect {
   /** 뷰포트 기준 현재 주 칸 사각형 */
@@ -55,8 +55,14 @@ interface LifeCalendarProps {
   age: number;
   /** 진입 시 순차 채움 애니메이션 여부 */
   animate: boolean;
-  /** 현재 주 칸의 화면 좌표 — 토글 morph 타겟용 (그리드 상태 레이아웃 후 1회) */
+  /** 현재 주 칸의 화면 좌표 — 주→일생 오버레이 비행 타겟 (그리드 상태 레이아웃 후 1회) */
   onReady?: (rect: LifeCellRect) => void;
+  /** 페이저: 그리드 상태에서 오른쪽 스와이프 → 부모가 주 캘린더 복귀 처리 */
+  onSwipeRight?: () => void;
+  /** 페이저 점 인덱스용 — 내부 phase 변경 통지 */
+  onPhaseChange?: (phase: LifePhase) => void;
+  /** 그리드 채움 시작 지연(ms) — 주→일생 오버레이 비행과 타이밍 동기화용 */
+  entryDelayMs?: number;
 }
 
 function easeInOutCubic(u: number): number {
@@ -82,7 +88,14 @@ function getLayout(width: number) {
 
 type Layout = ReturnType<typeof getLayout>;
 
-export function LifeCalendar({ age, animate, onReady }: LifeCalendarProps) {
+export function LifeCalendar({
+  age,
+  animate,
+  onReady,
+  onSwipeRight,
+  onPhaseChange,
+  entryDelayMs = 0,
+}: LifeCalendarProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -90,7 +103,12 @@ export function LifeCalendar({ age, animate, onReady }: LifeCalendarProps) {
   const drawRef = useRef<((p: number, entryRows?: number) => void) | null>(null);
   const enteredRef = useRef(false); // 진입 채움 애니는 1회만
 
-  const [phase, setPhase] = useState<Phase>("grid");
+  const [phase, setPhase] = useState<LifePhase>("grid");
+
+  // 페이저 점 인덱스용 — phase 변경을 부모에 통지
+  useEffect(() => {
+    onPhaseChange?.(phase);
+  }, [phase, onPhaseChange]);
 
   // 컨테이너 폭 → 셀 크기 반응형 (52열이 가로 스크롤 없이 다 보이게)
   const [width, setWidth] = useState(0);
@@ -394,8 +412,10 @@ export function LifeCalendar({ age, animate, onReady }: LifeCalendarProps) {
 
     // ── 초기 렌더 ──
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    let entryTimer: ReturnType<typeof setTimeout> | null = null;
     if (progressRef.current === 0 && animate && !enteredRef.current) {
-      // 진입 채움 애니 (행 단위 순차 — 1회만)
+      // 진입 채움 애니 (행 단위 순차 — 1회만).
+      // entryDelayMs 동안은 빈 그리드(라벨+남은 주만) 상태 → 오버레이 비행과 동기화
       enteredRef.current = true;
       let row = 0;
       const ROWS_PER_FRAME = 3;
@@ -404,12 +424,19 @@ export function LifeCalendar({ age, animate, onReady }: LifeCalendarProps) {
         drawScene(0, row);
         if (row < ROWS) rafRef.current = requestAnimationFrame(step);
       };
-      rafRef.current = requestAnimationFrame(step);
+      drawScene(0, 0);
+      if (entryDelayMs > 0) {
+        entryTimer = setTimeout(() => {
+          rafRef.current = requestAnimationFrame(step);
+        }, entryDelayMs);
+      } else {
+        rafRef.current = requestAnimationFrame(step);
+      }
     } else {
       drawScene(progressRef.current);
     }
 
-    // 토글 morph 타겟 — 그리드 상태에서만 의미 (현재 주 칸 뷰포트 좌표)
+    // 오버레이 비행 타겟 — 그리드 상태에서만 의미 (현재 주 칸 뷰포트 좌표)
     if (onReady && progressRef.current === 0) {
       const rect = canvas.getBoundingClientRect();
       const cur = cellXY(currentIndex);
@@ -418,8 +445,9 @@ export function LifeCalendar({ age, animate, onReady }: LifeCalendarProps) {
 
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (entryTimer != null) clearTimeout(entryTimer);
     };
-  }, [age, animate, weeksLived, currentIndex, onReady, readColors, width]);
+  }, [age, animate, weeksLived, currentIndex, onReady, readColors, width, entryDelayMs]);
 
   // ── 재생기: 그리드(0) ↔ 시계(1) ──
   const play = useCallback((target: 0 | 1) => {
@@ -473,6 +501,8 @@ export function LifeCalendar({ age, animate, onReady }: LifeCalendarProps) {
       g.fired = true;
       if (phase === "grid" && dx < 0) play(1);
       else if (phase === "clock" && dx > 0) play(0);
+      // 페이저: 그리드에서 오른쪽 스와이프 = 주 캘린더로 복귀 (부모가 처리)
+      else if (phase === "grid" && dx > 0) onSwipeRight?.();
     }
   }
   function handlePointerEnd() {
