@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { AiSuggestionsSheet } from "@/components/dashboard/ai-suggestions-sheet";
-import { BucketCard } from "@/components/dashboard/bucket-card";
+import { BucketBar } from "@/components/dashboard/bucket-bar";
 import { CalendarSection } from "@/components/dashboard/calendar-section";
 import { DirectionSheet } from "@/components/dashboard/direction-sheet";
 import { ExploreNewSceneSheet } from "@/components/dashboard/explore-new-scene-sheet";
@@ -73,7 +73,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [inputMode, setInputMode] = useState<
     | { type: "add" }
     | { type: "edit"; stride: StrideItem }
-    | { type: "bucket-edit" }
+    | { type: "bucket-edit"; bucket: { id: string; title: string } }
     | { type: "todo-edit"; todo: TodoWithCompletion }
     | null
   >(null);
@@ -130,31 +130,30 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   //   CASCADE로 stride_plan/daily_todos/routines 자동 정리되며,
   //   삭제 후 다른 버킷이 있으면 그쪽으로, 없으면 /dashboard 루트로 라우팅.
   const [isDeletingBucket, startDeleteBucket] = useTransition();
-  function handleDeleteBucket() {
-    const bucketId = data.selectedBucket?.id;
-    if (!bucketId || isDeletingBucket) return;
+  // 시트 편집 모드에서 임의 버킷 삭제 가능 — bucketId를 파라미터로 받는다
+  function handleDeleteBucket(bucket: { id: string; title: string }) {
+    if (isDeletingBucket) return;
     const confirmMsg =
       typeof window !== "undefined"
         ? window.confirm(
-            `이 ${FEATURE_NAMES.BUCKET}을 삭제할까요?\n관련된 ${FEATURE_NAMES.DAILY_TODO}/${FEATURE_NAMES.ROUTINE}/${FEATURE_NAMES.MY_STRIDES}도 함께 사라져요.`,
+            `'${bucket.title}' ${FEATURE_NAMES.BUCKET}을 삭제할까요?\n관련된 ${FEATURE_NAMES.DAILY_TODO}/${FEATURE_NAMES.ROUTINE}/${FEATURE_NAMES.MY_STRIDES}도 함께 사라져요.`,
           )
         : true;
     if (!confirmMsg) return;
 
     startDeleteBucket(async () => {
-      const result = await deleteBucketAction(bucketId);
+      const result = await deleteBucketAction(bucket.id);
       if (!result.success) {
         toast(result.error ?? `${FEATURE_NAMES.BUCKET} 삭제에 실패했어요.`, "error");
         return;
       }
-      const nextBucket = data.buckets.find((b) => b.id !== bucketId);
       toast(`${FEATURE_NAMES.BUCKET}을 삭제했어요.`, "success");
       // 버킷 목록이 바뀌었으므로 대시보드 캐시 전체 무효화 후 이동
       await invalidateDashboard();
-      if (nextBucket) {
-        router.replace(`/dashboard?bucket=${nextBucket.id}`);
-      } else {
-        router.replace("/dashboard");
+      if (bucket.id === data.selectedBucket?.id) {
+        // 현재 보던 버킷을 지웠으면 다른 버킷으로 (없으면 루트)
+        const nextBucket = data.buckets.find((b) => b.id !== bucket.id);
+        router.replace(nextBucket ? `/dashboard?bucket=${nextBucket.id}` : "/dashboard");
       }
     });
   }
@@ -186,11 +185,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     handleEditOpen(item);
   }
 
-  // 버킷 카드 ⋯ "수정" → 키보드 입력창으로 버킷 타이틀 수정
-  function handleEditBucketTitle() {
-    if (!data.selectedBucket) return;
-    setInputValue(data.selectedBucket.title);
-    setInputMode({ type: "bucket-edit" });
+  // 시트 편집 모드 [수정] → 키보드 입력창으로 해당 버킷 타이틀 수정 (임의 버킷 대상)
+  function handleEditBucketTitle(bucket: { id: string; title: string }) {
+    setInputValue(bucket.title);
+    setInputMode({ type: "bucket-edit", bucket });
     inputHandleRef.current?.focus();
   }
 
@@ -293,7 +291,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       setInputMode(null);
       return;
     }
-    if (inputMode.type === "bucket-edit" && value === data.selectedBucket?.title.trim()) {
+    if (inputMode.type === "bucket-edit" && value === inputMode.bucket.title.trim()) {
       setInputMode(null);
       return;
     }
@@ -333,8 +331,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         setSelectedRepeat(null);
         setInputMode(null);
       } else if (inputMode.type === "bucket-edit") {
-        // R1: 버킷 타이틀 수정
-        const result = await updateBucketTitleAction(bucketId, value);
+        // 버킷 타이틀 수정 — 시트 편집 모드에서 임의 버킷 대상
+        const result = await updateBucketTitleAction(inputMode.bucket.id, value);
         if (!result.success) {
           toast(result.error ?? "버킷 이름 수정에 실패했어요.", "error");
           return;
@@ -438,10 +436,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
 
   return (
     <div className="flex flex-col gap-4 pb-24">
-      {/* 나의 시간은 상단 네비(MyTimeBar)로 이동 — 본문 카드 제거 */}
-
-      {/* R1: 버킷 카드 — 단일 버킷 중심 UI. 전환/추가는 카드 시트, 수정/삭제는 ⋯ */}
-      <BucketCard
+      {/* 버킷 상단바 — 구 '나의 시간' 바 자리(헤더 바로 아래 flush). 피그마 32821:19432.
+          전환/추가/수정/삭제는 모두 시트(편집 모드)가 담당 */}
+      <BucketBar
         buckets={data.buckets}
         selectedBucket={data.selectedBucket}
         onEditTitle={handleEditBucketTitle}
