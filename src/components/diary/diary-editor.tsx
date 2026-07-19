@@ -165,8 +165,8 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
         }
       />
 
-      {/* 본문 에디터 */}
-      <div className="mx-auto max-w-2xl px-4 py-4">
+      {/* 본문 에디터 — 좌우 여백 최소화로 작성 폭 확보 */}
+      <div className="mx-auto max-w-2xl px-3 py-4">
         <MarkdownEditor initialContent={entry?.content ?? ""} onChange={handleChange} />
       </div>
     </>

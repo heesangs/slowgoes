@@ -10,16 +10,15 @@
 // 5200개 DOM 노드를 피하려 canvas 단일 렌더. 행 단위 애니(100프레임)로 "빠르게 차오르는" 효과.
 // 현재 주 칸의 화면 좌표를 onReady로 올려보내 상위(CalendarSection)의 morph 타겟으로 쓴다.
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const COLS = 52; // 한 해의 주 수(근사)
 const ROWS = 100; // 100세
-const CELL = 5; // 칸 한 변(px)
 const GAP = 1; // 칸 간격(px)
-const PITCH = CELL + GAP; // 6
 const PAD_LEFT = 22; // 좌측 나이 라벨 여백
 const PAD_TOP = 16; // 상단 주 라벨 여백
 const LABEL_STEP = 5; // 라벨 표기 간격(5단위)
+const MIN_CELL = 4; // 칸 최소 크기(px)
 
 export interface LifeCellRect {
   /** 뷰포트 기준 현재 주 칸 사각형 */
@@ -39,7 +38,20 @@ interface LifeCalendarProps {
 
 export function LifeCalendar({ age, animate, onReady }: LifeCalendarProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
+
+  // 컨테이너 폭에 맞춰 셀 크기를 계산 → 52열이 가로 스크롤 없이 다 보이게 한다
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => setWidth(el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const weeksLived = Math.max(0, Math.min(COLS * ROWS, Math.floor(age * COLS)));
   const currentIndex = Math.min(weeksLived, COLS * ROWS - 1);
@@ -53,12 +65,17 @@ export function LifeCalendar({ age, animate, onReady }: LifeCalendarProps) {
   }, []);
 
   useEffect(() => {
+    if (width <= 0) return; // 측정 전
     const canvas = canvasRef.current;
     if (!canvas) return;
     const context = canvas.getContext("2d");
     if (!context) return;
     // 비-null로 좁혀 중첩 함수 클로저에서도 타입 유지
     const ctx = context;
+
+    // 컨테이너 폭에 맞춰 칸 크기 산출 (52열 + 좌측 라벨이 딱 들어가게)
+    const PITCH = Math.max(MIN_CELL + GAP, Math.floor((width - PAD_LEFT) / COLS));
+    const CELL = PITCH - GAP;
 
     const { fg } = readColors();
     const dpr = window.devicePixelRatio || 1;
@@ -165,10 +182,10 @@ export function LifeCalendar({ age, animate, onReady }: LifeCalendarProps) {
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, [age, animate, weeksLived, currentIndex, onReady, readColors]);
+  }, [age, animate, weeksLived, currentIndex, onReady, readColors, width]);
 
   return (
-    <div className="mt-3 overflow-x-auto">
+    <div ref={wrapRef} className="mt-3">
       <p className="mb-1 pl-[22px] text-[10px] text-foreground/40">Week of the Year →</p>
       <canvas ref={canvasRef} aria-label={`일생 캘린더 — ${weeksLived}주 지남`} />
     </div>

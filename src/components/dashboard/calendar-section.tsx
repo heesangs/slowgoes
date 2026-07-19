@@ -191,31 +191,32 @@ export function CalendarSection({
   const headerLabel = isCurrentMonth ? "이번달" : `${selected.getMonth() + 1}월`;
 
   return (
-    <section className="rounded-xl border border-foreground/10 px-4 py-4">
-      {/* 섹션 타이틀 행 — R4: 우측에 주/월 ↔ 일생 캘린더 토글 (구 ⋮ 자리) */}
+    <section className="px-4 py-4">
+      {/* 섹션 타이틀 행 — 타이틀은 항상 "주 캘린더", 우측에 토글 (일생 모드일 때 "일생보기" 라벨) */}
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-foreground/70">
-          {lifeMode ? "일생 캘린더" : FEATURE_NAMES.CALENDAR}
-        </p>
+        <p className="text-sm font-medium text-foreground/70">{FEATURE_NAMES.CALENDAR}</p>
         {hasAge && (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={lifeMode}
-            aria-label="일생 캘린더 전환"
-            onClick={handleToggleLife}
-            className={cn(
-              "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
-              lifeMode ? "bg-foreground" : "bg-foreground/20"
-            )}
-          >
-            <span
+          <div className="flex items-center gap-2">
+            {lifeMode && <span className="text-xs text-foreground/50">일생보기</span>}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={lifeMode}
+              aria-label="일생 캘린더 전환"
+              onClick={handleToggleLife}
               className={cn(
-                "inline-block h-4 w-4 transform rounded-full bg-background transition-transform",
-                lifeMode ? "translate-x-4" : "translate-x-0.5"
+                "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+                lifeMode ? "bg-foreground" : "bg-foreground/20"
               )}
-            />
-          </button>
+            >
+              <span
+                className={cn(
+                  "inline-block h-4 w-4 transform rounded-full bg-background transition-transform",
+                  lifeMode ? "translate-x-4" : "translate-x-0.5"
+                )}
+              />
+            </button>
+          </div>
         )}
       </div>
 

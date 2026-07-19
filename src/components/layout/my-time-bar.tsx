@@ -40,7 +40,8 @@ export function MyTimeBar({ age, displayName }: MyTimeBarProps) {
       >
         <span className="text-sm text-foreground/80">{FEATURE_NAMES.MY_CLOCK}</span>
         <span className="flex items-center gap-1.5 text-sm font-medium">
-          {compactLabel}
+          {/* 접힘 상태에선 인생시간을 감춘다 — 실제 시계 시간과 혼동 방지(클릭 시 노출) */}
+          {expanded && compactLabel}
           <svg
             className={cn("h-3.5 w-3.5 text-foreground/50 transition-transform", expanded && "rotate-180")}
             viewBox="0 0 24 24"
