@@ -57,8 +57,10 @@ interface LifeCalendarProps {
   animate: boolean;
   /** 현재 주 칸의 화면 좌표 — 주→일생 오버레이 비행 타겟 (그리드 상태 레이아웃 후 1회) */
   onReady?: (rect: LifeCellRect) => void;
-  /** 페이저: 그리드 상태에서 오른쪽 스와이프 → 부모가 주 캘린더 복귀 처리 */
-  onSwipeRight?: () => void;
+  /** 페이저 역방향 스크럽: grid 상태 우드래그 진행(dx>0)을 부모로 포워딩 */
+  onGridDrag?: (dx: number) => void;
+  /** 페이저 역방향 스크럽: grid 우드래그 종료(부모가 커밋/스냅백 결정) */
+  onGridDragEnd?: (dx: number) => void;
   /** 페이저 점 인덱스용 — 내부 phase 변경 통지 */
   onPhaseChange?: (phase: LifePhase) => void;
   /** 그리드 채움 시작 지연(ms) — 주→일생 오버레이 비행과 타이밍 동기화용 */
@@ -69,7 +71,7 @@ function easeInOutCubic(u: number): number {
   return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
 }
 
-function clamp01(v: number): number {
+export function clamp01(v: number): number {
   return Math.max(0, Math.min(1, v));
 }
 
@@ -92,7 +94,8 @@ export function LifeCalendar({
   age,
   animate,
   onReady,
-  onSwipeRight,
+  onGridDrag,
+  onGridDragEnd,
   onPhaseChange,
   entryDelayMs = 0,
 }: LifeCalendarProps) {
@@ -482,30 +485,59 @@ export function LifeCalendar({
     rafRef.current = requestAnimationFrame(tick);
   }, []);
 
-  // ── 스와이프 트리거 (터치+마우스, 가로 우세 시만 — 세로 스크롤 양보) ──
-  const gesture = useRef<{ x: number; y: number; active: boolean; fired: boolean } | null>(null);
+  // ── 스와이프 (터치+마우스, 가로 우세 시만 — 세로 스크롤 양보) ──
+  // grid: 좌드래그 = 시계로(트리거) / 우드래그 = 부모 스크럽으로 포워딩(주 복귀)
+  // clock: 우드래그 = 그리드로(트리거)
+  const gesture = useRef<{
+    x: number;
+    y: number;
+    active: boolean;
+    fired: boolean;
+    forwarding: boolean; // 우드래그를 부모로 포워딩 중(주 복귀 스크럽)
+  } | null>(null);
 
   function handlePointerDown(e: React.PointerEvent) {
-    gesture.current = { x: e.clientX, y: e.clientY, active: true, fired: false };
+    gesture.current = { x: e.clientX, y: e.clientY, active: true, fired: false, forwarding: false };
   }
   function handlePointerMove(e: React.PointerEvent) {
     const g = gesture.current;
-    if (!g?.active || g.fired) return;
+    if (!g?.active) return;
     const dx = e.clientX - g.x;
     const dy = e.clientY - g.y;
+
+    // 이미 부모 스크럽 포워딩 중이면 계속 전달
+    if (g.forwarding) {
+      onGridDrag?.(dx);
+      return;
+    }
+    if (g.fired) return;
+
     if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
       g.active = false; // 세로 스크롤에 양보
+      return;
+    }
+    // grid에서 우드래그 시작 → 부모 스크럽(주 복귀)으로 포워딩
+    if (phase === "grid" && dx > 8 && dx > Math.abs(dy)) {
+      g.forwarding = true;
+      onGridDrag?.(dx);
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        /* 합성 포인터 등에선 무시 */
+      }
       return;
     }
     if (Math.abs(dx) >= SWIPE_FIRE_PX && Math.abs(dx) > Math.abs(dy)) {
       g.fired = true;
       if (phase === "grid" && dx < 0) play(1);
       else if (phase === "clock" && dx > 0) play(0);
-      // 페이저: 그리드에서 오른쪽 스와이프 = 주 캘린더로 복귀 (부모가 처리)
-      else if (phase === "grid" && dx > 0) onSwipeRight?.();
     }
   }
-  function handlePointerEnd() {
+  function handlePointerEnd(e: React.PointerEvent) {
+    const g = gesture.current;
+    if (g?.forwarding) {
+      onGridDragEnd?.(e.clientX - g.x);
+    }
     if (gesture.current) gesture.current.active = false;
   }
 
