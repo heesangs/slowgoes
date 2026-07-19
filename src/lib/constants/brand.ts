@@ -13,7 +13,7 @@ export const APP = {
 export const FEATURE_NAMES = {
   MY_STRIDES: "나의 발걸음",
   /** Phase C: 구 "나의 발걸음" 실행 섹션이 캘린더 중심으로 재구성됨 */
-  CALENDAR: "주 캘린더",
+  CALENDAR: "캘린더",
   BUCKET: "버킷",
   DAILY_TODO: "데일리 투두",
   ROUTINE: "루틴",

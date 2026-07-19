@@ -34,6 +34,20 @@ const DUR_FORWARD = 2600; // 그리드 → 시계(ms)
 const DUR_REVERSE = 1800; // 시계 → 그리드(ms)
 const SWIPE_FIRE_PX = 40; // 스와이프 발동 임계
 
+// 역방향(일생→주) 스크럽
+const REVERSE_FULL = 120; // r=1.0에 해당하는 우드래그 거리
+const REVERSE_COMMIT = 0.42; // 릴리스 커밋 임계
+
+// #rrggbb → rgba(문자열) (캔버스 그라디언트 알파용)
+function hexToRgba(hex: string, a: number): string {
+  const h = hex.replace("#", "");
+  const n = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const r = parseInt(n.slice(0, 2), 16) || 0;
+  const g = parseInt(n.slice(2, 4), 16) || 0;
+  const b = parseInt(n.slice(4, 6), 16) || 0;
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
 // 다이얼 스펙 (timE): 침은 중심에서 간격을 두고 시작
 const HAND_INNER = 0.18; // 침 시작 반지름 비율
 const HOUR_OUTER = 0.48;
@@ -51,16 +65,20 @@ export interface LifeCellRect {
 }
 
 interface LifeCalendarProps {
-  /** 현재 나이 (life_clock_age). 지난 주 = floor(age × 52) */
+  /** 현재 나이 (life_clock_age) */
   age: number;
+  /** 올해 경과 주차(0~51) — 현재 주 칸 = age×52 + weekOfYear (실제 현재 주 열에 위치) */
+  weekOfYear?: number;
   /** 진입 시 순차 채움 애니메이션 여부 */
   animate: boolean;
   /** 현재 주 칸의 화면 좌표 — 주→일생 오버레이 비행 타겟 (그리드 상태 레이아웃 후 1회) */
   onReady?: (rect: LifeCellRect) => void;
-  /** 페이저 역방향 스크럽: grid 상태 우드래그 진행(dx>0)을 부모로 포워딩 */
-  onGridDrag?: (dx: number) => void;
-  /** 페이저 역방향 스크럽: grid 우드래그 종료(부모가 커밋/스냅백 결정) */
-  onGridDragEnd?: (dx: number) => void;
+  /** 페이저 역방향 스크럽: grid 우드래그 진행 통지(캔버스 연출은 내부에서, dx>0) */
+  onReverseDrag?: (dx: number) => void;
+  /** 역방향 커밋 — 확대된 현재 주 셀(키오브젝트) 뷰포트 사각형을 부모로 전달 */
+  onReverseCommit?: (rect: LifeCellRect) => void;
+  /** 역방향 취소(스냅백) */
+  onReverseCancel?: () => void;
   /** 페이저 점 인덱스용 — 내부 phase 변경 통지 */
   onPhaseChange?: (phase: LifePhase) => void;
   /** 그리드 채움 시작 지연(ms) — 주→일생 오버레이 비행과 타이밍 동기화용 */
@@ -92,10 +110,12 @@ type Layout = ReturnType<typeof getLayout>;
 
 export function LifeCalendar({
   age,
+  weekOfYear = 0,
   animate,
   onReady,
-  onGridDrag,
-  onGridDragEnd,
+  onReverseDrag,
+  onReverseCommit,
+  onReverseCancel,
   onPhaseChange,
   entryDelayMs = 0,
 }: LifeCalendarProps) {
@@ -104,7 +124,11 @@ export function LifeCalendar({
   const rafRef = useRef<number | null>(null);
   const progressRef = useRef(0); // 0=그리드, 1=시계
   const drawRef = useRef<((p: number, entryRows?: number) => void) | null>(null);
+  const drawExitRef = useRef<((r: number) => void) | null>(null); // 역방향 캔버스 연출
+  const geomRef = useRef<{ curX: number; curY: number; cell: number; pitch: number } | null>(null); // 현재 칸 지오메트리
+  const reverseRRef = useRef(0); // 현재 역방향 진행도
   const enteredRef = useRef(false); // 진입 채움 애니는 1회만
+  const [reverseArrow, setReverseArrow] = useState(false); // 좌측 화살표(역방향)
 
   const [phase, setPhase] = useState<LifePhase>("grid");
 
@@ -125,7 +149,11 @@ export function LifeCalendar({
     return () => ro.disconnect();
   }, []);
 
-  const weeksLived = Math.max(0, Math.min(COLS * ROWS, Math.floor(age * COLS)));
+  // 현재 주 = 나이×52 + 올해 경과 주차 → 실제 현재 주 열에 위치
+  const weeksLived = Math.max(
+    0,
+    Math.min(COLS * ROWS, Math.floor(age) * COLS + Math.max(0, Math.min(COLS - 1, weekOfYear)))
+  );
   const currentIndex = Math.min(weeksLived, COLS * ROWS - 1);
   // 렌더용 시각 (effect 안에서는 age로 재계산 — 객체 identity로 인한 재실행 방지)
   const clock = computeLifeClock(age);
@@ -134,7 +162,8 @@ export function LifeCalendar({
   const readColors = useCallback(() => {
     const styles = getComputedStyle(document.documentElement);
     const fg = styles.getPropertyValue("--foreground").trim() || "#333333";
-    return { fg };
+    const bg = styles.getPropertyValue("--background").trim() || "#ffffff";
+    return { fg, bg };
   }, []);
 
   // ── 메인 셋업: 레이아웃/오프스크린 구성 + drawScene 정의 ──
@@ -147,7 +176,7 @@ export function LifeCalendar({
     const ctx = context; // 비-null 좁힘 (중첩 클로저용)
 
     const L: Layout = getLayout(width);
-    const { fg } = readColors();
+    const { fg, bg } = readColors();
     const dpr = window.devicePixelRatio || 1;
     canvas.width = L.cssWidth * dpr;
     canvas.height = L.cssHeight * dpr;
@@ -217,7 +246,15 @@ export function LifeCalendar({
       lived.x.globalAlpha = 1;
       const cur = cellXY(currentIndex);
       lived.x.fillRect(cur.x, cur.y, L.cell, L.cell);
+      // 현재 주 강조 링 — 셀에서 2px 간격 + 2px 라인
+      lived.x.strokeStyle = fg;
+      lived.x.lineWidth = 2;
+      lived.x.strokeRect(cur.x - 3, cur.y - 3, L.cell + 6, L.cell + 6);
     }
+
+    // 역방향 커밋용 지오메트리(현재 칸)
+    const curCell = cellXY(currentIndex);
+    geomRef.current = { curX: curCell.x, curY: curCell.y, cell: L.cell, pitch: L.pitch };
 
     // ── 그리기 프리미티브 ──
 
@@ -413,6 +450,26 @@ export function LifeCalendar({
     }
     drawRef.current = drawScene;
 
+    // ── 역방향(일생→주) 연출: 그리드 왼쪽부터 페이드 + 현재 주 셀 1→3×3 확대 ──
+    function drawExit(r: number) {
+      ctx.clearRect(0, 0, L.cssWidth, L.cssHeight);
+      drawGrid(1); // 전체 그리드
+      // 왼쪽부터 페이드 — 배경색 좌→우 그라디언트(좌측 알파 선행)
+      const grad = ctx.createLinearGradient(0, 0, L.cssWidth, 0);
+      grad.addColorStop(0, hexToRgba(bg, clamp01(r * 1.7)));
+      grad.addColorStop(1, hexToRgba(bg, clamp01(r * 1.7 - 1)));
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, L.cssWidth, L.cssHeight);
+      // 현재 주 셀(키오브젝트) 확대 — 셀 중심 기준 1 → ~3×3
+      const cx0 = curCell.x + L.cell / 2;
+      const cy0 = curCell.y + L.cell / 2;
+      const side = L.cell + (3 * L.pitch - L.cell) * easeInOutCubic(r);
+      ctx.fillStyle = fg;
+      ctx.globalAlpha = 1;
+      ctx.fillRect(cx0 - side / 2, cy0 - side / 2, side, side);
+    }
+    drawExitRef.current = drawExit;
+
     // ── 초기 렌더 ──
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     let entryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -505,9 +562,12 @@ export function LifeCalendar({
     const dx = e.clientX - g.x;
     const dy = e.clientY - g.y;
 
-    // 이미 부모 스크럽 포워딩 중이면 계속 전달
+    // 이미 역방향 스크럽 중이면 캔버스를 손가락 따라 갱신
     if (g.forwarding) {
-      onGridDrag?.(dx);
+      const r = clamp01(dx / REVERSE_FULL);
+      reverseRRef.current = r;
+      drawExitRef.current?.(r);
+      onReverseDrag?.(dx);
       return;
     }
     if (g.fired) return;
@@ -516,10 +576,16 @@ export function LifeCalendar({
       g.active = false; // 세로 스크롤에 양보
       return;
     }
-    // grid에서 우드래그 시작 → 부모 스크럽(주 복귀)으로 포워딩
+    // grid에서 우드래그 시작 → 역방향(주 복귀) 스크럽
     if (phase === "grid" && dx > 8 && dx > Math.abs(dy)) {
       g.forwarding = true;
-      onGridDrag?.(dx);
+      // 진입 채움 등 진행 중인 rAF가 캔버스를 덮어쓰지 않도록 중단
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      setReverseArrow(true);
+      const r = clamp01(dx / REVERSE_FULL);
+      reverseRRef.current = r;
+      drawExitRef.current?.(r);
+      onReverseDrag?.(dx);
       try {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       } catch {
@@ -535,10 +601,41 @@ export function LifeCalendar({
   }
   function handlePointerEnd(e: React.PointerEvent) {
     const g = gesture.current;
-    if (g?.forwarding) {
-      onGridDragEnd?.(e.clientX - g.x);
-    }
     if (gesture.current) gesture.current.active = false;
+    if (!g?.forwarding) return;
+    setReverseArrow(false);
+    const r = clamp01((e.clientX - g.x) / REVERSE_FULL);
+    if (r >= REVERSE_COMMIT) {
+      // 확대된 현재 주 셀(키오브젝트) 뷰포트 사각형을 부모에 전달 → 주로 비행
+      const canvas = canvasRef.current;
+      const geom = geomRef.current;
+      if (canvas && geom) {
+        const rect = canvas.getBoundingClientRect();
+        const cx0 = geom.curX + geom.cell / 2;
+        const cy0 = geom.curY + geom.cell / 2;
+        const side = geom.cell + (3 * geom.pitch - geom.cell) * r;
+        onReverseCommit?.({ left: rect.left + cx0 - side / 2, top: rect.top + cy0 - side / 2, size: side });
+      } else {
+        onReverseCommit?.({ left: 0, top: 0, size: 0 });
+      }
+    } else {
+      // 스냅백 — r → 0 애니메이션 후 정상 그리드
+      onReverseCancel?.();
+      const from = reverseRRef.current;
+      const t0 = performance.now();
+      const tick = (now: number) => {
+        const u = Math.min(1, (now - t0) / 200);
+        const rr = from * (1 - u);
+        reverseRRef.current = rr;
+        if (rr <= 0.001) {
+          drawRef.current?.(0);
+        } else {
+          drawExitRef.current?.(rr);
+          rafRef.current = requestAnimationFrame(tick);
+        }
+      };
+      rafRef.current = requestAnimationFrame(tick);
+    }
   }
 
   // 메시지 오버레이 위치 (다이얼 아래) — draw와 동일한 레이아웃 산식
@@ -582,6 +679,19 @@ export function LifeCalendar({
             : `일생 캘린더 — ${weeksLived}주 지남`
         }
       />
+
+      {/* 역방향(주 복귀) 화살표(→) — 우드래그(프레스) 중에만, 좌측 상단 */}
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute left-1 top-16 text-foreground/70 transition-opacity duration-150",
+          reverseArrow ? "opacity-100" : "opacity-0"
+        )}
+      >
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M19 12l-6-6M19 12l-6 6" />
+        </svg>
+      </span>
 
       {/* 인생시계 메시지 — 글자 하나하나 stagger (다이얼 아래 오버레이) */}
       {showClockChrome && (
