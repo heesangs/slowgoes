@@ -12,7 +12,11 @@
 // 선택 날짜만 흑색 하이라이트(달성 도트 없음 — 기록은 하단 리스트로 확인).
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { LifeCalendar, type LifeCellRect } from "@/components/dashboard/life-calendar";
+import {
+  LifeCalendar,
+  type LifeCellRect,
+  type LifePhase,
+} from "@/components/dashboard/life-calendar";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
@@ -40,6 +44,14 @@ function buildWeekDates(selected: string): string[] {
     d.setDate(start.getDate() + i);
     return formatDateString(d);
   });
+}
+
+/** "M. n주" — 해당 주 라벨 (n = 월 내 주차, 일요일 시작 기준) */
+function formatWeekOfMonth(dateStr: string): string {
+  const d = parseDateString(dateStr);
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const n = Math.ceil((d.getDate() + first.getDay()) / 7);
+  return `${d.getMonth() + 1}. ${n}주`;
 }
 
 /** 선택 날짜가 속한 월 그리드 (일요일 시작, 6주 42칸 고정 — 높이 흔들림 방지) */
@@ -89,83 +101,183 @@ export function CalendarSection({
   // 주 ↔ 월 확장 상태 (전환은 핸들 버튼 단일 — 드래그 제스처는 날짜 탭과 충돌해 제거)
   const [expanded, setExpanded] = useState(false);
 
-  // R4: 주/월 캘린더 ↔ 일생 캘린더 토글
-  const [lifeMode, setLifeMode] = useState(false);
+  // ── 3단 스와이프 페이저: 주 캘린더 → 일생 캘린더 → 인생시계 ──
+  // 주→일생: 날짜들이 오른쪽부터 사라지고 테두리가 "M. n주" 셀로 응축 →
+  //          셀이 일생 그리드의 현재 주 칸으로 비행하며 그리드가 채워진다.
+  // 일생↔시계는 LifeCalendar 내부 morph. 일생 그리드에서 오른쪽 스와이프 = 주 복귀.
+  const [view, setView] = useState<"week" | "weekToLife" | "life" | "lifeToWeek">("week");
+  const [lifePhase, setLifePhase] = useState<LifePhase>("grid");
   const hasAge = typeof age === "number" && age > 0;
 
-  // morph용 refs — 주 뷰 테두리(소스) ↔ 일생 캘린더 현재 칸(타겟)
-  const weekBorderRef = useRef<HTMLDivElement | null>(null);
-  const lifeCellRef = useRef<LifeCellRect | null>(null);
-  const morphRef = useRef<HTMLDivElement | null>(null);
-  // 토글 시 캡처한 소스 rect + 방향 (레이아웃 후 애니메이션 실행)
-  const pendingMorph = useRef<{ from: DOMRect | LifeCellRect; dir: "to-life" | "to-cal" } | null>(null);
+  const COLLAPSED_W = 72; // 응축된 "M. n주" 셀 폭(px)
+  const W1_MS = 400; // 날짜 소멸 + 테두리 수축
+  const FLIGHT_MS = 650; // 셀 비행(주 위치 ↔ 그리드 칸)
+  const EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
 
-  // FLIP: from → to 사각형을 morph 오버레이로 애니메이션
-  const runMorph = useCallback((from: { left: number; top: number; width: number; height: number }, to: { left: number; top: number; width: number; height: number }) => {
-    const el = morphRef.current;
-    if (!el || typeof el.animate !== "function") return;
-    el.style.display = "block";
-    const anim = el.animate(
-      [
-        { left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px`, borderRadius: "10px" },
-        { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`, borderRadius: "2px" },
-      ],
-      { duration: 480, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" }
-    );
-    anim.onfinish = () => {
-      el.style.display = "none";
-    };
-  }, []);
+  const weekBorderRef = useRef<HTMLDivElement | null>(null); // 주 테두리 (수축/확장 대상)
+  const lifeCellRef = useRef<LifeCellRect | null>(null); // 일생 그리드 현재 칸 좌표
+  const morphRef = useRef<HTMLDivElement | null>(null); // 비행 오버레이 ("M. n주" 라벨 포함)
+  const morphLabelRef = useRef<HTMLSpanElement | null>(null);
+  const pendingFlight = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
+  const reverseCell = useRef<LifeCellRect | null>(null);
 
-  // 일생 캘린더가 현재 칸 좌표를 올려주면 — 대기 중인 to-life morph 실행
+  const prefersReduced = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // 오버레이 비행: from → to (라벨은 fadeLabel 방향으로 페이드)
+  const flyOverlay = useCallback(
+    (
+      from: { left: number; top: number; width: number; height: number },
+      to: { left: number; top: number; width: number; height: number },
+      fadeLabel: "out" | "in",
+      onFinish: () => void
+    ) => {
+      const el = morphRef.current;
+      if (!el || typeof el.animate !== "function") {
+        onFinish();
+        return;
+      }
+      el.style.display = "flex";
+      const anim = el.animate(
+        [
+          { left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px`, borderRadius: "10px" },
+          { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`, borderRadius: "3px" },
+        ],
+        { duration: FLIGHT_MS, easing: EASE, fill: "forwards" }
+      );
+      // 라벨: 칸 크기로 줄어들면 못 담으므로 비행 중 페이드 (역방향은 반대로)
+      morphLabelRef.current?.animate(
+        fadeLabel === "out"
+          ? [{ opacity: 1 }, { opacity: 1, offset: 0.35 }, { opacity: 0, offset: 0.7 }, { opacity: 0 }]
+          : [{ opacity: 0 }, { opacity: 0, offset: 0.3 }, { opacity: 1, offset: 0.65 }, { opacity: 1 }],
+        { duration: FLIGHT_MS, fill: "forwards" }
+      );
+      anim.onfinish = () => {
+        el.style.display = "none";
+        onFinish();
+      };
+    },
+    [FLIGHT_MS, EASE]
+  );
+
+  // W1: 날짜 소멸(오른쪽부터 stagger, CSS transition) + 테두리 수축(WAAPI) → 오버레이 비행 준비
+  function startWeekToLife() {
+    if (view !== "week" || expanded || !hasAge) return;
+    if (prefersReduced()) {
+      setView("life");
+      return;
+    }
+    setView("weekToLife"); // 날짜 opacity 0 (오른쪽부터 stagger)
+    const border = weekBorderRef.current;
+    const rect = border?.getBoundingClientRect() ?? null;
+    if (border && rect && typeof border.animate === "function") {
+      border.animate(
+        [{ width: `${rect.width}px` }, { width: `${COLLAPSED_W}px` }],
+        { duration: W1_MS, easing: EASE, fill: "forwards" }
+      );
+    }
+    window.setTimeout(() => {
+      // 수축 완료 → 응축 셀 위치에서 오버레이 등장, 일생 뷰 마운트
+      const collapsed = weekBorderRef.current?.getBoundingClientRect() ?? rect;
+      pendingFlight.current = collapsed
+        ? { left: collapsed.left, top: collapsed.top, width: COLLAPSED_W, height: collapsed.height }
+        : null;
+      setView("life");
+    }, W1_MS);
+  }
+
+  // 일생 캘린더가 현재 칸 좌표를 올려주면 — 대기 중인 forward 비행 실행
   const handleLifeReady = useCallback(
     (rect: LifeCellRect) => {
       lifeCellRef.current = rect;
-      const pending = pendingMorph.current;
-      if (pending?.dir === "to-life" && "left" in pending.from && "width" in pending.from) {
-        const src = pending.from as DOMRect;
-        runMorph(
-          { left: src.left, top: src.top, width: src.width, height: src.height },
-          { left: rect.left, top: rect.top, width: rect.size, height: rect.size }
+      const from = pendingFlight.current;
+      if (from) {
+        pendingFlight.current = null;
+        flyOverlay(
+          from,
+          { left: rect.left, top: rect.top, width: rect.size, height: rect.size },
+          "out",
+          () => {}
         );
-        pendingMorph.current = null;
       }
     },
-    [runMorph]
+    [flyOverlay]
   );
 
-  // 캘린더 → 일생: 주 뷰 테두리(소스) 캡처 후 전환 (타겟은 handleLifeReady에서)
-  // 일생 → 캘린더: 현재 칸(소스) 캡처 후 전환, 주 테두리 마운트 뒤 애니메이션
-  function handleToggleLife() {
-    if (!lifeMode) {
-      const border = weekBorderRef.current;
-      pendingMorph.current = border
-        ? { from: border.getBoundingClientRect(), dir: "to-life" }
-        : null;
-      setLifeMode(true);
-    } else {
-      const cell = lifeCellRef.current;
-      pendingMorph.current = cell ? { from: cell, dir: "to-cal" } : null;
-      setLifeMode(false);
+  // 일생 그리드 → 주: 칸에서 오버레이가 응축 셀 위치로 역비행 → 테두리 확장 + 날짜 복원
+  const handleLifeSwipeRight = useCallback(() => {
+    if (prefersReduced()) {
+      setView("week");
+      return;
+    }
+    reverseCell.current = lifeCellRef.current;
+    setView("lifeToWeek");
+  }, []);
+
+  useLayoutEffect(() => {
+    if (view !== "lifeToWeek") return;
+    const border = weekBorderRef.current;
+    const cell = reverseCell.current;
+    reverseCell.current = null;
+    if (!border || !cell || typeof border.animate !== "function") {
+      setView("week");
+      return;
+    }
+    const b = border.getBoundingClientRect();
+    // 비행 동안 테두리는 응축 상태로 고정
+    const hold = border.animate(
+      [{ width: `${COLLAPSED_W}px` }, { width: `${COLLAPSED_W}px` }],
+      { duration: FLIGHT_MS, fill: "forwards" }
+    );
+    flyOverlay(
+      { left: cell.left, top: cell.top, width: cell.size, height: cell.size },
+      { left: b.left, top: b.top, width: COLLAPSED_W, height: b.height },
+      "in",
+      () => {
+        // 테두리 확장 + 날짜 왼쪽부터 페이드인
+        hold.cancel();
+        border.animate(
+          [{ width: `${COLLAPSED_W}px` }, { width: `${b.width}px` }],
+          { duration: W1_MS, easing: EASE, fill: "none" }
+        );
+        setView("week");
+      }
+    );
+    // flyOverlay/상수는 안정적 — view 전환 시 1회만 실행
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  // 달력 영역 스와이프 (주 접힘 상태에서만 — 투두 행 제스처와 완전 분리)
+  const calGesture = useRef<{ x: number; y: number; active: boolean; fired: boolean } | null>(null);
+  function handleCalPointerDown(e: React.PointerEvent) {
+    calGesture.current = { x: e.clientX, y: e.clientY, active: true, fired: false };
+  }
+  function handleCalPointerMove(e: React.PointerEvent) {
+    const g = calGesture.current;
+    if (!g?.active || g.fired) return;
+    const dx = e.clientX - g.x;
+    const dy = e.clientY - g.y;
+    if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+      g.active = false; // 세로 스크롤 양보
+      return;
+    }
+    if (Math.abs(dx) >= 40 && Math.abs(dx) > Math.abs(dy)) {
+      g.fired = true;
+      if (dx < 0) startWeekToLife();
     }
   }
+  function handleCalPointerEnd() {
+    if (calGesture.current) calGesture.current.active = false;
+  }
 
-  // to-cal: 주 뷰 테두리가 마운트된 뒤 현재 칸 → 테두리로 애니메이션
-  useLayoutEffect(() => {
-    if (lifeMode) return;
-    const pending = pendingMorph.current;
-    if (pending?.dir !== "to-cal") return;
-    const border = weekBorderRef.current;
-    const cell = pending.from as LifeCellRect;
-    if (border && "size" in cell) {
-      const b = border.getBoundingClientRect();
-      runMorph(
-        { left: cell.left, top: cell.top, width: cell.size, height: cell.size },
-        { left: b.left, top: b.top, width: b.width, height: b.height }
-      );
-    }
-    pendingMorph.current = null;
-  }, [lifeMode, runMorph]);
+  // 페이지네이션 점 — 전환 시작 즉시 타겟 강조 (주=0, 일생=1, 시계=2)
+  const dotIndex =
+    view === "week" || view === "lifeToWeek"
+      ? 0
+      : lifePhase === "toClock" || lifePhase === "clock"
+        ? 2
+        : 1;
 
   const today = getTodayDateString();
   const selected = parseDateString(selectedDate);
@@ -192,37 +304,36 @@ export function CalendarSection({
 
   return (
     <section className="px-4 py-4">
-      {/* 섹션 타이틀 행 — 타이틀은 항상 "주 캘린더", 우측에 토글 (일생 모드일 때 "일생보기" 라벨) */}
+      {/* 섹션 타이틀 행 — 우측: 페이지네이션 점 3개 (주 → 일생 → 시계) */}
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-medium text-foreground/70">{FEATURE_NAMES.CALENDAR}</p>
         {hasAge && (
-          <div className="flex items-center gap-2">
-            {lifeMode && <span className="text-xs text-foreground/50">일생보기</span>}
-            <button
-              type="button"
-              role="switch"
-              aria-checked={lifeMode}
-              aria-label="일생 캘린더 전환"
-              onClick={handleToggleLife}
-              className={cn(
-                "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
-                lifeMode ? "bg-foreground" : "bg-foreground/20"
-              )}
-            >
+          <div className="flex items-center gap-1.5" role="tablist" aria-label="캘린더 화면 위치">
+            {[0, 1, 2].map((i) => (
               <span
+                key={i}
+                role="tab"
+                aria-selected={i === dotIndex}
                 className={cn(
-                  "inline-block h-4 w-4 transform rounded-full bg-background transition-transform",
-                  lifeMode ? "translate-x-4" : "translate-x-0.5"
+                  "h-1.5 rounded-full transition-all duration-300",
+                  i === dotIndex ? "w-3 bg-foreground" : "w-1.5 bg-foreground/25"
                 )}
               />
-            </button>
+            ))}
           </div>
         )}
       </div>
 
-      {/* 일생 모드에선 이번달 발걸음/날짜 그리드 대신 5200주 조망만 */}
-      {lifeMode ? (
-        <LifeCalendar age={age as number} animate onReady={handleLifeReady} />
+      {/* 일생 뷰에선 이번달 발걸음/날짜 그리드 대신 5200주 조망만 */}
+      {view === "life" ? (
+        <LifeCalendar
+          age={age as number}
+          animate
+          entryDelayMs={FLIGHT_MS - 200}
+          onReady={handleLifeReady}
+          onSwipeRight={handleLifeSwipeRight}
+          onPhaseChange={setLifePhase}
+        />
       ) : (
       <>
       {/* 헤더: 주/월 라벨 + 이번달 발걸음(왼쪽 정렬) + 우측 ▼ → 지향점 시트
@@ -255,8 +366,15 @@ export function CalendarSection({
         </button>
       </div>
 
-      {/* 달력 그리드 — 주↔월 전환은 하단 핸들 버튼 */}
-      <div>
+      {/* 달력 그리드 — 주↔월 전환은 하단 핸들 버튼.
+          주(접힘) 상태에서 이 영역 왼쪽 스와이프 → 일생 캘린더 (투두 행 제스처와 분리) */}
+      <div
+        style={{ touchAction: "pan-y" }}
+        onPointerDown={handleCalPointerDown}
+        onPointerMove={handleCalPointerMove}
+        onPointerUp={handleCalPointerEnd}
+        onPointerCancel={handleCalPointerEnd}
+      >
         {/* 요일 행 (일~토) */}
         <div className="mt-2 grid grid-cols-7 text-center">
           {WEEKDAY_SHORT_LABELS.map((label) => (
@@ -267,17 +385,17 @@ export function CalendarSection({
         </div>
 
         {/* 날짜 그리드 — 주 뷰(!expanded)일 때 라운드 테두리로 "한 주" 강조 (피그마 32636-19197).
-            이 테두리가 일생 캘린더의 한 칸으로 morph */}
+            페이저 전환 시 이 테두리가 "M. n주" 셀로 응축 → 일생 그리드 칸으로 비행 */}
         <div
           ref={weekBorderRef}
           className={cn(
-            "grid grid-cols-7 overflow-hidden transition-[max-height] duration-300",
+            "relative grid grid-cols-7 overflow-hidden transition-[max-height] duration-300",
             expanded
               ? "max-h-[19rem]"
               : "max-h-14 rounded-xl border border-foreground/40 px-0.5"
           )}
         >
-          {dates.map((dateStr) => {
+          {dates.map((dateStr, i) => {
             const d = parseDateString(dateStr);
             const inMonth = d.getMonth() === selectedMonth;
             const isSelected = dateStr === selectedDate;
@@ -288,7 +406,15 @@ export function CalendarSection({
                 onClick={() => onSelectDate(dateStr)}
                 aria-label={`${d.getMonth() + 1}월 ${d.getDate()}일 선택`}
                 aria-current={isSelected ? "date" : undefined}
-                className="flex items-center justify-center py-1.5"
+                className={cn(
+                  "flex items-center justify-center py-1.5 transition-opacity duration-200",
+                  view !== "week" && "pointer-events-none opacity-0"
+                )}
+                // 소멸(주→일생): 오른쪽부터 / 복원(일생→주): 왼쪽부터 stagger
+                style={{
+                  transitionDelay:
+                    view === "weekToLife" ? `${(6 - (i % 7)) * 40}ms` : `${(i % 7) * 40}ms`,
+                }}
               >
                 <span
                   className={cn(
@@ -306,6 +432,18 @@ export function CalendarSection({
               </button>
             );
           })}
+
+          {/* 응축 셀 라벨 "M. n주" — 테두리 수축 시 페이드인 (비행은 오버레이가 이어받음) */}
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center text-xs font-medium transition-opacity duration-200",
+              view === "weekToLife" ? "opacity-100 delay-200" : "opacity-0"
+            )}
+            style={{ width: COLLAPSED_W }}
+          >
+            {formatWeekOfMonth(selectedDate)}
+          </span>
         </div>
 
         {/* 주↔월 전환 핸들 (데스크톱 클릭용 · 모바일은 드래그) */}
@@ -381,13 +519,17 @@ export function CalendarSection({
       </>
       )}
 
-      {/* morph 오버레이 — 주 뷰 테두리 ↔ 일생 캘린더 칸 (WAAP로 left/top/size 애니). 기본 숨김 */}
+      {/* 비행 오버레이 — "M. n주" 응축 셀이 주 위치 ↔ 일생 그리드 칸을 오간다 (WAAPI). 기본 숨김 */}
       <div
         ref={morphRef}
         aria-hidden
         style={{ display: "none" }}
-        className="pointer-events-none fixed z-40 border-2 border-foreground/60"
-      />
+        className="pointer-events-none fixed z-40 items-center justify-center overflow-hidden rounded-lg border border-foreground/40 bg-background"
+      >
+        <span ref={morphLabelRef} className="whitespace-nowrap text-xs font-medium">
+          {formatWeekOfMonth(selectedDate)}
+        </span>
+      </div>
     </section>
   );
 }
