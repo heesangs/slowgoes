@@ -2,12 +2,12 @@
 
 // (main) 크롬 분기 셸 — 경로에 따라 글로벌 헤더 노출 여부를 결정.
 //
-// 일반 라우트: MainHeader + nav(스트리밍 slot) + 패딩 main.
+// 일반 라우트: MainHeader + 패딩 main.
 // 포커스(서브페이지) 라우트: 글로벌 크롬 제거 → 페이지가 자체 SubPageHeader로 상단을 채워
 //   본문 세로 공간을 최대화. (예: /diary/new, /diary/[id])
 //
-// nav는 layout이 Suspense로 감싼 서버 컴포넌트를 navSlot으로 주입 → 페이지 콘텐츠를
-// 막지 않고 스트리밍된다.
+// 구 '나의 시간' nav 바는 제거됨 — 인생시계는 대시보드 일생보기로 통합.
+// 대시보드는 버킷 상단바(BucketBar)가 헤더 바로 아래 flush로 붙도록 pt-0.
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
@@ -19,8 +19,6 @@ import { cn } from "@/lib/utils";
 const FULL_WIDTH_PATHS = ["/dashboard", "/diary"];
 
 interface MainShellProps {
-  /** layout에서 Suspense로 감싼 MainNavBar 로더 (스트리밍) */
-  navSlot?: ReactNode;
   children: ReactNode;
 }
 
@@ -31,7 +29,7 @@ function isFocusRoute(pathname: string | null): boolean {
   return pathname.startsWith("/diary/");
 }
 
-export function MainShell({ navSlot, children }: MainShellProps) {
+export function MainShell({ children }: MainShellProps) {
   const pathname = usePathname();
 
   if (isFocusRoute(pathname)) {
@@ -41,14 +39,13 @@ export function MainShell({ navSlot, children }: MainShellProps) {
     return <div className="min-h-dvh">{children}</div>;
   }
 
-  // 대시보드/일기 목록은 좌우 여백 0(full-width), 그 외는 px-4
+  // 대시보드/일기 목록은 좌우 여백 0(full-width) + 상단 flush, 그 외는 px-4/py-6
   const fullWidth = FULL_WIDTH_PATHS.some((p) => pathname === p);
 
   return (
     <div className="min-h-dvh flex flex-col">
       <MainHeader />
-      {navSlot}
-      <main className={cn("flex-1 py-6", !fullWidth && "px-4")}>
+      <main className={cn("flex-1 pb-6", fullWidth ? "pt-0" : "px-4 pt-6")}>
         <div className="mx-auto max-w-2xl">{children}</div>
       </main>
     </div>

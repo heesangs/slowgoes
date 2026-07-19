@@ -12,6 +12,8 @@ interface BottomSheetProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: "default" | "large"; // default=60vh, large=85vh
+  /** 헤더 우측 액션 — 지정 시 기본 "닫기" 버튼을 대체 (닫기는 배경 탭/ESC로 가능) */
+  headerAction?: React.ReactNode;
 }
 
 // PR 37: createPortal로 document.body에 mount.
@@ -20,7 +22,7 @@ interface BottomSheetProps {
 //   viewport 대신 그 ancestor가 되어 `fixed inset-0 + bottom-0`이 viewport가 아닌
 //   ancestor 내부 하단을 가리킴 → 시트가 화면 상단/중앙 등 엉뚱한 위치에 노출.
 //   Portal로 body 자식이 되면 어떤 부모 transform도 영향을 못 미침.
-export function BottomSheet({ open, onClose, title, children, footer, size = "default" }: BottomSheetProps) {
+export function BottomSheet({ open, onClose, title, children, footer, size = "default", headerAction }: BottomSheetProps) {
   // 시트 오픈 동안 배경 스크롤 잠금 (iOS 대응 포함)
   useLockBodyScroll(open);
 
@@ -60,13 +62,15 @@ export function BottomSheet({ open, onClose, title, children, footer, size = "de
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-foreground/20" />
         <div className="mb-3 flex items-center justify-between gap-3">
           <h3 className="text-base font-semibold">{title ?? "상세"}</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex min-h-[36px] items-center rounded-md border border-foreground/20 px-2.5 text-xs transition-colors hover:bg-foreground/5"
-          >
-            닫기
-          </button>
+          {headerAction ?? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex min-h-[36px] items-center rounded-md border border-foreground/20 px-2.5 text-xs transition-colors hover:bg-foreground/5"
+            >
+              닫기
+            </button>
+          )}
         </div>
 
         <div className={cn("overflow-y-auto pb-2", size === "large" ? "max-h-[85vh]" : "max-h-[60vh]")}>{children}</div>

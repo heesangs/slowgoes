@@ -56,6 +56,18 @@ body {
   }
 }
 
+/* 인생시계 메시지 — 글자별 stagger 등장 */
+@keyframes char-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* 입력창 교차 안내문 페이드 (R2 타이포 애니메이션) */
 @keyframes kai-fade {
   from {
