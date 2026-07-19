@@ -55,7 +55,7 @@ export function DiaryListContent() {
   }, [queryClient]);
 
   return (
-    <div className="relative mx-auto min-h-[70vh] max-w-2xl px-4 py-5 pb-24">
+    <div className="relative mx-auto min-h-[70vh] max-w-2xl px-3 py-5 pb-24">
       <h1 className="mb-4 text-2xl font-bold text-foreground">{FEATURE_NAMES.DIARY}</h1>
 
       {isError && (

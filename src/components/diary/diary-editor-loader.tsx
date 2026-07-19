@@ -23,7 +23,7 @@ function EditorSkeleton() {
           <div className={`${SKELETON} h-7 w-12`} />
         </div>
       </div>
-      <div className="mx-auto max-w-2xl px-4 py-4">
+      <div className="mx-auto max-w-2xl px-3 py-4">
         <div className="flex flex-col gap-2">
           <div className={`${SKELETON} h-4 w-1/2`} />
           <div className={`${SKELETON} h-4 w-11/12`} />

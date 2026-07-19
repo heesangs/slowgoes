@@ -12,6 +12,11 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { MainHeader } from "@/components/layout/main-header";
+import { cn } from "@/lib/utils";
+
+// 좌우 패딩을 없애 콘텐츠를 화면 끝까지 채우는 라우트(대시보드/일기 목록).
+// 그 외(회고/프로필)는 공통 px-4 유지.
+const FULL_WIDTH_PATHS = ["/dashboard", "/diary"];
 
 interface MainShellProps {
   /** layout에서 Suspense로 감싼 MainNavBar 로더 (스트리밍) */
@@ -36,11 +41,14 @@ export function MainShell({ navSlot, children }: MainShellProps) {
     return <div className="min-h-dvh">{children}</div>;
   }
 
+  // 대시보드/일기 목록은 좌우 여백 0(full-width), 그 외는 px-4
+  const fullWidth = FULL_WIDTH_PATHS.some((p) => pathname === p);
+
   return (
     <div className="min-h-dvh flex flex-col">
       <MainHeader />
       {navSlot}
-      <main className="flex-1 px-4 py-6">
+      <main className={cn("flex-1 py-6", !fullWidth && "px-4")}>
         <div className="mx-auto max-w-2xl">{children}</div>
       </main>
     </div>
