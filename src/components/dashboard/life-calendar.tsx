@@ -2,17 +2,21 @@
 
 // 일생 캘린더 ↔ 인생시계 (피그마 32636-19161 그리드 / 32820-19323 timE 다이얼).
 //
-// 하나의 canvas에서 5200주(52×100)와 인생시계(100세=24시간)를 잇는 morph 타임라인:
-//   A. 점→선     : 5200 도트가 100개의 라인으로 크로스페이드 (행=1년, '한 줄이 1년')
-//   B. 좌측 수축  : 각 라인이 원둘레/100 길이로 짧아짐 (오른쪽이 비워짐)
-//   C. 감기       : 맨 위 라인이 원호 끝으로 날아가 이어붙고, 아래 라인들이 위로 당겨짐
-//                   → 산 시간(진회색)/남은 시간(연회색) 톤이 원호에 그대로 남는다
-//   D. 시계 완성  : 링 → 테두리 점 24개·라벨 크로스페이드 → 중심점 → 시침 → 분침 → 초침
-//                   (침은 중심과 간격을 두고 떠 있는 timE 디자인)
+// 그리드→시계 morph는 **'주' 키오브젝트 1개의 여정**이다 (100라인 동시 이동은 눈이
+// 못 따라간다는 피드백으로 폐기). 좌드래그 **스크럽**(손가락 추종)으로 전반부 진행:
+//   EXIT   : 그리드가 오른쪽부터 페이드(역방향과 대칭), 현재 주 사각형이 **원으로
+//            morph**하며 왼쪽 끝으로 이동
+//   TURN-UP: 좌측 끝에서 쿼터 아크로 상향 전환 (여기부터 궤적 라인)
+//   RISE   : 좌측 가장자리를 따라 원 꼭대기 높이(cy−R)까지 상승
+//   TURN   : 좌상단 쿼터 아크
+//   RUN    : 우향 이동 → 상단 중앙(cx) — 원 최상단(0시)에서 접선이 수평이라
+//            직선 이동이 끊김 없이 원호로 이어진다 (스크럽 핸드오프 지점)
+// 릴리스(임계 이상) 시 자동 재생:
+//   WRAP   : 시계방향 360° 링(산/남은 2톤 유지), 직선 궤적은 페이드 아웃
+//   DIAL   : 링 → 테두리 점·라벨 → 중심점 → 시침 → 분침 → 초침 (timE 디자인)
 //
-// 재생: 스와이프 트리거 — 그리드에서 왼쪽 스와이프 = 시계로(2.6s), 시계에서 오른쪽 = 그리드로.
-// 진행도는 ref + rAF(리액트 상태는 phase 전환점만). 5200칸은 오프스크린 프리렌더로 프레임당
-// draw call을 ~200개 수준으로 유지한다. prefers-reduced-motion이면 즉시 전환.
+// 진행도는 ref + rAF(리액트 상태는 phase 전환점만). 5200칸은 오프스크린 프리렌더.
+// prefers-reduced-motion이면 즉시 전환.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { computeLifeClock } from "@/components/auth/onboarding/utils";
@@ -26,13 +30,21 @@ const PAD_TOP = 16; // 상단 여백
 const LABEL_STEP = 5; // 그리드 라벨 간격(5단위)
 const MIN_CELL = 4; // 칸 최소 크기(px)
 
-// 타임라인 경계 (p ∈ [0,1])
-const ST_A = 0.15; // 점→선 크로스페이드 끝
-const ST_B = 0.3; // 좌측 수축 끝
-const ST_C = 0.78; // 감기 끝 (링 완성)
-const DUR_FORWARD = 2600; // 그리드 → 시계(ms)
-const DUR_REVERSE = 1800; // 시계 → 그리드(ms)
-const SWIPE_FIRE_PX = 40; // 스와이프 발동 임계
+// 여정 타임라인 경계 (p ∈ [0,1]) — 키오브젝트 1개가 경로를 그리며 원을 만든다
+const ST_EXIT = 0.2; // 그리드 우측 페이드 + 사각형→원 morph·좌측 이동
+const ST_TURNUP = 0.26; // 좌측 끝 쿼터 아크(상향 전환, 궤적 시작)
+const ST_RISE = 0.42; // 좌측 가장자리 상승(세로 궤적)
+const ST_TURN = 0.48; // 좌상단 쿼터 아크
+const ST_RUN = 0.58; // 상단 중앙까지 우향(가로 궤적) — 스크럽 핸드오프
+const ST_WRAP = 0.86; // 시계방향 360° 링 완성
+const CORNER_R = 14; // 방향 전환 쿼터 아크 반경(px)
+const DUR_FORWARD = 2400; // 릴리스 후 잔여 자동 재생 (전체 기준 ms, 잔여 비율 비례)
+const DUR_REVERSE = 2200; // 시계 → 그리드 역재생(ms)
+const SWIPE_FIRE_PX = 40; // 시계→그리드 트리거 임계
+
+// forward(그리드→시계) 스크럽
+const FWD_FULL = 220; // p=ST_RUN에 해당하는 좌드래그 거리
+const FWD_COMMIT = 0.22; // 릴리스 커밋 임계(p)
 
 // 역방향(일생→주) 스크럽
 const REVERSE_FULL = 120; // r=1.0에 해당하는 우드래그 거리
@@ -129,6 +141,7 @@ export function LifeCalendar({
   const reverseRRef = useRef(0); // 현재 역방향 진행도
   const enteredRef = useRef(false); // 진입 채움 애니는 1회만
   const [reverseArrow, setReverseArrow] = useState(false); // 좌측 화살표(역방향)
+  const [forwardArrow, setForwardArrow] = useState(false); // 우측 화살표(시계로 스크럽)
 
   const [phase, setPhase] = useState<LifePhase>("grid");
 
@@ -184,9 +197,6 @@ export function LifeCalendar({
     canvas.style.height = `${L.cssHeight}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // 행(1년) i의 "산 주" 비율 (0~1)
-    const livedFrac = (row: number) =>
-      clamp01((weeksLived - row * COLS) / COLS);
     // 시각 각도 (인생시계) — 상단이 0시, 시계방향. age로 재계산 (객체 dep 회피)
     const c = computeLifeClock(age);
     const hourAngle = c ? ((c.hour24 + c.minute / 60) / 24) * 360 : 0;
@@ -271,27 +281,6 @@ export function LifeCalendar({
       ctx.globalAlpha = 1;
     }
 
-    // 100개의 2톤 라인 (shrink: 0=전체 폭, 1=원둘레/100 길이)
-    const arcLen = (2 * Math.PI * L.R) / ROWS;
-    function drawLines(shrink: number, alpha: number) {
-      const len = L.lineW + (arcLen - L.lineW) * shrink;
-      const th = Math.max(2, L.cell * (1 - shrink));
-      for (let i = 0; i < ROWS; i++) {
-        const y = PAD_TOP + i * L.pitch + L.cell / 2 - th / 2;
-        const frac = livedFrac(i);
-        ctx.fillStyle = fg;
-        if (frac > 0) {
-          ctx.globalAlpha = 0.45 * alpha;
-          ctx.fillRect(PAD_LEFT, y, len * frac, th);
-        }
-        if (frac < 1) {
-          ctx.globalAlpha = 0.18 * alpha;
-          ctx.fillRect(PAD_LEFT + len * frac, y, len * (1 - frac), th);
-        }
-      }
-      ctx.globalAlpha = 1;
-    }
-
     // 감긴 원호 (0..segs년) — 산/남은 톤 분할. alphaMul은 D단계 페이드용
     const livedAngle = (weeksLived / (COLS * ROWS)) * 360;
     function drawRing(sweepDeg: number, alphaMul: number) {
@@ -315,56 +304,128 @@ export function LifeCalendar({
       ctx.globalAlpha = 1;
     }
 
-    // C단계: 컨베이어 감기 — 스택이 위로 당겨지고 맨 위 라인이 호 끝으로 날아간다
-    function drawWrap(q: number) {
-      const consumed = q * ROWS;
-      const k = Math.floor(consumed);
-      const f = consumed - k;
+    // ── 키오브젝트 여정 경로 (EXIT → TURN-UP → RISE → TURN → RUN → WRAP) ──
+    // 좌측 세로축 x, 상단 가로축 y(=원 꼭대기). 원 최상단에서 접선이 수평이라
+    // RUN 직선이 WRAP 원호로 끊김 없이 이어진다.
+    const keyR = Math.max(7, 1.5 * L.pitch); // 키오브젝트(원) 반지름
+    const xL = PAD_LEFT + keyR; // 좌측 세로 경로 x (원이 잘리지 않게 반지름만큼 안쪽)
+    const yT = L.cy - L.R; // 상단 가로 경로 y = 원 꼭대기
+    const kStart = { x: curCell.x + L.cell / 2, y: curCell.y + L.cell / 2 }; // 현재 주 칸 중심
+    const rcDeg = (a: number) => (a * Math.PI) / 180;
+    // 쿼터 아크 포인트: 중심 C, 반지름 r, 각도 a(도) — canvas 기준(0=+x, 90=+y↓)
+    const arcPt = (C: { x: number; y: number }, r: number, a: number) => ({
+      x: C.x + r * Math.cos(rcDeg(a)),
+      y: C.y + r * Math.sin(rcDeg(a)),
+    });
+    const C1 = { x: xL + CORNER_R, y: kStart.y - CORNER_R }; // 좌하단 전환(좌향→상향)
+    const C2 = { x: xL + CORNER_R, y: yT + CORNER_R }; // 좌상단 전환(상향→우향)
 
-      // 이미 감긴 호
-      drawRing(k * (360 / ROWS), 1);
+    // p(0..ST_RUN) → 펜 중심 좌표
+    function penAt(p: number): { x: number; y: number } {
+      if (p <= ST_EXIT) {
+        const t = easeInOutCubic(clamp01(p / ST_EXIT));
+        return { x: kStart.x + (C1.x - kStart.x) * t, y: kStart.y };
+      }
+      if (p <= ST_TURNUP) {
+        const t = clamp01((p - ST_EXIT) / (ST_TURNUP - ST_EXIT));
+        return arcPt(C1, CORNER_R, 90 + 90 * t); // (xL+rc, y0) → (xL, y0-rc)
+      }
+      if (p <= ST_RISE) {
+        const t = easeInOutCubic(clamp01((p - ST_TURNUP) / (ST_RISE - ST_TURNUP)));
+        const y0 = C1.y;
+        const y1 = C2.y;
+        return { x: xL, y: y0 + (y1 - y0) * t };
+      }
+      if (p <= ST_TURN) {
+        const t = clamp01((p - ST_RISE) / (ST_TURN - ST_RISE));
+        return arcPt(C2, CORNER_R, 180 + 90 * t); // (xL, yT+rc) → (xL+rc, yT)
+      }
+      const t = easeInOutCubic(clamp01((p - ST_TURN) / (ST_RUN - ST_TURN)));
+      return { x: C2.x + (L.cx - C2.x) * t, y: yT };
+    }
 
-      // 남은 스택 (k+1..): 소비량만큼 위로 이동한 짧은 스텁
-      const th = 2;
-      for (let i = k + 1; i < ROWS; i++) {
-        const y = PAD_TOP + (i - consumed) * L.pitch + L.cell / 2 - th / 2;
-        if (y > L.cssHeight) break;
-        const frac = livedFrac(i);
-        ctx.fillStyle = fg;
-        if (frac > 0) {
-          ctx.globalAlpha = 0.45;
-          ctx.fillRect(PAD_LEFT, y, arcLen * frac, th);
-        }
-        if (frac < 1) {
-          ctx.globalAlpha = 0.18;
-          ctx.fillRect(PAD_LEFT + arcLen * frac, y, arcLen * (1 - frac), th);
-        }
+    // 지나간 궤적(2px) — TURN-UP부터 시작 (EXIT 좌향 이동은 궤적 없음)
+    function drawTrail(p: number, alpha: number) {
+      if (p <= ST_EXIT || alpha <= 0) return;
+      ctx.strokeStyle = fg;
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.globalAlpha = 0.45 * alpha;
+      ctx.beginPath();
+      // 좌하단 아크
+      const a1 = 90 + 90 * clamp01((p - ST_EXIT) / (ST_TURNUP - ST_EXIT));
+      ctx.arc(C1.x, C1.y, CORNER_R, rcDeg(90), rcDeg(a1));
+      ctx.stroke();
+      // 세로 상승
+      if (p > ST_TURNUP) {
+        const pen = penAt(Math.min(p, ST_RISE));
+        ctx.beginPath();
+        ctx.moveTo(xL, C1.y);
+        ctx.lineTo(xL, Math.min(p, ST_RISE) === ST_RISE ? C2.y : pen.y);
+        ctx.stroke();
+      }
+      // 좌상단 아크
+      if (p > ST_RISE) {
+        const a2 = 180 + 90 * clamp01((p - ST_RISE) / (ST_TURN - ST_RISE));
+        ctx.beginPath();
+        ctx.arc(C2.x, C2.y, CORNER_R, rcDeg(180), rcDeg(a2));
+        ctx.stroke();
+      }
+      // 가로 이동
+      if (p > ST_TURN) {
+        const pen = penAt(Math.min(p, ST_RUN));
+        ctx.beginPath();
+        ctx.moveTo(C2.x, yT);
+        ctx.lineTo(pen.x, yT);
+        ctx.stroke();
       }
       ctx.globalAlpha = 1;
+    }
 
-      // 날아가는 라인 k: 스택 맨 위 → 호의 [k, k+1] 세그먼트(현으로 근사)
-      if (k < ROWS) {
-        const yTop = PAD_TOP + (k - consumed) * L.pitch + L.cell / 2;
-        const a0 = k * (360 / ROWS);
-        const a1 = (k + 1) * (360 / ROWS);
-        const P0 = polar(L.R, a0);
-        const P1 = polar(L.R, a1);
-        const sx0 = PAD_LEFT, sy0 = yTop;
-        const sx1 = PAD_LEFT + arcLen, sy1 = yTop;
-        const e = easeInOutCubic(f);
-        const x0 = sx0 + (P0.x - sx0) * e;
-        const y0 = sy0 + (P0.y - sy0) * e;
-        const x1 = sx1 + (P1.x - sx1) * e;
-        const y1 = sy1 + (P1.y - sy1) * e;
-        ctx.strokeStyle = fg;
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = livedFrac(k) >= 0.5 ? 0.5 : 0.2;
-        ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x1, y1);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
+    // 키오브젝트(펜) — EXIT 동안 사각형→원 morph + 크기 전환, 이후 원
+    function drawPen(pos: { x: number; y: number }, morph: number, alpha: number) {
+      if (alpha <= 0) return;
+      ctx.fillStyle = fg;
+      ctx.globalAlpha = alpha;
+      const half = (L.cell / 2) * (1 - morph) + keyR * morph;
+      const radius = half * morph; // 0=사각형 → half=완전한 원
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(pos.x - half, pos.y - half, half * 2, half * 2, radius);
+      } else {
+        ctx.arc(pos.x, pos.y, half, 0, Math.PI * 2);
       }
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // 여정 합성 (0 < p < ST_WRAP: 스크럽 구간+링) — DIAL은 drawScene에서
+    function drawJourney(p: number) {
+      // 그리드: EXIT 동안 오른쪽부터 페이드(역방향 drawExit와 대칭), 이후 소멸
+      const ex = clamp01(p / ST_EXIT);
+      if (ex < 1) {
+        drawGrid(1);
+        const grad = ctx.createLinearGradient(0, 0, L.cssWidth, 0);
+        grad.addColorStop(0, hexToRgba(bg, clamp01(ex * 2 - 1)));
+        grad.addColorStop(1, hexToRgba(bg, clamp01(ex * 2)));
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, L.cssWidth, L.cssHeight);
+      }
+
+      if (p <= ST_RUN) {
+        // 스크럽 구간: 궤적 + 펜
+        drawTrail(p, 1);
+        drawPen(penAt(p), clamp01(p / ST_EXIT), 1);
+        return;
+      }
+
+      // WRAP: 상단 중앙에서 접선 연속으로 시계방향 링. 직선 궤적은 전반부 페이드 아웃
+      const w = clamp01((p - ST_RUN) / (ST_WRAP - ST_RUN));
+      const sweep = 360 * easeInOutCubic(w);
+      drawTrail(ST_RUN, 1 - clamp01(w / 0.4));
+      drawRing(sweep, 1);
+      const penPos = polar(L.R, sweep);
+      drawPen(penPos, 1, 1 - clamp01((sweep - 330) / 30)); // 완성 직전 페이드
     }
 
     // D단계: 링 → 시계 (점 테두리·라벨 → 중심점 → 시침 → 분침 → 초침)
@@ -436,16 +497,10 @@ export function LifeCalendar({
         drawGrid(1, entryRows);
         return;
       }
-      if (p < ST_A) {
-        const t = p / ST_A;
-        drawGrid(1 - t);
-        drawLines(0, t);
-      } else if (p < ST_B) {
-        drawLines(easeInOutCubic((p - ST_A) / (ST_B - ST_A)), 1);
-      } else if (p < ST_C) {
-        drawWrap((p - ST_B) / (ST_C - ST_B));
+      if (p < ST_WRAP) {
+        drawJourney(p);
       } else {
-        drawDial((p - ST_C) / (1 - ST_C));
+        drawDial((p - ST_WRAP) / (1 - ST_WRAP));
       }
     }
     drawRef.current = drawScene;
@@ -527,7 +582,9 @@ export function LifeCalendar({
 
     setPhase(target === 1 ? "toClock" : "toGrid");
     const from = progressRef.current;
-    const dur = target === 1 ? DUR_FORWARD : DUR_REVERSE;
+    // 스크럽 도중 릴리스 등 중간 지점에서 시작하면 잔여 비율만큼만 재생
+    const dur =
+      (target === 1 ? DUR_FORWARD : DUR_REVERSE) * Math.max(0.15, Math.abs(target - from));
     const t0 = performance.now();
     const tick = (now: number) => {
       const u = Math.min(1, (now - t0) / dur);
@@ -543,18 +600,26 @@ export function LifeCalendar({
   }, []);
 
   // ── 스와이프 (터치+마우스, 가로 우세 시만 — 세로 스크롤 양보) ──
-  // grid: 좌드래그 = 시계로(트리거) / 우드래그 = 부모 스크럽으로 포워딩(주 복귀)
+  // grid: 좌드래그 = 시계로 **스크럽**(여정 전반부 손가락 추종) / 우드래그 = 주 복귀 스크럽
   // clock: 우드래그 = 그리드로(트리거)
   const gesture = useRef<{
     x: number;
     y: number;
     active: boolean;
     fired: boolean;
-    forwarding: boolean; // 우드래그를 부모로 포워딩 중(주 복귀 스크럽)
+    forwarding: boolean; // 우드래그: 주 복귀 스크럽 중
+    fwdScrub: boolean; // 좌드래그: 시계로 여정 스크럽 중
   } | null>(null);
 
   function handlePointerDown(e: React.PointerEvent) {
-    gesture.current = { x: e.clientX, y: e.clientY, active: true, fired: false, forwarding: false };
+    gesture.current = {
+      x: e.clientX,
+      y: e.clientY,
+      active: true,
+      fired: false,
+      forwarding: false,
+      fwdScrub: false,
+    };
   }
   function handlePointerMove(e: React.PointerEvent) {
     const g = gesture.current;
@@ -568,6 +633,13 @@ export function LifeCalendar({
       reverseRRef.current = r;
       drawExitRef.current?.(r);
       onReverseDrag?.(dx);
+      return;
+    }
+    // 시계로 여정 스크럽 중 — p(0..ST_RUN) 추종
+    if (g.fwdScrub) {
+      const p = clamp01(-dx / FWD_FULL) * ST_RUN;
+      progressRef.current = p;
+      drawRef.current?.(p);
       return;
     }
     if (g.fired) return;
@@ -593,16 +665,68 @@ export function LifeCalendar({
       }
       return;
     }
+    // grid에서 좌드래그 시작 → 시계로 여정 스크럽 (구 트리거 대체)
+    if (phase === "grid" && dx < -8 && Math.abs(dx) > Math.abs(dy)) {
+      if (
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
+        g.fired = true;
+        play(1); // reduced: 즉시 전환
+        return;
+      }
+      g.fwdScrub = true;
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      setForwardArrow(true);
+      setPhase("toClock"); // 페이저 점 3 강조
+      progressRef.current = clamp01(-dx / FWD_FULL) * ST_RUN;
+      drawRef.current?.(progressRef.current);
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        /* 합성 포인터 등에선 무시 */
+      }
+      return;
+    }
     if (Math.abs(dx) >= SWIPE_FIRE_PX && Math.abs(dx) > Math.abs(dy)) {
       g.fired = true;
-      if (phase === "grid" && dx < 0) play(1);
-      else if (phase === "clock" && dx > 0) play(0);
+      if (phase === "clock" && dx > 0) play(0);
     }
   }
   function handlePointerEnd(e: React.PointerEvent) {
     const g = gesture.current;
     if (gesture.current) gesture.current.active = false;
-    if (!g?.forwarding) return;
+    if (!g) return;
+
+    // 여정 스크럽 릴리스 — 임계 이상이면 잔여(링+다이얼) 자동 재생, 미만이면 스냅백
+    if (g.fwdScrub) {
+      setForwardArrow(false);
+      const p = clamp01(-(e.clientX - g.x) / FWD_FULL) * ST_RUN;
+      progressRef.current = p;
+      if (p >= FWD_COMMIT) {
+        play(1);
+      } else {
+        const from = p;
+        const t0 = performance.now();
+        const tick = (now: number) => {
+          const u = Math.min(1, (now - t0) / 220);
+          const pp = from * (1 - u);
+          progressRef.current = pp;
+          drawRef.current?.(pp);
+          if (u < 1) {
+            rafRef.current = requestAnimationFrame(tick);
+          } else {
+            progressRef.current = 0;
+            drawRef.current?.(0);
+            setPhase("grid");
+          }
+        };
+        rafRef.current = requestAnimationFrame(tick);
+      }
+      return;
+    }
+
+    if (!g.forwarding) return;
     setReverseArrow(false);
     const r = clamp01((e.clientX - g.x) / REVERSE_FULL);
     if (r >= REVERSE_COMMIT) {
@@ -690,6 +814,19 @@ export function LifeCalendar({
       >
         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M19 12l-6-6M19 12l-6 6" />
+        </svg>
+      </span>
+
+      {/* 시계로 스크럽 화살표(←) — 좌드래그(프레스) 중에만, 우측 상단 (역방향과 대칭) */}
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute right-1 top-16 text-foreground/70 transition-opacity duration-150",
+          forwardArrow ? "opacity-100" : "opacity-0"
+        )}
+      >
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5M5 12l6-6M5 12l6 6" />
         </svg>
       </span>
 
