@@ -343,9 +343,10 @@ export function CalendarSection({
       : FEATURE_NAMES.CALENDAR;
 
   // 스크럽 진행도 → 인라인 스타일 값
-  const dateOpacity = (col: number) => 1 - clamp01((progress - (6 - col) * 0.11) / 0.34);
-  // 박스 라벨은 좌측 날짜가 충분히 흐려진 뒤 등장(겹침 최소화)
-  const boxOpacity = clamp01((progress - 0.6) / 0.3);
+  // 날짜(펼쳐진 주)는 오른쪽(토)부터 stagger로 소멸 — progress ≈ 0.5 이전에 전부 사라진다
+  const dateOpacity = (col: number) => 1 - clamp01((progress - (6 - col) * 0.055) / 0.16);
+  // 박스("M.n주")는 날짜가 모두 사라진 뒤 등장 — 겹치는 프레임 0 (0.5~0.75)
+  const boxOpacity = clamp01((progress - 0.5) / 0.25);
   const borderAlpha = 0.4 * (1 - clamp01(progress / 0.9));
   // 화살표: 더 강하게(JSX 크기·색) + 거의 끝까지 잔존
   const arrowOpacity = (showArrow ? 1 : 0) * (1 - clamp01((progress - 0.78) / 0.22));
@@ -510,8 +511,12 @@ export function CalendarSection({
           {!expanded && (
             <span
               aria-hidden
-              className="pointer-events-none absolute inset-y-1 left-0 flex items-center justify-center rounded-lg bg-foreground text-xs font-medium text-background"
-              style={{ width: COLLAPSED_W, opacity: boxOpacity }}
+              className={cn(
+                "pointer-events-none absolute inset-y-1 left-0 flex items-center justify-center rounded-lg bg-foreground text-xs font-medium text-background",
+                // 커밋 스냅(progress→1) 시 날짜가 다 사라진 뒤 등장하도록 지연 페이드 — 드래그 중엔 즉시 추종
+                !dragging && "transition-opacity duration-200"
+              )}
+              style={{ width: COLLAPSED_W, opacity: boxOpacity, transitionDelay: dragging ? "0ms" : "180ms" }}
             >
               {formatWeekOfMonth(selectedDate)}
             </span>

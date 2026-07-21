@@ -50,6 +50,9 @@ const FWD_COMMIT = 0.22; // 릴리스 커밋 임계(p)
 const REVERSE_FULL = 120; // r=1.0에 해당하는 우드래그 거리
 const REVERSE_COMMIT = 0.42; // 릴리스 커밋 임계
 
+// 스크럽 화살표 손가락 추종 이동폭(px) — 1페이지와 동일한 이동감
+const ARROW_TRAVEL = 56;
+
 // #rrggbb → rgba(문자열) (캔버스 그라디언트 알파용)
 function hexToRgba(hex: string, a: number): string {
   const h = hex.replace("#", "");
@@ -142,6 +145,8 @@ export function LifeCalendar({
   const enteredRef = useRef(false); // 진입 채움 애니는 1회만
   const [reverseArrow, setReverseArrow] = useState(false); // 좌측 화살표(역방향)
   const [forwardArrow, setForwardArrow] = useState(false); // 우측 화살표(시계로 스크럽)
+  const revArrowRef = useRef<HTMLSpanElement | null>(null); // 역방향 화살표 이동(손가락 추종)
+  const fwdArrowRef = useRef<HTMLSpanElement | null>(null); // 여정 화살표 이동(손가락 추종)
 
   const [phase, setPhase] = useState<LifePhase>("grid");
 
@@ -632,6 +637,7 @@ export function LifeCalendar({
       const r = clamp01(dx / REVERSE_FULL);
       reverseRRef.current = r;
       drawExitRef.current?.(r);
+      if (revArrowRef.current) revArrowRef.current.style.transform = `translateX(${r * ARROW_TRAVEL}px)`;
       onReverseDrag?.(dx);
       return;
     }
@@ -640,6 +646,7 @@ export function LifeCalendar({
       const p = clamp01(-dx / FWD_FULL) * ST_RUN;
       progressRef.current = p;
       drawRef.current?.(p);
+      if (fwdArrowRef.current) fwdArrowRef.current.style.transform = `translateX(${-(p / ST_RUN) * ARROW_TRAVEL}px)`;
       return;
     }
     if (g.fired) return;
@@ -657,6 +664,7 @@ export function LifeCalendar({
       const r = clamp01(dx / REVERSE_FULL);
       reverseRRef.current = r;
       drawExitRef.current?.(r);
+      if (revArrowRef.current) revArrowRef.current.style.transform = `translateX(${r * ARROW_TRAVEL}px)`;
       onReverseDrag?.(dx);
       try {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -681,6 +689,8 @@ export function LifeCalendar({
       setPhase("toClock"); // 페이저 점 3 강조
       progressRef.current = clamp01(-dx / FWD_FULL) * ST_RUN;
       drawRef.current?.(progressRef.current);
+      if (fwdArrowRef.current)
+        fwdArrowRef.current.style.transform = `translateX(${-(progressRef.current / ST_RUN) * ARROW_TRAVEL}px)`;
       try {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       } catch {
@@ -701,6 +711,7 @@ export function LifeCalendar({
     // 여정 스크럽 릴리스 — 임계 이상이면 잔여(링+다이얼) 자동 재생, 미만이면 스냅백
     if (g.fwdScrub) {
       setForwardArrow(false);
+      if (fwdArrowRef.current) fwdArrowRef.current.style.transform = "translateX(0)"; // 페이드 하에 원위치
       const p = clamp01(-(e.clientX - g.x) / FWD_FULL) * ST_RUN;
       progressRef.current = p;
       if (p >= FWD_COMMIT) {
@@ -728,6 +739,7 @@ export function LifeCalendar({
 
     if (!g.forwarding) return;
     setReverseArrow(false);
+    if (revArrowRef.current) revArrowRef.current.style.transform = "translateX(0)"; // 페이드 하에 원위치
     const r = clamp01((e.clientX - g.x) / REVERSE_FULL);
     if (r >= REVERSE_COMMIT) {
       // 확대된 현재 주 셀(키오브젝트) 뷰포트 사각형을 부모에 전달 → 주로 비행
@@ -804,28 +816,32 @@ export function LifeCalendar({
         }
       />
 
-      {/* 역방향(주 복귀) 화살표(→) — 우드래그(프레스) 중에만, 좌측 상단 */}
+      {/* 역방향(주 복귀) 화살표(→) — 우드래그(프레스) 중에만, 좌측 상단.
+          1페이지와 동일한 모양·색(strokeWidth 2.5, 풀 강도) + 손가락 따라 우측 이동(transform은 imperative) */}
       <span
+        ref={revArrowRef}
         aria-hidden
         className={cn(
-          "pointer-events-none absolute left-1 top-16 text-foreground/70 transition-opacity duration-150",
+          "pointer-events-none absolute left-1 top-16 text-foreground transition-opacity duration-150",
           reverseArrow ? "opacity-100" : "opacity-0"
         )}
       >
-        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M19 12l-6-6M19 12l-6 6" />
         </svg>
       </span>
 
-      {/* 시계로 스크럽 화살표(←) — 좌드래그(프레스) 중에만, 우측 상단 (역방향과 대칭) */}
+      {/* 시계로 스크럽 화살표(←) — 좌드래그(프레스) 중에만, 우측 상단 (역방향과 대칭).
+          1페이지와 동일한 path·색 + 손가락 따라 좌측 이동 */}
       <span
+        ref={fwdArrowRef}
         aria-hidden
         className={cn(
-          "pointer-events-none absolute right-1 top-16 text-foreground/70 transition-opacity duration-150",
+          "pointer-events-none absolute right-1 top-16 text-foreground transition-opacity duration-150",
           forwardArrow ? "opacity-100" : "opacity-0"
         )}
       >
-        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5M5 12l6-6M5 12l6 6" />
         </svg>
       </span>
