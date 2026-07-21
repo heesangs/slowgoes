@@ -152,10 +152,11 @@ export function deriveTodosForDate(
     .filter((todo) => {
       if (todo.repeat_type) return occursOn(todo, dateStr);
       if (todo.scheduled_date === dateStr) return true;
-      // 미완료 이월은 오늘 뷰에서만 (미래 날짜에 따라다니지 않게)
-      return (
-        dateStr === todayStr && todo.scheduled_date < dateStr && !completedAny.has(todo.id)
-      );
+      // 이월(overdue)은 오늘 뷰에서만 (미래 날짜에 따라다니지 않게)
+      if (dateStr !== todayStr || todo.scheduled_date >= dateStr) return false;
+      // 지난 1회성: 미완료면 오늘로 이월, 오늘 완료했으면 완료 섹션에 남긴다
+      // (completedOnDate = dateStr 완료. 이 분기는 dateStr===todayStr일 때만 도달)
+      return !completedAny.has(todo.id) || completedOnDate.has(todo.id);
     })
     .map((todo) => ({
       ...todo,
