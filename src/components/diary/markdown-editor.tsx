@@ -15,7 +15,7 @@
 // 컬러: 하늘색 미사용. 앱 기존 블랙 계열 토큰(foreground)만 사용.
 // 본문 폰트: 작성화면 스크린샷 기준 17px.
 
-import { useEffect } from "react";
+import { memo } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TaskList from "@tiptap/extension-task-list";
@@ -55,7 +55,10 @@ const EDITOR_WRAPPER_CLASS = [
   "[&_li[data-type=taskItem][data-checked=true]>div]:text-foreground/40 [&_li[data-type=taskItem][data-checked=true]>div]:line-through",
 ].join(" ");
 
-export function MarkdownEditor({ initialContent = "", onChange }: MarkdownEditorProps) {
+// React.memo — 부모(DiaryEditor)가 저장 상태 표시로 리렌더돼도 에디터 서브트리는
+// 리렌더하지 않는다. 특히 한글 IME 조합 중 EditorContent 리렌더는 캐럿을 튀게 하므로,
+// onChange를 안정 참조(useCallback)로 받아 memo가 유지되게 하는 것이 중요하다.
+function MarkdownEditorImpl({ initialContent = "", onChange }: MarkdownEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -80,13 +83,8 @@ export function MarkdownEditor({ initialContent = "", onChange }: MarkdownEditor
     },
   });
 
-  // immediatelyRender:false 때문에 autofocus 옵션이 실효가 없어 마운트 후 명시 포커스.
-  // 데스크톱/안드로이드는 바로 입력 가능. iOS는 페이지 네비게이션 뒤라 커서는 놓이지만
-  // 소프트 키보드 자동 오픈은 OS 제약상 보장되지 않음(첫 탭 한 번 필요할 수 있음).
-  useEffect(() => {
-    if (!editor) return;
-    editor.commands.focus("end");
-  }, [editor]);
+  // 최초 포커스는 onCreate에서 1회 처리한다. 이전엔 useEffect([editor])로 다시 focus("end")를
+  // 호출했는데, 입력 중 재실행될 여지가 있어 캐럿이 문서 끝으로 튀는 원인이 될 수 있었다 → 제거.
 
   return (
     <div className={EDITOR_WRAPPER_CLASS}>
@@ -94,3 +92,7 @@ export function MarkdownEditor({ initialContent = "", onChange }: MarkdownEditor
     </div>
   );
 }
+
+// initialContent는 마운트 시 1회만 쓰이고, onChange는 부모가 useCallback으로 안정화하므로
+// 얕은 비교 memo로 충분하다(부모 리렌더 시 에디터 리렌더 skip).
+export const MarkdownEditor = memo(MarkdownEditorImpl);
