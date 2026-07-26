@@ -23,6 +23,7 @@ import { deriveDiaryTitle, derivePreview, toDiaryListItem } from "@/lib/diary/fo
 import { saveDiaryDraft, clearDiaryDraft } from "@/lib/diary/draft";
 import { saveDiaryAction, deleteDiaryAction } from "@/app/(main)/diary/actions";
 import { MarkdownEditor } from "./markdown-editor";
+import { DiaryAiSheet } from "./diary-ai-sheet";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const AUTOSAVE_DEBOUNCE_MS = 800;
@@ -61,6 +62,26 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
   const debounceRef = useRef<number | null>(null);
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+
+  // AI 분석 시트 — 열 때의 본문/선택을 스냅샷으로 넘긴다.
+  // 선택 텍스트는 버튼 blur로 사라지기 전(pointerdown)에 캡처해 둔다.
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiContent, setAiContent] = useState("");
+  const [aiSelection, setAiSelection] = useState("");
+  const [aiOpenCount, setAiOpenCount] = useState(0); // 열 때마다 시트 리마운트(초기화)
+  const pendingSelectionRef = useRef("");
+
+  function openAiSheet() {
+    const content = plainTextRef.current.trim();
+    if (!content) {
+      toast("먼저 일기를 작성해주세요.", "error");
+      return;
+    }
+    setAiContent(content);
+    setAiSelection(pendingSelectionRef.current);
+    setAiOpenCount((n) => n + 1);
+    setAiOpen(true);
+  }
 
   // 헤더 날짜: 편집은 작성일, 작성은 현재 시각(마운트 시점 고정)
   const [dateLabel] = useState(() => formatDateLabel(entry?.created_at ?? new Date().toISOString()));
@@ -183,6 +204,24 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
         title={dateLabel}
         actions={
           <>
+            {/* AI에게 물어보기 — 본문이 있을 때(편집 모드이거나 입력을 시작한 뒤) 노출.
+                pointerdown에서 선택 텍스트를 캡처(클릭 시 blur로 선택이 사라지므로). */}
+            {(mode === "edit" || saveStatus !== "idle") && (
+              <button
+                type="button"
+                aria-label="AI에게 물어보기"
+                onPointerDown={() => {
+                  pendingSelectionRef.current = window.getSelection()?.toString().trim() ?? "";
+                }}
+                onClick={openAiSheet}
+                className="inline-flex h-8 items-center gap-1 rounded-lg border border-foreground/15 px-2.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/5"
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z" />
+                </svg>
+                AI
+              </button>
+            )}
             {mode === "edit" && !isPending && (
               <MoreActionsMenu
                 ariaLabel="일기 관리"
@@ -205,6 +244,14 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
       <div className="mx-auto max-w-2xl px-3 py-4">
         <MarkdownEditor initialContent={entry?.content ?? ""} onChange={handleChange} />
       </div>
+
+      <DiaryAiSheet
+        key={aiOpenCount}
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        content={aiContent}
+        selection={aiSelection}
+      />
     </>
   );
 }

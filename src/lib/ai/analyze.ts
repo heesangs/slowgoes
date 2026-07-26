@@ -143,7 +143,7 @@ function parseJsonResponse(text: string): unknown {
 }
 
 // Gemini 에러를 사용자 친화 메시지로 변환
-function mapGeminiError(error: unknown): Error {
+export function mapGeminiError(error: unknown): Error {
   const rawMessage = error instanceof Error ? error.message : String(error);
   const lower = rawMessage.toLowerCase();
   const retryMatch = rawMessage.match(/retry in\s*([\d.]+)s/i);

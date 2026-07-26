@@ -3,7 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { getDiaryEntries, getDiaryEntry } from "@/lib/diary/queries";
-import { AUTH_ERRORS, DIARY_ERRORS } from "@/lib/constants";
+import { analyzeDiary } from "@/lib/ai/diary-analyze";
+import { AI_ERRORS, AUTH_ERRORS, DIARY_ERRORS } from "@/lib/constants";
 import type { Diary, DiaryListItem } from "@/types";
 
 // ── React Query queryFn용 읽기 액션 ──
@@ -121,6 +122,25 @@ export async function deleteDiaryAction(
     return {
       success: false,
       error: toClientErrorMessage(error, DIARY_ERRORS.DELETE_FAILED),
+    };
+  }
+}
+
+// ── AI 분석 ── 현재 일기 1건을 요약/조언. 저장하지 않는 읽기 전용.
+export async function analyzeDiaryAction(input: {
+  content: string;
+  question?: string;
+  selection?: string;
+}): Promise<{ success: true; text: string } | { success: false; error: string }> {
+  try {
+    // 인증 가드만 — DB 쓰기 없음. (AI 호출은 서버에서만: CLAUDE.md)
+    await getAuthContext();
+    const text = await analyzeDiary(input);
+    return { success: true, text };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, AI_ERRORS.ANALYSIS_GENERIC),
     };
   }
 }
