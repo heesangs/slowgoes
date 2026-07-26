@@ -1,14 +1,19 @@
 "use client";
 
 // 일기 작성/편집 화면.
-// 상단: SubPageHeader(뒤로가기 + 날짜 + 더보기 + 완료). 글로벌 헤더는 MainShell이 숨김.
+// 상단: SubPageHeader(뒤로가기 + 날짜 + 더보기 + 저장 상태). 글로벌 헤더는 MainShell이 숨김.
 // 본문: MarkdownEditor(TipTap).
 // 컬러는 앱 블랙 계열 토큰만 사용 (하늘색 미사용).
+//
+// 저장 모델(자동저장):
+//   타이핑 → ① 로컬 드래프트 즉시 기록 → ② 디바운스(idle 800ms) 후 낙관적 캐시 갱신 +
+//   서버 flush(멱등 upsert) → 성공 시 드래프트 삭제. 화면 이동은 하지 않는다(뒤로가기로 나감).
+//   나가기/탭 숨김/언마운트 시 남은 변경을 즉시 flush. flush가 늦거나 실패해도 드래프트가
+//   남아 목록 재진입 시 자동 재전송되므로 유실이 없다.
 
-import { useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { SubPageHeader } from "@/components/layout/sub-page-header";
 import { useToast } from "@/components/ui/toast";
@@ -20,6 +25,7 @@ import { saveDiaryAction, deleteDiaryAction } from "@/app/(main)/diary/actions";
 import { MarkdownEditor } from "./markdown-editor";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+const AUTOSAVE_DEBOUNCE_MS = 800;
 
 // "26.7.13 (월)" — 시간은 목록에 있으므로 생략
 function formatDateLabel(iso: string): string {
@@ -30,6 +36,8 @@ function formatDateLabel(iso: string): string {
   const weekday = WEEKDAY_LABELS[date.getDay()];
   return `${yy}.${month}.${day} (${weekday})`;
 }
+
+type SaveStatus = "idle" | "saving" | "saved";
 
 type DiaryEditorProps =
   | { mode: "create"; entry?: undefined }
@@ -42,80 +50,102 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
   const [isPending, startTransition] = useTransition();
 
   // 저장 대상 id. 신규는 클라이언트가 UUID를 미리 만든다 —
-  // 서버가 upsert하므로 재전송해도 같은 행(멱등) → 드래프트 재시도가 일기를 복제하지 않는다.
+  // 서버가 upsert하므로 재전송해도 같은 행(멱등) → 자동저장이 일기를 복제하지 않는다.
   const [diaryId] = useState(() => entry?.id ?? crypto.randomUUID());
 
   // 편집 모드는 기존 값으로 초기화
   const contentRef = useRef<string>(entry?.content ?? "");
   const plainTextRef = useRef<string>(entry?.plain_text ?? "");
+  // 마지막으로 flush(서버 반영 시도)한 content — 변경 없으면 flush를 건너뛴다.
+  const savedContentRef = useRef<string>(entry?.content ?? "");
+  const debounceRef = useRef<number | null>(null);
 
-  // 변경 감지 기준선. TipTap onUpdate는 초기 content 설정 시 발화하지 않으므로
-  // 사용자가 실제로 수정해야만 ref가 바뀐다 → 미수정이면 isDirty=false가 보장된다.
-  const baselineContentRef = useRef<string>(entry?.content ?? "");
-  const [isDirty, setIsDirty] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
   // 헤더 날짜: 편집은 작성일, 작성은 현재 시각(마운트 시점 고정)
   const [dateLabel] = useState(() => formatDateLabel(entry?.created_at ?? new Date().toISOString()));
 
-  function handleChange(html: string, text: string) {
-    contentRef.current = html;
-    plainTextRef.current = text;
-
-    const next =
-      mode === "create" ? text.trim().length > 0 : html !== baselineContentRef.current;
-    // 값이 같으면 같은 참조를 반환 → React가 리렌더를 bail out (타이핑마다 리렌더 없음)
-    setIsDirty((prev) => (prev === next ? prev : next));
-  }
-
-  function handleSave() {
-    const plainText = plainTextRef.current.trim();
-    if (!plainText) {
-      toast(DIARY_ERRORS.CONTENT_REQUIRED, "error");
-      return;
+  // 지금까지의 내용을 로컬·캐시·서버에 확정 반영 (디바운스 만료·나가기·언마운트에서 호출).
+  // 참조가 안정적이어야 이벤트 리스너/effect가 재등록되지 않는다.
+  const flushNow = useCallback(() => {
+    if (debounceRef.current != null) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
     }
 
     const content = contentRef.current;
+    const plainText = plainTextRef.current.trim();
+    // 빈 내용이거나 직전 flush 이후 변경이 없으면 아무것도 하지 않는다.
+    if (!plainText || content === savedContentRef.current) return;
+    savedContentRef.current = content;
+
     const savedAt = new Date().toISOString();
 
-    // ① 로컬에 먼저 확정 기록 — 이후 단계가 실패하거나 탭이 닫혀도 유실되지 않는다.
+    // ① 로컬 드래프트 확정 (유실 방지 — 서버 flush가 실패/지연해도 목록 진입 시 재전송)
     saveDiaryDraft({ id: diaryId, content, plainText, savedAt });
 
-    // ② 낙관적 캐시 갱신 (재페치 0)
-    if (mode === "edit") {
-      queryClient.setQueryData<Diary | null>(["diary", "entry", diaryId], (old) =>
-        old ? { ...old, content, plain_text: plainText, updated_at: savedAt } : old
-      );
-      queryClient.setQueryData<DiaryListItem[]>(["diary", "list"], (old) =>
-        old?.map((item) =>
+    // ② 낙관적 캐시 갱신 (재페치 0). 목록은 멱등: 있으면 갱신, 없으면(신규 첫 저장) 앞에 추가.
+    queryClient.setQueryData<Diary | null>(["diary", "entry", diaryId], (old) =>
+      old ? { ...old, content, plain_text: plainText, updated_at: savedAt } : old
+    );
+    queryClient.setQueryData<DiaryListItem[]>(["diary", "list"], (old) => {
+      if (!old) return old;
+      const exists = old.some((item) => item.id === diaryId);
+      if (exists) {
+        return old.map((item) =>
           item.id === diaryId
             ? { ...item, title: deriveDiaryTitle(plainText), preview: derivePreview(plainText) }
             : item
-        )
-      );
-    } else {
-      // 신규는 목록 맨 앞에 추가 (최신순)
-      queryClient.setQueryData<DiaryListItem[]>(["diary", "list"], (old) =>
-        old
-          ? [toDiaryListItem({ id: diaryId, plain_text: plainText, created_at: savedAt }), ...old]
-          : old
-      );
-    }
+        );
+      }
+      return [toDiaryListItem({ id: diaryId, plain_text: plainText, created_at: savedAt }), ...old];
+    });
 
-    // ③ 즉시 이동 — 서버 쓰기를 기다리지 않는다 (체감 0ms).
-    //    성공 토스트는 없다: 목록이 즉시 갱신되는 것 자체가 피드백.
-    router.push("/diary");
-
-    // ④ 백그라운드 flush. queryClient/toast는 루트 프로바이더 소속이라
+    // ③ 백그라운드 서버 flush. queryClient/toast는 루트 프로바이더 소속이라
     //    이 컴포넌트가 언마운트된 뒤에도 안전하게 동작한다.
     void saveDiaryAction({ id: diaryId, content, plainText }).then((result) => {
       if (result.success) {
         clearDiaryDraft(diaryId);
-        return;
       }
-      // 실패해도 유실이 아니다 — 드래프트가 남아 목록 재진입 시 자동 재전송된다.
-      toast("저장 동기화가 지연되고 있어요 — 일기를 다시 열면 자동으로 재시도합니다", "error");
+      // 실패해도 드래프트가 남아 목록 재진입 시 자동 재전송 → 유실 아님. 표시는 저장됨 유지.
+      setSaveStatus("saved");
     });
-  }
+  }, [diaryId, queryClient]);
+
+  // TipTap onUpdate → 안정 참조(memo된 에디터가 리렌더되지 않도록 useCallback).
+  const handleChange = useCallback(
+    (html: string, text: string) => {
+      contentRef.current = html;
+      plainTextRef.current = text;
+      if (text.trim().length === 0) return;
+
+      // 로컬 즉시 기록(체감 유실 0) + 디바운스 서버 flush 예약
+      saveDiaryDraft({ id: diaryId, content: html, plainText: text, savedAt: new Date().toISOString() });
+      // "saving"으로만 바꾸고(이미 saving이면 bail) 키 입력마다 리렌더가 쌓이지 않게 한다.
+      setSaveStatus((prev) => (prev === "saving" ? prev : "saving"));
+
+      if (debounceRef.current != null) clearTimeout(debounceRef.current);
+      debounceRef.current = window.setTimeout(() => {
+        debounceRef.current = null;
+        flushNow();
+      }, AUTOSAVE_DEBOUNCE_MS);
+    },
+    [diaryId, flushNow]
+  );
+
+  // 나가기/탭 숨김/언마운트 시 남은 변경 즉시 flush (뒤로가기 = 나가기).
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flushNow();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flushNow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flushNow);
+      flushNow(); // 언마운트(뒤로가기) 시 최종 flush
+    };
+  }, [flushNow]);
 
   function handleDelete() {
     if (mode !== "edit") return;
@@ -128,6 +158,13 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
         toast(result.error ?? DIARY_ERRORS.DELETE_FAILED, "error");
         return;
       }
+      // 삭제 대상이라 남은 자동저장이 되살리지 않도록 드래프트·pending 정리
+      clearDiaryDraft(entry.id);
+      if (debounceRef.current != null) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+      savedContentRef.current = contentRef.current;
       toast("일기를 삭제했어요.", "success");
       // 목록에서 즉시 제거 + 삭제된 항목 캐시 폐기(재페치 방지)
       queryClient.setQueryData<DiaryListItem[]>(["diary", "list"], (old) =>
@@ -140,26 +177,25 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
 
   return (
     <>
-      {/* 서브페이지 상단 네비 — 뒤로가기 + 날짜 + (더보기) + 완료 */}
+      {/* 서브페이지 상단 네비 — 뒤로가기 + 날짜 + (더보기) + 저장 상태(패시브) */}
       <SubPageHeader
         backHref="/diary"
         title={dateLabel}
         actions={
           <>
-            {mode === "edit" && (
+            {mode === "edit" && !isPending && (
               <MoreActionsMenu
                 ariaLabel="일기 관리"
                 triggerClassName="border border-foreground/15"
                 actions={[{ label: "삭제", onClick: handleDelete, variant: "danger" }]}
               />
             )}
-            {/* 변경이 있을 때만 노출 — 미수정 상태에선 저장할 게 없으므로 숨긴다.
-                (이탈은 SubPageHeader의 뒤로가기가 담당) */}
-            {/* 낙관적 저장이라 대기가 없다 → 스피너 없음(isPending은 삭제 전용) */}
-            {isDirty && (
-              <Button variant="ghost" size="sm" onClick={handleSave}>
-                완료
-              </Button>
+            {/* 자동저장 상태 — 저장 버튼 대신 표시만. 나가기는 뒤로가기가 담당.
+                (메모된 에디터 밖 형제라 여기 리렌더가 본문 캐럿에 영향 없음) */}
+            {saveStatus !== "idle" && (
+              <span className="min-w-[3.5rem] text-right text-xs text-foreground/45" aria-live="polite">
+                {saveStatus === "saving" ? "저장 중…" : "저장됨"}
+              </span>
             )}
           </>
         }

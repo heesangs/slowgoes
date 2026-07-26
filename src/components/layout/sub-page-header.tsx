@@ -45,7 +45,8 @@ export function SubPageHeader({ title, actions, backHref, onBack, hideBack }: Su
 
   return (
     <header className="sticky top-0 z-20 border-b border-foreground/10 bg-background px-4 py-3">
-      <div className="mx-auto flex max-w-2xl items-center justify-between gap-2">
+      {/* min-h로 우측 actions(완료/저장 표시 등)의 등장·교체에도 헤더 높이가 흔들리지 않게 고정 */}
+      <div className="mx-auto flex min-h-[44px] max-w-2xl items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1">
           {!hideBack &&
             (backHref ? (
