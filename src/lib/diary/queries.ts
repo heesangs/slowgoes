@@ -53,7 +53,7 @@ export async function getDiaryEntry(
 ): Promise<Diary | null> {
   const { data, error } = await supabase
     .from("diaries")
-    .select("id, user_id, content, plain_text, created_at, updated_at")
+    .select("id, user_id, content, plain_text, comments, created_at, updated_at")
     .eq("id", id)
     .eq("user_id", userId)
     .maybeSingle();

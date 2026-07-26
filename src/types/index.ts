@@ -441,6 +441,16 @@ export interface ReviewPageData {
 }
 
 // 일기(Diary) — TipTap 기반 저널
+/** 일기 organize(AI) 코멘트 — 일기 본문과 분리 저장(재분석 시 제외) */
+export interface DiaryComment {
+  id: string;
+  /** organize 버튼명(예: "어휘력 높이기") 또는 자유질문 텍스트 */
+  title: string;
+  /** AI 응답 본문 */
+  body: string;
+  created_at: string;
+}
+
 export interface Diary {
   id: string;
   user_id: string;
@@ -448,6 +458,8 @@ export interface Diary {
   content: string;
   /** editor.getText() 순수 텍스트 — 제목/미리보기/향후 검색용 */
   plain_text: string;
+  /** organize 코멘트 목록 (jsonb) — 본문과 분리 */
+  comments: DiaryComment[];
   created_at: string;
   updated_at: string;
 }
