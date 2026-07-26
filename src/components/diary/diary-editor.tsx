@@ -18,11 +18,17 @@ import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { SubPageHeader } from "@/components/layout/sub-page-header";
 import { useToast } from "@/components/ui/toast";
 import { DIARY_ERRORS } from "@/lib/constants";
-import type { Diary, DiaryListItem } from "@/types";
+import type { Diary, DiaryComment, DiaryListItem } from "@/types";
 import { deriveDiaryTitle, derivePreview, toDiaryListItem } from "@/lib/diary/format";
 import { saveDiaryDraft, clearDiaryDraft } from "@/lib/diary/draft";
-import { saveDiaryAction, deleteDiaryAction } from "@/app/(main)/diary/actions";
+import {
+  saveDiaryAction,
+  deleteDiaryAction,
+  addDiaryCommentAction,
+  deleteDiaryCommentAction,
+} from "@/app/(main)/diary/actions";
 import { MarkdownEditor } from "./markdown-editor";
+import { DiaryAiSheet } from "./diary-ai-sheet";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const AUTOSAVE_DEBOUNCE_MS = 800;
@@ -61,6 +67,77 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
   const debounceRef = useRef<number | null>(null);
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+
+  // AI 분석 시트 — 열 때의 본문/선택을 스냅샷으로 넘긴다.
+  // 선택 텍스트는 버튼 blur로 사라지기 전(pointerdown)에 캡처해 둔다.
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiContent, setAiContent] = useState("");
+  const [aiSelection, setAiSelection] = useState("");
+  const [aiOpenCount, setAiOpenCount] = useState(0); // 열 때마다 시트 리마운트(초기화)
+  const pendingSelectionRef = useRef("");
+
+  function openAiSheet() {
+    const content = plainTextRef.current.trim();
+    if (!content) {
+      toast("먼저 일기를 작성해주세요.", "error");
+      return;
+    }
+    setAiContent(content);
+    setAiSelection(pendingSelectionRef.current);
+    setAiOpenCount((n) => n + 1);
+    setAiOpen(true);
+  }
+
+  // organize 코멘트 — 일기 아래에 붙는다(제목=버튼명/질문). 본문과 분리 저장이라 재-organize에 미포함.
+  const [comments, setComments] = useState<DiaryComment[]>(entry?.comments ?? []);
+
+  // [comment] → 저장 보장 후 서버에 append. 성공 여부를 시트에 반환(시트가 닫힘 판단).
+  async function handleAddComment(title: string, body: string): Promise<boolean> {
+    // 코멘트를 달려면 일기 행이 있어야 한다(신규는 아직 flush 전일 수 있음) →
+    // 최신 본문을 먼저 확정 저장(멱등 upsert)하고, 대기 중 디바운스는 취소한다.
+    if (debounceRef.current != null) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    const content = contentRef.current;
+    const plainText = plainTextRef.current.trim();
+    if (plainText && content !== savedContentRef.current) {
+      savedContentRef.current = content;
+      const saveRes = await saveDiaryAction({ id: diaryId, content, plainText });
+      if (!saveRes.success) {
+        toast(saveRes.error ?? DIARY_ERRORS.UPDATE_FAILED, "error");
+        return false;
+      }
+      clearDiaryDraft(diaryId);
+    }
+
+    const res = await addDiaryCommentAction(diaryId, { title, body });
+    if (!res.success) {
+      toast(res.error, "error");
+      return false;
+    }
+    setComments((prev) => [...prev, res.comment]);
+    // 편집 캐시도 갱신(재방문 즉시 반영)
+    queryClient.setQueryData<Diary | null>(["diary", "entry", diaryId], (old) =>
+      old ? { ...old, comments: [...(old.comments ?? []), res.comment] } : old
+    );
+    toast("코멘트를 달았어요.", "success");
+    return true;
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    const prev = comments;
+    setComments((cur) => cur.filter((c) => c.id !== commentId)); // 낙관적 제거
+    const res = await deleteDiaryCommentAction(diaryId, commentId);
+    if (!res.success) {
+      setComments(prev); // 롤백
+      toast(res.error ?? DIARY_ERRORS.DELETE_FAILED, "error");
+      return;
+    }
+    queryClient.setQueryData<Diary | null>(["diary", "entry", diaryId], (old) =>
+      old ? { ...old, comments: (old.comments ?? []).filter((c) => c.id !== commentId) } : old
+    );
+  }
 
   // 헤더 날짜: 편집은 작성일, 작성은 현재 시각(마운트 시점 고정)
   const [dateLabel] = useState(() => formatDateLabel(entry?.created_at ?? new Date().toISOString()));
@@ -183,6 +260,22 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
         title={dateLabel}
         actions={
           <>
+            {/* organize — 본문이 있을 때(편집 모드이거나 입력을 시작한 뒤) 노출.
+                크기는 우측 ⋮ 트리거(h-7)에 맞춘다. pointerdown에서 선택 텍스트를 캡처
+                (클릭 시 blur로 선택이 사라지므로). */}
+            {(mode === "edit" || saveStatus !== "idle") && (
+              <button
+                type="button"
+                aria-label="정리하기"
+                onPointerDown={() => {
+                  pendingSelectionRef.current = window.getSelection()?.toString().trim() ?? "";
+                }}
+                onClick={openAiSheet}
+                className="inline-flex h-7 items-center rounded-md border border-foreground/15 px-2.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/5"
+              >
+                organize
+              </button>
+            )}
             {mode === "edit" && !isPending && (
               <MoreActionsMenu
                 ariaLabel="일기 관리"
@@ -204,7 +297,46 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
       {/* 본문 에디터 — 좌우 여백 최소화로 작성 폭 확보 */}
       <div className="mx-auto max-w-2xl px-3 py-4">
         <MarkdownEditor initialContent={entry?.content ?? ""} onChange={handleChange} />
+
+        {/* organize 코멘트 — 일기 아래. 제목=버튼명/질문, 본문=AI 응답. (본문과 분리 저장) */}
+        {comments.length > 0 && (
+          <div className="mt-6 border-t border-foreground/10 pt-4">
+            <p className="mb-2 text-xs font-medium text-foreground/45">코멘트</p>
+            <ul className="flex flex-col gap-3">
+              {comments.map((c) => (
+                <li
+                  key={c.id}
+                  className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-2.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-semibold text-foreground/70">{c.title}</p>
+                    <button
+                      type="button"
+                      aria-label="코멘트 삭제"
+                      onClick={() => handleDeleteComment(c.id)}
+                      className="-mr-1 -mt-0.5 shrink-0 rounded p-1 text-foreground/35 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
+                    >
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">{c.body}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
+
+      <DiaryAiSheet
+        key={aiOpenCount}
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        content={aiContent}
+        selection={aiSelection}
+        onAddComment={handleAddComment}
+      />
     </>
   );
 }

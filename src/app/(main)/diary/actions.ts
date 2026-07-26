@@ -3,8 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { getDiaryEntries, getDiaryEntry } from "@/lib/diary/queries";
-import { AUTH_ERRORS, DIARY_ERRORS } from "@/lib/constants";
-import type { Diary, DiaryListItem } from "@/types";
+import { analyzeDiary } from "@/lib/ai/diary-analyze";
+import type { DiaryOrganizeMode } from "@/lib/ai/diary-prompts";
+import { AI_ERRORS, AUTH_ERRORS, DIARY_ERRORS } from "@/lib/constants";
+import type { Diary, DiaryComment, DiaryListItem } from "@/types";
 
 // ── React Query queryFn용 읽기 액션 ──
 // 클라이언트 useQuery에서 호출한다. 인증 가드(getAuthUser) + RLS로 보호.
@@ -122,5 +124,107 @@ export async function deleteDiaryAction(
       success: false,
       error: toClientErrorMessage(error, DIARY_ERRORS.DELETE_FAILED),
     };
+  }
+}
+
+// ── AI organize ── 현재 일기 1건을 요약/글쓰기 개선 조언. 저장하지 않는 읽기 전용.
+export async function analyzeDiaryAction(input: {
+  content: string;
+  mode?: DiaryOrganizeMode;
+  question?: string;
+  selection?: string;
+}): Promise<{ success: true; text: string } | { success: false; error: string }> {
+  try {
+    // 인증 가드만 — DB 쓰기 없음. (AI 호출은 서버에서만: CLAUDE.md)
+    await getAuthContext();
+    const text = await analyzeDiary(input);
+    return { success: true, text };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, AI_ERRORS.ANALYSIS_GENERIC),
+    };
+  }
+}
+
+// ── 코멘트 추가 ── organize 응답을 일기 아래에 붙인다(제목=버튼명/질문). comments jsonb에 append.
+export async function addDiaryCommentAction(
+  id: string,
+  input: { title: string; body: string }
+): Promise<{ success: true; comment: DiaryComment } | { success: false; error: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const diaryId = id?.trim();
+    const title = input.title?.trim();
+    const body = input.body?.trim();
+    if (!diaryId) return { success: false, error: DIARY_ERRORS.NOT_FOUND };
+    if (!title || !body) return { success: false, error: DIARY_ERRORS.CONTENT_REQUIRED };
+
+    // 현재 comments 읽고 append 후 저장 (본인 소유 행만 — RLS + user_id 필터)
+    const { data: row, error: readErr } = await supabase
+      .from("diaries")
+      .select("comments")
+      .eq("id", diaryId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (readErr) throw readErr;
+    if (!row) return { success: false, error: DIARY_ERRORS.NOT_FOUND };
+
+    const comment: DiaryComment = {
+      id: crypto.randomUUID(),
+      title,
+      body,
+      created_at: new Date().toISOString(),
+    };
+    const existing = Array.isArray(row.comments) ? (row.comments as DiaryComment[]) : [];
+    const next = [...existing, comment];
+
+    const { error: updateErr } = await supabase
+      .from("diaries")
+      .update({ comments: next })
+      .eq("id", diaryId)
+      .eq("user_id", userId);
+    if (updateErr) throw updateErr;
+
+    return { success: true, comment };
+  } catch (error) {
+    return { success: false, error: toClientErrorMessage(error, DIARY_ERRORS.UPDATE_FAILED) };
+  }
+}
+
+// ── 코멘트 삭제 ── comments jsonb에서 해당 id 제거.
+export async function deleteDiaryCommentAction(
+  id: string,
+  commentId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const diaryId = id?.trim();
+    if (!diaryId || !commentId) return { success: false, error: DIARY_ERRORS.NOT_FOUND };
+
+    const { data: row, error: readErr } = await supabase
+      .from("diaries")
+      .select("comments")
+      .eq("id", diaryId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (readErr) throw readErr;
+    if (!row) return { success: false, error: DIARY_ERRORS.NOT_FOUND };
+
+    const existing = Array.isArray(row.comments) ? (row.comments as DiaryComment[]) : [];
+    const next = existing.filter((c) => c.id !== commentId);
+
+    const { error: updateErr } = await supabase
+      .from("diaries")
+      .update({ comments: next })
+      .eq("id", diaryId)
+      .eq("user_id", userId);
+    if (updateErr) throw updateErr;
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: toClientErrorMessage(error, DIARY_ERRORS.DELETE_FAILED) };
   }
 }
