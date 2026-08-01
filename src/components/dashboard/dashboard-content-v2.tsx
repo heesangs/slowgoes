@@ -10,9 +10,11 @@ import { DirectionSheet } from "@/components/dashboard/direction-sheet";
 import { ExploreNewSceneSheet } from "@/components/dashboard/explore-new-scene-sheet";
 import { RepeatOptionsSheet } from "@/components/dashboard/repeat-options-sheet";
 import {
+  KaiIconButton,
   KeyboardAccessoryInput,
   type KeyboardAccessoryInputHandle,
 } from "@/components/ui/keyboard-accessory-input";
+import { AiIcon, DetailIcon, RepeatIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/toast";
 import {
   addTodoAction,
@@ -548,60 +550,37 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           setDetailValue(v);
           if (inputMode?.type === "add") addDetailDraftRef.current = v;
         }}
+        // 좌측 — [세부정보 추가] [반복] (피그마 32502:1212)
         actions={
           inputMode?.type === "add" || inputMode?.type === "todo-edit" ? (
             <>
-              {/* 세부정보 추가/닫기 토글 — 아이콘·배치는 PR ②에서 피그마대로 마감 */}
-              <button
-                type="button"
+              <KaiIconButton
                 onClick={() => setShowDetailInput((prev) => !prev)}
-                aria-label="세부정보 추가"
-                aria-pressed={showDetailInput}
-                className="inline-flex h-8 shrink-0 items-center whitespace-nowrap rounded-lg border px-2 text-xs transition-opacity hover:opacity-80"
-                style={
-                  showDetailInput
-                    ? {
-                        background: "var(--kai-accent)",
-                        color: "var(--kai-accent-text)",
-                        borderColor: "var(--kai-accent)",
-                      }
-                    : { color: "var(--kai-text)", borderColor: "var(--kai-border)" }
-                }
+                label="세부정보 추가"
+                active={showDetailInput}
               >
-                세부정보
-              </button>
-              <button
-                type="button"
+                <DetailIcon className="h-4 w-4" />
+              </KaiIconButton>
+              <KaiIconButton
                 onClick={() => setRepeatSheetOpen(true)}
-                aria-label="반복 설정"
-                aria-pressed={selectedRepeat !== null}
-                className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border px-2 text-xs transition-opacity hover:opacity-80"
-                style={
-                  selectedRepeat
-                    ? {
-                        background: "var(--kai-accent)",
-                        color: "var(--kai-accent-text)",
-                        borderColor: "var(--kai-accent)",
-                      }
-                    : { color: "var(--kai-text)", borderColor: "var(--kai-border)" }
-                }
+                label={`반복 설정 — ${formatRepeatInputLabel(selectedRepeat)}`}
+                active={selectedRepeat !== null}
               >
-                🔁 {formatRepeatInputLabel(selectedRepeat)}
-              </button>
-              {/* AI 추천은 새 할 일 추가(add)에서만 */}
-              {inputMode?.type === "add" && (
-                <button
-                  type="button"
-                  onClick={handleGenerateAI}
-                  disabled={isGeneratingAI}
-                  aria-label="AI 추천 받기"
-                  className="inline-flex h-8 shrink-0 items-center rounded-lg border px-2.5 text-xs transition-opacity hover:opacity-80 disabled:opacity-50"
-                  style={{ color: "var(--kai-text)", borderColor: "var(--kai-border)" }}
-                >
-                  {isGeneratingAI ? "…" : "AI"}
-                </button>
-              )}
+                <RepeatIcon className="h-4 w-4" />
+              </KaiIconButton>
             </>
+          ) : undefined
+        }
+        // 우측 — [AI] (전송 버튼 왼쪽). AI 추천은 새 할 일 추가(add)에서만
+        trailingActions={
+          inputMode?.type === "add" ? (
+            <KaiIconButton
+              onClick={handleGenerateAI}
+              label="AI 추천 받기"
+              disabled={isGeneratingAI}
+            >
+              <AiIcon className="h-4 w-4" />
+            </KaiIconButton>
           ) : undefined
         }
       />
