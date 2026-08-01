@@ -29,6 +29,7 @@ const PAD_LEFT = 22; // 좌측 나이 라벨 여백
 const PAD_TOP = 16; // 상단 여백
 const LABEL_STEP = 5; // 그리드 라벨 간격(5단위)
 const MIN_CELL = 4; // 칸 최소 크기(px)
+const CLOCK_TOP_GAP = 24; // 인생시계 상단 여백(px) — 캔버스 상단에서 다이얼 꼭대기까지
 
 // 여정 타임라인 경계 (p ∈ [0,1]) — 키오브젝트 1개가 경로를 그리며 원을 만든다
 const ST_EXIT = 0.2; // 그리드 우측 페이드 + 사각형→원 morph·좌측 이동
@@ -120,10 +121,18 @@ function getLayout(width: number) {
   const cell = pitch - GAP;
   const lineW = COLS * pitch; // 라인(1년) 전체 길이
   const cssWidth = PAD_LEFT + lineW;
+  // 캔버스 높이는 100줄 그리드 기준 — 시계는 이보다 훨씬 작다(지름이 높이의 40%대).
   const cssHeight = PAD_TOP + ROWS * pitch;
   const cx = cssWidth / 2;
-  const cy = cssHeight / 2;
-  const R = Math.min((cssWidth - 70) / 2, cssHeight / 2 - 50);
+  // 반지름은 폭에서만 정한다. 예전엔 `Math.min(폭항, cssHeight/2 - 50)`이었는데
+  // 높이항은 실제 뷰포트에서 한 번도 선택되지 않는 죽은 조건이었다.
+  const R = (cssWidth - 70) / 2;
+  // 시계 세로 위치: 캔버스 정중앙(cssHeight/2)이면 그리드용 높이 한가운데라
+  // 위아래로 각각 캔버스의 ~28%씩 빈 공간이 생겨 "가운데 떠 있는" 느낌이 났다.
+  // → 상단 기준으로 올린다. cy - R = PAD_TOP + CLOCK_TOP_GAP 이 산식으로 보장된다.
+  // (cy는 다이얼뿐 아니라 여정 경로의 상단 가로선 yT = cy - R 도 파생시키므로
+  //  이 값만 바꾸면 전환 모션도 함께 올라가고 12시 접선 연속성은 그대로 유지된다.)
+  const cy = PAD_TOP + CLOCK_TOP_GAP + R;
   return { pitch, cell, lineW, cssWidth, cssHeight, cx, cy, R };
 }
 
@@ -814,14 +823,45 @@ export function LifeCalendar({
         <span>한 줄이 1년</span>
       </div>
 
-      <canvas
-        ref={canvasRef}
-        aria-label={
-          phase === "clock"
-            ? `인생시계 — ${message}`
-            : `일생 캘린더 — ${weeksLived}주 지남`
-        }
-      />
+      {/* 캔버스 + 캔버스 좌표계를 쓰는 오버레이.
+          relative 컨테이너로 감싸 absolute 자식의 원점을 캔버스 좌상단에 맞춘다 —
+          래퍼에 직접 걸면 캡션 행·상단 패딩만큼 어긋난다. */}
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          aria-label={
+            phase === "clock"
+              ? `인생시계 — ${message}`
+              : `일생 캘린더 — ${weeksLived}주 지남`
+          }
+        />
+
+        {/* 인생시계 메시지 — 글자 하나하나 stagger (다이얼 아래 오버레이) */}
+        {showClockChrome && (
+          <div
+            className="pointer-events-none absolute inset-x-0 flex flex-col items-center gap-3 px-4 text-center"
+            style={{ top: messageTop }}
+          >
+            <p className="text-sm text-foreground/80">
+              {[...message].map((ch, i) => (
+                <span
+                  key={i}
+                  className="inline-block animate-[char-rise_0.45s_ease_both]"
+                  style={{ animationDelay: `${i * 45}ms` }}
+                >
+                  {ch === " " ? " " : ch}
+                </span>
+              ))}
+            </p>
+            <span
+              className="text-[10px] text-foreground/35 animate-[char-rise_0.45s_ease_both]"
+              style={{ animationDelay: `${message.length * 45 + 300}ms` }}
+            >
+              주 단위로 보기 →
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* 역방향(주 복귀) 화살표(→) — 우드래그(프레스) 중에만, 좌측 상단.
           1페이지와 동일한 모양·색(strokeWidth 2.5, 풀 강도) + 손가락 따라 우측 이동(transform은 imperative) */}
@@ -852,32 +892,6 @@ export function LifeCalendar({
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5M5 12l6-6M5 12l6 6" />
         </svg>
       </span>
-
-      {/* 인생시계 메시지 — 글자 하나하나 stagger (다이얼 아래 오버레이) */}
-      {showClockChrome && (
-        <div
-          className="pointer-events-none absolute inset-x-0 flex flex-col items-center gap-3 px-4 text-center"
-          style={{ top: messageTop }}
-        >
-          <p className="text-sm text-foreground/80">
-            {[...message].map((ch, i) => (
-              <span
-                key={i}
-                className="inline-block animate-[char-rise_0.45s_ease_both]"
-                style={{ animationDelay: `${i * 45}ms` }}
-              >
-                {ch === " " ? " " : ch}
-              </span>
-            ))}
-          </p>
-          <span
-            className="text-[10px] text-foreground/35 animate-[char-rise_0.45s_ease_both]"
-            style={{ animationDelay: `${message.length * 45 + 300}ms` }}
-          >
-            주 단위로 보기 →
-          </span>
-        </div>
-      )}
     </div>
   );
 }
