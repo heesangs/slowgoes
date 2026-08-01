@@ -497,7 +497,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       <button
         type="button"
         onClick={handleAddOpen}
-        className="fixed bottom-6 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-2xl text-background shadow-lg transition-opacity hover:opacity-90"
+        className="fixed bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom)+1rem)] right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-2xl text-background shadow-lg transition-opacity hover:opacity-90"
         aria-label={FEATURE_NAMES.STEP_MORE}
       >
         +

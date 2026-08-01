@@ -3,6 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #333333;
+  /* 바텀 네비 높이 — 네비 자신과 FAB·토스트·본문 하단 여백이 함께 참조한다.
+     safe-area는 네비가 별도로 더하므로 여기엔 포함하지 않는다. */
+  --bottom-nav-h: 56px;
 }
 
 /* 강제 다크 (프로필에서 선택) */

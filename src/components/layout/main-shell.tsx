@@ -11,6 +11,7 @@
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { BottomNavBar } from "@/components/layout/bottom-nav-bar";
 import { MainHeader } from "@/components/layout/main-header";
 import { cn } from "@/lib/utils";
 
@@ -45,9 +46,17 @@ export function MainShell({ children }: MainShellProps) {
   return (
     <div className="min-h-dvh flex flex-col">
       <MainHeader />
-      <main className={cn("flex-1 pb-6", fullWidth ? "pt-0" : "px-4 pt-6")}>
+      {/* 하단 여백 = 네비 높이 + safe-area + 여유. 페이지별로 흩어놓지 않고 여기서 일괄 —
+          하단 패딩이 없던 /review·/profile도 마지막 카드가 네비에 가리지 않는다. */}
+      <main
+        className={cn(
+          "flex-1 pb-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom)+1.5rem)]",
+          fullWidth ? "pt-0" : "px-4 pt-6"
+        )}
+      >
         <div className="mx-auto max-w-2xl">{children}</div>
       </main>
+      <BottomNavBar />
     </div>
   );
 }
