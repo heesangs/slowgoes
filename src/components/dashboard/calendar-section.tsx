@@ -113,6 +113,8 @@ export function CalendarSection({
   const [lifePhase, setLifePhase] = useState<LifePhase>("grid");
   const [progress, setProgressState] = useState(0); // 0=주, 1=일생
   const [dragging, setDragging] = useState(false); // 추종 중(트랜지션 없음)
+  // 역방향(일생→주) 비행 중 — 응축 박스를 숨겨 오버레이만 보이게 한다
+  const [reverseLanding, setReverseLanding] = useState(false);
   const [showArrow, setShowArrow] = useState(false); // 화살표(프레스/드래그 한정)
   const hasAge = typeof age === "number" && age > 0;
 
@@ -237,11 +239,14 @@ export function CalendarSection({
         ? { left: slot.left, top: slot.top, width: cellRect.size, height: cellRect.size }
         : from;
       setView("week");
-      setProgress(1); // 주 뷰를 숨김 상태로 마운트
+      setProgress(1); // 주 뷰를 응축 상태로 마운트
+      setReverseLanding(true); // 응축 박스를 숨김 — 비행 중엔 오버레이만 보이게
       flyOverlay(from, to, {
         variant: "border",
         label: "none",
         onFinish: () => {
+          // 오버레이가 착지한 자리에 응축 박스를 드러낸 뒤, 다음 프레임에 펼친다
+          setReverseLanding(false);
           requestAnimationFrame(() => requestAnimationFrame(() => setProgress(0))); // 펼침
         },
       });
@@ -339,11 +344,17 @@ export function CalendarSection({
         : "1년 52주"
       : FEATURE_NAMES.CALENDAR;
 
-  // 스크럽 진행도 → 인라인 스타일 값
-  // 날짜(펼쳐진 주)는 오른쪽(토)부터 stagger로 소멸 — progress ≈ 0.5 이전에 전부 사라진다
+  // 스크럽 진행도 → 인라인 스타일 값 (피그마 34265:41826 순방향 / 34266:42703 역방향)
+  //   ① 날짜가 오른쪽(토)부터 stagger로 소멸
+  //   ② 컨테이너가 우→좌로 응축하면서 배경이 투명→회색→검정으로 차오른다
+  //   ③ 응축이 충분히 진행되면 "M.n주" 라벨이 나타난다
   const dateOpacity = (col: number) => 1 - clamp01((progress - (6 - col) * 0.055) / 0.16);
-  // 박스("M.n주")는 날짜가 모두 사라진 뒤 등장 — 겹치는 프레임 0 (0.5~0.75)
-  const boxOpacity = clamp01((progress - 0.5) / 0.25);
+  // 응축 진행도 — 날짜가 어느 정도 사라진 뒤(0.3) 시작해 1.0에서 COLLAPSED_W가 된다
+  const collapseT = clamp01((progress - 0.3) / 0.7);
+  // 배경 채움은 응축과 함께 (연회색 → 진회색 → 검정)
+  const fillPct = Math.round(collapseT * 100);
+  // 라벨은 배경이 충분히 어두워진 뒤 등장 — 흰 글씨가 회색 위에서 읽히는 시점
+  const boxOpacity = clamp01((progress - 0.55) / 0.3);
   const borderAlpha = 0.4 * (1 - clamp01(progress / 0.9));
   // 화살표: 더 강하게(JSX 크기·색) + 거의 끝까지 잔존
   const arrowOpacity = (showArrow ? 1 : 0) * (1 - clamp01((progress - 0.78) / 0.22));
@@ -386,6 +397,10 @@ export function CalendarSection({
           age={age as number}
           weekOfYear={weekOfYear}
           animate
+          // 제스처 데드존 제거: 섹션 상단(타이틀 행·py-4)을 음수 마진으로 덮고 같은 양의
+          // 패딩으로 되밀어 히트 영역만 넓힌다. flex-1로 캔버스 아래 여백까지 포함 →
+          // 52주 화면 어디서 밀어도 주 캘린더로 돌아온다. (렌더 위치는 그대로)
+          className="-mt-9 flex-1 pt-9"
           entryDelayMs={FLIGHT_MS - 200}
           onReady={handleLifeReady}
           onReverseCommit={handleReverseCommit}
@@ -437,13 +452,33 @@ export function CalendarSection({
 
         {/* 날짜 그리드 — 라운드 테두리로 "한 주" 강조 (피그마 32636-19197).
             스크럽 시 날짜가 오른쪽(토)부터 흐려지고 테두리 페이드아웃 → 좌측 "M.n주" 박스 완성 */}
+        <div className="relative">
+        {/* 응축 박스 — 스크럽하면 우→좌로 좁아지며 배경이 차오른다(피그마 3~5단계).
+            날짜 그리드와 분리된 레이어라 날짜는 제자리에서 페이드되고 박스만 줄어든다.
+            역방향 착지 전에는 숨긴다 — 안 그러면 오버레이가 도착하기도 전에
+            목적지에 검은 박스가 앉아 있는 게 보인다. */}
+        {!expanded && (
+          <div
+            ref={weekBorderRef}
+            aria-hidden
+            className={cn(
+              "absolute inset-y-0 left-0 rounded-xl border",
+              !dragging && "transition-[width,background-color,opacity] duration-200"
+            )}
+            style={{
+              width: `calc(100% * ${1 - collapseT} + ${COLLAPSED_W}px * ${collapseT})`,
+              background: `color-mix(in srgb, var(--foreground) ${fillPct}%, transparent)`,
+              borderColor: `color-mix(in srgb, var(--foreground) ${borderAlpha * 100}%, transparent)`,
+              opacity: reverseLanding ? 0 : 1,
+            }}
+          />
+        )}
+
         <div
-          ref={weekBorderRef}
           className={cn(
             "relative grid grid-cols-7 overflow-hidden transition-[max-height] duration-300",
-            expanded ? "max-h-[19rem]" : "max-h-14 rounded-xl border px-0.5"
+            expanded ? "max-h-[19rem]" : "max-h-14 px-0.5"
           )}
-          style={expanded ? undefined : { borderColor: `color-mix(in srgb, var(--foreground) ${borderAlpha * 100}%, transparent)` }}
         >
           {dates.map((dateStr, i) => {
             const d = parseDateString(dateStr);
@@ -487,6 +522,7 @@ export function CalendarSection({
               </button>
             );
           })}
+        </div>
 
           {/* 화살표(←) — 프레스/드래그 중에만. 더 강하게(크고 진하게)·오래 잔존. 우측(토 자리)→왼쪽 이동 */}
           {!expanded && (
@@ -504,16 +540,20 @@ export function CalendarSection({
             </span>
           )}
 
-          {/* "M. n주" fill 박스 — 좌측 앵커, 스크럽 후반 완성(채움형). 비행은 오버레이가 이어받음 */}
+          {/* "M. n주" 라벨 — 응축 박스 안(좌측). 박스가 배경을 담당하므로 글자만 얹는다.
+              비행은 오버레이가 이어받는다. */}
           {!expanded && (
             <span
               aria-hidden
               className={cn(
-                "pointer-events-none absolute inset-y-1 left-0 flex items-center justify-center rounded-lg bg-foreground text-xs font-medium text-background",
-                // 커밋 스냅(progress→1) 시 날짜가 다 사라진 뒤 등장하도록 지연 페이드 — 드래그 중엔 즉시 추종
+                "pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center text-xs font-medium",
                 !dragging && "transition-opacity duration-200"
               )}
-              style={{ width: COLLAPSED_W, opacity: boxOpacity, transitionDelay: dragging ? "0ms" : "180ms" }}
+              style={{
+                width: COLLAPSED_W,
+                opacity: reverseLanding ? 0 : boxOpacity,
+                color: "var(--background)",
+              }}
             >
               {formatWeekOfMonth(selectedDate)}
             </span>
