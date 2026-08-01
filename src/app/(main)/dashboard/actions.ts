@@ -295,7 +295,7 @@ export async function addTodosAction(
  */
 export async function updateTodoAction(
   todoId: string,
-  input: { title: string; repeat?: TodoRepeatInput | null }
+  input: { title: string; detail?: string | null; repeat?: TodoRepeatInput | null }
 ): Promise<{ success: boolean; todo?: Todo; error?: string }> {
   try {
     const { supabase, userId } = await getAuthContext();
@@ -307,7 +307,7 @@ export async function updateTodoAction(
 
     const { data, error } = await supabase
       .from("todos")
-      .update({ title, ...repeatCols })
+      .update({ title, detail: input.detail?.trim() || null, ...repeatCols })
       .eq("id", todoId)
       .eq("user_id", userId)
       .select("*")
@@ -746,6 +746,8 @@ export async function addTodoAction(
   bucketId: string,
   input: {
     title: string;
+    /** 제목 아래 한 줄 메모 (선택). 공백이면 저장하지 않는다. */
+    detail?: string | null;
     scheduledDate: string;
     repeat?: TodoRepeatInput | null;
     source?: ItemSource;
@@ -767,6 +769,7 @@ export async function addTodoAction(
         user_id: userId,
         bucket_id: bucketId,
         title,
+        detail: input.detail?.trim() || null,
         source: normalizeSource(input.source),
         scheduled_date: input.scheduledDate,
         ...repeatCols,
