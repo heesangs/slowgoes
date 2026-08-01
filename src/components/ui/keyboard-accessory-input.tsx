@@ -24,6 +24,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
+import { SendIcon, SpinnerIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 const MAX_LINES = 5;
@@ -49,8 +50,10 @@ interface KeyboardAccessoryInputProps {
   animatedPlaceholders?: string[];
   /** R2: 하단 행 맨 앞의 버킷 뱃지 (등록 대상 표시, 피그마 32502-1212) */
   badge?: string;
-  /** 하단 행 좌측 액션들 (반복·AI 버튼 등) */
+  /** 하단 행 **좌측** 액션들 (세부정보·반복) */
   actions?: ReactNode;
+  /** 하단 행 **우측** 액션들 (AI) — 전송 버튼 왼쪽에 놓인다 */
+  trailingActions?: ReactNode;
   /** 세부정보 입력 줄 노출 여부 ([세부정보 추가] 토글) */
   showDetail?: boolean;
   /** 세부정보 값 (todos.detail) */
@@ -66,6 +69,56 @@ interface KeyboardAccessoryInputProps {
 
 const PLACEHOLDER_ROTATE_MS = 3500;
 
+/**
+ * 입력창 하단 행의 32×32 아이콘 버튼 (피그마 34242:41310).
+ *
+ * 상태는 배경이 아니라 **테두리·아이콘 투명도**로 표현한다 —
+ * Default 0.38 → hover 0.58 → press 0.78 (피그마 실측값).
+ * active(반복 설정됨·세부정보 열림)는 accent로 채워 "켜짐"을 분명히 한다.
+ * 색은 앱 테마가 아니라 KAI 서피스 변수(--kai-*)를 따른다(소프트 키보드와 톤 일치).
+ */
+export function KaiIconButton({
+  onClick,
+  label,
+  children,
+  active = false,
+  disabled = false,
+}: {
+  onClick: () => void;
+  label: string;
+  children: ReactNode;
+  active?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      aria-pressed={active}
+      className={cn(
+        "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-opacity",
+        "disabled:opacity-30",
+        active
+          ? "opacity-100"
+          : "opacity-[0.38] hover:opacity-[0.58] active:opacity-[0.78]"
+      )}
+      style={
+        active
+          ? {
+              background: "var(--kai-accent)",
+              color: "var(--kai-accent-text)",
+              borderColor: "var(--kai-accent)",
+            }
+          : { color: "var(--kai-text)", borderColor: "var(--kai-border)" }
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
 export const KeyboardAccessoryInput = forwardRef<
   KeyboardAccessoryInputHandle,
   KeyboardAccessoryInputProps
@@ -80,6 +133,7 @@ export const KeyboardAccessoryInput = forwardRef<
     animatedPlaceholders,
     badge,
     actions,
+    trailingActions,
     showDetail = false,
     detail,
     onDetailChange,
@@ -208,6 +262,13 @@ export const KeyboardAccessoryInput = forwardRef<
             keyboardOffset === 0 ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]" : "pb-3"
           )}
         >
+          {/* 0단: 등록 대상 버킷 — 버튼이 아니라 "# 버킷명" 텍스트 (피그마 32502:1212) */}
+          {badge && (
+            <p className="truncate text-xs" style={{ color: "var(--kai-placeholder)" }} title={badge}>
+              # {badge}
+            </p>
+          )}
+
           {/* 1단: 자동 확장 입력 + 오버레이(교차 안내문 / AI 추천중) */}
           <div className="relative">
             <textarea
@@ -271,38 +332,30 @@ export const KeyboardAccessoryInput = forwardRef<
             />
           )}
 
-          {/* 2단: 뱃지(등록 대상 버킷) + 좌측 액션(반복·AI) + 우측 ↑ 전송 */}
+          {/* 2단: 좌측 [세부정보][반복] ······ 우측 [AI][전송/스피너] (피그마 32502:1212) */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-1.5">
-              {badge && (
-                <span
-                  className="inline-flex h-8 max-w-[40%] shrink items-center truncate rounded-lg border px-2 text-xs"
-                  style={{ color: "var(--kai-placeholder)", borderColor: "var(--kai-border)" }}
-                  title={badge}
+            <div className="flex min-w-0 items-center gap-1.5">{actions}</div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {trailingActions}
+              {/* AI 추천중에도 자리를 지켜 진행 상태(스피너)를 보여준다 */}
+              {(trimmed.length > 0 || locked) && (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!canSubmit}
+                  aria-label={locked ? "처리 중" : "전송"}
+                  aria-busy={locked || undefined}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity disabled:opacity-100"
+                  style={{ background: "var(--kai-accent)", color: "var(--kai-accent-text)" }}
                 >
-                  {badge}
-                </span>
+                  {locked ? (
+                    <SpinnerIcon className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <SendIcon className="h-4 w-4" />
+                  )}
+                </button>
               )}
-              {actions}
             </div>
-            {(trimmed.length > 0 || isBusy) && (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!canSubmit}
-                aria-label="전송"
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity disabled:opacity-40"
-                style={{ background: "var(--kai-accent)", color: "var(--kai-accent-text)" }}
-              >
-                {isSubmitting ? (
-                  <span className="text-xs">…</span>
-                ) : (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5M5 12l7-7 7 7" />
-                  </svg>
-                )}
-              </button>
-            )}
           </div>
         </div>
       </div>
