@@ -326,9 +326,10 @@ export const KeyboardAccessoryInput = forwardRef<
               placeholder="세부 정보 추가"
               readOnly={locked}
               tabIndex={open ? 0 : -1}
-              // 16px 미만이면 iOS가 포커스 시 화면을 확대하므로 본문과 같은 크기를 유지한다
-              className="w-full bg-transparent text-[16px] leading-6 outline-none placeholder:text-[var(--kai-placeholder)]"
-              style={{ color: "var(--kai-text)" }}
+              // 제목(16px/--kai-text)보다 한 단계 낮춰 위계를 만든다 — 14px + placeholder 톤.
+              // 16px 미만이지만 viewport maximumScale:1(app/layout.tsx)이 iOS 포커스 확대를 막는다.
+              className="w-full bg-transparent text-[14px] leading-5 outline-none placeholder:text-[var(--kai-placeholder)]"
+              style={{ color: "var(--kai-placeholder)" }}
             />
           )}
 
@@ -348,8 +349,9 @@ export const KeyboardAccessoryInput = forwardRef<
                   className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity disabled:opacity-100"
                   style={{ background: "var(--kai-accent)", color: "var(--kai-accent-text)" }}
                 >
+                  {/* 회전은 SpinnerIcon이 자체 처리 — animate-spin(등속)을 덧붙이지 않는다 */}
                   {locked ? (
-                    <SpinnerIcon className="h-4 w-4 animate-spin" />
+                    <SpinnerIcon className="h-4 w-4" />
                   ) : (
                     <SendIcon className="h-4 w-4" />
                   )}
