@@ -4,6 +4,8 @@
 // currentColor라 부모의 색을 그대로 따르므로 라이트/다크(및 --kai-* 입력창 서피스)
 // 어디에 놓아도 별도 처리 없이 보인다. 크기는 호출부가 className(h-*/w-*)으로 정한다.
 
+import { cn } from "@/lib/utils";
+
 interface IconProps {
   className?: string;
 }
@@ -54,18 +56,33 @@ export function SendIcon({ className }: IconProps) {
   );
 }
 
-/** 진행 중 스피너 — 원형 화살표. 호출부에서 animate-spin과 함께 쓴다 (Figma 34242:41185) */
+/**
+ * 진행 중 스피너 — 원형 링.
+ *
+ * 회전(등속)과 호 길이 신축(ease-in-out)을 겹쳐, 한 바퀴 안에서 빨라졌다 느려지는
+ * 가속감을 만든다. 화살촉이 있으면 "돌아가는 화살표"(=새로고침)로 읽히므로 쓰지 않는다.
+ * 애니메이션을 컴포넌트가 직접 갖는다 — 호출부에 animate-spin을 붙이지 말 것.
+ * r=6 → 둘레 2πr ≈ 37.7 이라 dasharray 총합을 38로 잡는다(globals.css: spinner-dash).
+ */
 export function SpinnerIcon({ className }: IconProps) {
   return (
     <svg
-      className={className}
+      className={cn("animate-[spinner-rotate_1.4s_linear_infinite]", className)}
       viewBox="0 0 16 16"
       fill="none"
-      stroke="currentColor"
-      strokeWidth={1.25}
       aria-hidden
     >
-      <path d="M3.86601 11.3137C1.78321 9.23092 1.78321 5.85404 3.86601 3.77125C5.7193 1.91796 8.59718 1.71374 10.6763 3.15859M3.86601 9.01387V11.3137L1.50899 10.3709" />
+      {/* 바탕 링 — 궤도가 보여야 회전이 읽힌다 */}
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth={1.5} className="opacity-25" />
+      <circle
+        cx="8"
+        cy="8"
+        r="6"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        className="animate-[spinner-dash_1.4s_ease-in-out_infinite]"
+      />
     </svg>
   );
 }

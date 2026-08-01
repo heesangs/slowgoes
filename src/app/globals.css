@@ -79,3 +79,26 @@ body {
     transform: translateY(0);
   }
 }
+
+/* 진행 중 스피너 (SpinnerIcon) — 등속 회전 위에 호 길이 신축(ease-in-out)을 겹쳐
+   한 바퀴 안에서 빨라졌다 느려지는 가속감을 만든다. dasharray 총합 38 = 2π×6(r=6). */
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spinner-dash {
+  0% {
+    stroke-dasharray: 1 38;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 26 38;
+    stroke-dashoffset: -8;
+  }
+  100% {
+    stroke-dasharray: 1 38;
+    stroke-dashoffset: -37;
+  }
+}

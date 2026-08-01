@@ -321,12 +321,8 @@ export function CalendarSection({
   const dateLabel = isToday
     ? "오늘"
     : `${selected.getMonth() + 1}월 ${selected.getDate()}일`;
-  // 헤더 라벨: 선택 날짜가 현재 달이면 "이번달", 다른 달이면 "M월" (주/월 뷰 공통)
-  const todayDate = parseDateString(today);
-  const isCurrentMonth =
-    selected.getFullYear() === todayDate.getFullYear() &&
-    selected.getMonth() === todayDate.getMonth();
-  const headerLabel = isCurrentMonth ? "이번달" : `${selected.getMonth() + 1}월`;
+  // 헤더 라벨: 항상 선택 날짜의 월을 그대로 — "이번달"은 몇 월인지 바로 안 읽힌다
+  const headerLabel = `${selected.getMonth() + 1}월`;
 
   // 올해 경과 주차(0~51) → 일생 그리드의 현재 주 열 (착지 위치 정정)
   const weekOfYear = (() => {
