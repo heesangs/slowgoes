@@ -98,6 +98,12 @@ interface LifeCalendarProps {
   onPhaseChange?: (phase: LifePhase) => void;
   /** 그리드 채움 시작 지연(ms) — 주→일생 오버레이 비행과 타이밍 동기화용 */
   entryDelayMs?: number;
+  /**
+   * 루트 래퍼 클래스 (기본 "mt-3").
+   * 제스처 핸들러가 이 래퍼에 붙으므로, 여백을 마진 대신 패딩으로 흡수하도록
+   * 넘기면 그만큼 스와이프 가능한 영역이 넓어진다(래퍼 밖 마진은 히트 대상이 아니다).
+   */
+  className?: string;
 }
 
 function easeInOutCubic(u: number): number {
@@ -133,6 +139,7 @@ export function LifeCalendar({
   onReverseCancel,
   onPhaseChange,
   entryDelayMs = 0,
+  className,
 }: LifeCalendarProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -788,7 +795,7 @@ export function LifeCalendar({
   return (
     <div
       ref={wrapRef}
-      className="relative mt-3"
+      className={cn("relative", className ?? "mt-3")}
       style={{ touchAction: "pan-y" }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
