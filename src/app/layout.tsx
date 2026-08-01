@@ -22,10 +22,13 @@ export const metadata: Metadata = {
 
 // maximumScale: 1 — iOS Safari의 인풋 포커스 자동 확대 억제.
 // iOS는 이 설정에서도 사용자 핀치줌은 계속 허용하므로 접근성 훼손 없음.
+// viewportFit: cover — 이게 있어야 env(safe-area-inset-*)가 실제 값을 갖는다.
+// 바텀 네비/FAB/토스트가 iOS 홈 인디케이터를 피하려면 필요.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

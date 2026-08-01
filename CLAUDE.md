@@ -72,7 +72,7 @@ slowgoes/
 │   │   ├── navigation/          # bucket-switcher
 │   │   ├── profile/             # profile-content, task-stats
 │   │   ├── review/              # review-page-content, routine-completion-ring, weekday-pattern-chart
-│   │   └── layout/              # main-header, main-nav-bar
+│   │   └── layout/              # main-header(로고+프로필), bottom-nav-bar(버킷/일기/회고), main-shell, sub-page-header
 │   ├── lib/
 │   │   ├── supabase/            # client.ts / server.ts / middleware.ts
 │   │   ├── ai/                  # gemini.ts(클라이언트) · analyze.ts(장면 분석/추천)
