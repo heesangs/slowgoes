@@ -51,6 +51,11 @@ interface KeyboardAccessoryInputProps {
   badge?: string;
   /** 하단 행 좌측 액션들 (반복·AI 버튼 등) */
   actions?: ReactNode;
+  /** 세부정보 입력 줄 노출 여부 ([세부정보 추가] 토글) */
+  showDetail?: boolean;
+  /** 세부정보 값 (todos.detail) */
+  detail?: string;
+  onDetailChange?: (value: string) => void;
   /** 전송 진행 중 — 입력/전송 잠금 */
   isSubmitting?: boolean;
   /** AI 생성 중 — 입력 잠금 + busyPlaceholder 표시 */
@@ -75,6 +80,9 @@ export const KeyboardAccessoryInput = forwardRef<
     animatedPlaceholders,
     badge,
     actions,
+    showDetail = false,
+    detail,
+    onDetailChange,
     isSubmitting = false,
     isBusy = false,
     busyPlaceholder,
@@ -247,6 +255,21 @@ export const KeyboardAccessoryInput = forwardRef<
               </span>
             )}
           </div>
+
+          {/* 1.5단: 세부정보 한 줄 — [세부정보 추가]를 켰을 때만. 제목 아래 메모(todos.detail) */}
+          {showDetail && (
+            <input
+              type="text"
+              value={detail ?? ""}
+              onChange={(e) => onDetailChange?.(e.target.value)}
+              placeholder="세부 정보 추가"
+              readOnly={locked}
+              tabIndex={open ? 0 : -1}
+              // 16px 미만이면 iOS가 포커스 시 화면을 확대하므로 본문과 같은 크기를 유지한다
+              className="w-full bg-transparent text-[16px] leading-6 outline-none placeholder:text-[var(--kai-placeholder)]"
+              style={{ color: "var(--kai-text)" }}
+            />
+          )}
 
           {/* 2단: 뱃지(등록 대상 버킷) + 좌측 액션(반복·AI) + 우측 ↑ 전송 */}
           <div className="flex items-center justify-between gap-2">

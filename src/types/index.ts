@@ -58,6 +58,8 @@ export interface Todo {
   user_id: string;
   bucket_id: string | null;
   title: string;
+  /** 제목 아래 한 줄 메모 (선택) */
+  detail: string | null;
   source: ItemSource;
   /** 반복 없으면 "이 날짜의 할 일", 반복 있으면 시작 기준일 (YYYY-MM-DD) */
   scheduled_date: string;

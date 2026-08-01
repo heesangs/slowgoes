@@ -19,6 +19,7 @@ import {
   type LifePhase,
 } from "@/components/dashboard/life-calendar";
 import { FEATURE_NAMES } from "@/lib/constants";
+import { RepeatIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import {
   formatDateString,
@@ -561,7 +562,7 @@ export function CalendarSection({
           {activeTodos.length > 0 && (
             <div className="mt-3">
               <p className="text-xs font-medium text-foreground/55">{dateLabel}</p>
-              <ul className="mt-1.5 flex flex-col gap-1">
+              <ul className="mt-1.5 flex flex-col gap-2">
                 {activeTodos.map((todo) => (
                   <TodoRow
                     key={todo.id}
@@ -578,7 +579,7 @@ export function CalendarSection({
           {completedTodos.length > 0 && (
             <div className="mt-3">
               <p className="text-xs font-medium text-foreground/55">완료</p>
-              <ul className="mt-1.5 flex flex-col gap-1">
+              <ul className="mt-1.5 flex flex-col gap-2">
                 {completedTodos.map((todo) => (
                   <TodoRow
                     key={todo.id}
@@ -727,56 +728,74 @@ function TodoRow({
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
         className={cn(
-          // 배경은 불투명해야 뒤의 삭제 버튼이 비치지 않는다.
-          // color-mix로 foreground 4% 틴트를 background에 섞어 불투명 색을 만든다(라이트/다크 공통).
-          "flex touch-pan-y items-start gap-1 rounded-lg bg-[color-mix(in_srgb,var(--foreground)_4%,var(--background))] px-2 py-1.5",
+          // 카드 틴트·테두리 없음(피그마 32449:634). 다만 배경은 불투명해야 뒤의 삭제 버튼이
+          // 비치지 않으므로 페이지 배경색을 그대로 깔아 시각적으로만 투명하게 만든다.
+          "touch-pan-y rounded-lg bg-background px-2",
           !dragging && "transition-transform duration-200"
         )}
         // 완료 상태는 체크박스+취소선 텍스트로 표현(행 전체 opacity는 삭제 버튼이 비쳐서 제거)
         style={{ transform: `translateX(${offsetX}px)` }}
       >
-        <button
-          type="button"
-          onClick={guardClick(() => onToggle(todo.id))}
-          aria-pressed={isCompleted}
-          aria-label={`${todo.title} ${isCompleted ? "완료 취소" : "완료"}`}
-          className="shrink-0 rounded-md p-1 hover:bg-foreground/5"
-        >
-          <span
-            className={cn(
-              "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-              isCompleted
-                ? "border-foreground bg-foreground text-background"
-                : "border-foreground/30 bg-transparent"
-            )}
-            aria-hidden
+        {/* 1행 — 20px 라인. 체크박스·메타를 h-5 items-center로 고정해
+            타이틀이 2줄 이상으로 늘어나도 항상 "첫 줄" 중앙에 정렬된다. */}
+        <div className="flex items-start gap-1">
+          <button
+            type="button"
+            onClick={guardClick(() => onToggle(todo.id))}
+            aria-pressed={isCompleted}
+            aria-label={`${todo.title} ${isCompleted ? "완료 취소" : "완료"}`}
+            // after 의사요소로 터치 타겟만 넓힌다(레이아웃 크기는 16×20 유지).
+            // 오른쪽으로는 넓히지 않아 타이틀 탭(수정)을 가로채지 않는다.
+            className="relative flex h-5 w-4 shrink-0 items-center justify-center after:absolute after:-inset-y-2 after:-left-2 after:right-0 after:content-['']"
           >
-            {isCompleted && (
-              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+            <span
+              className={cn(
+                "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                isCompleted
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-foreground/30 bg-transparent"
+              )}
+              aria-hidden
+            >
+              {isCompleted && (
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </span>
+          </button>
+
+          {/* 타이틀 — 탭하면 키보드 입력창으로 수정. leading-5로 한 줄 = 20px */}
+          <button
+            type="button"
+            onClick={guardClick(() => onEdit(todo))}
+            aria-label={`${todo.title} 수정`}
+            className={cn(
+              "min-w-0 flex-1 break-words text-left text-sm leading-5",
+              isCompleted && "text-foreground/45 line-through"
             )}
-          </span>
-        </button>
+          >
+            {todo.title}
+          </button>
 
-        {/* 타이틀 — 탭하면 키보드 입력창으로 수정 */}
-        <button
-          type="button"
-          onClick={guardClick(() => onEdit(todo))}
-          aria-label={`${todo.title} 수정`}
-          className={cn(
-            "min-w-0 flex-1 break-words py-0.5 text-left text-sm leading-snug",
-            isCompleted && "text-foreground/45 line-through"
+          {(time || repeatLabel) && (
+            <span className="flex h-5 shrink-0 items-center gap-1 text-[10px] text-foreground/40">
+              {time && <span>{time}</span>}
+              {repeatLabel && (
+                <>
+                  <RepeatIcon className="h-4 w-4" />
+                  <span className="sr-only">{repeatLabel}</span>
+                </>
+              )}
+            </span>
           )}
-        >
-          {todo.title}
-        </button>
+        </div>
 
-        {(time || repeatLabel) && (
-          <span className="mt-1 flex shrink-0 items-center gap-1 text-[10px] text-foreground/40">
-            {time && <span>{time}</span>}
-            {repeatLabel && <span>🔁 {repeatLabel}</span>}
-          </span>
+        {/* 2행 — 세부정보 한 줄. pl-5(20px)로 타이틀과 좌측을 맞춘다(체크박스 16 + gap 4) */}
+        {todo.detail && (
+          <p className="mt-1 line-clamp-1 pl-5 text-xs leading-4 text-foreground/45">
+            {todo.detail}
+          </p>
         )}
       </div>
     </li>

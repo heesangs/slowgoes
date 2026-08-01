@@ -99,6 +99,11 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   const [repeatSheetOpen, setRepeatSheetOpen] = useState(false);
   const [selectedRepeat, setSelectedRepeat] = useState<TodoRepeatInput | null>(null);
 
+  // [세부정보] — 제목 아래 한 줄 메모(todos.detail). 반복과 같은 드래프트 패턴.
+  const [showDetailInput, setShowDetailInput] = useState(false);
+  const [detailValue, setDetailValue] = useState("");
+  const addDetailDraftRef = useRef("");
+
   // 캘린더 선택 날짜 (기본 오늘).
   // todos는 **버킷 단위 캐시**(['todos', bucketId]) — 날짜 필터는 클라 파생이라
   // 어떤 날짜를 탭해도 서버 왕복 0회(버킷당 최초 1회만 로드).
@@ -197,16 +202,22 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   //   add 모드의 반복 드래프트는 보존했다가 닫을 때 복원.
   function handleEditTodo(todo: TodoWithCompletion) {
     addRepeatDraftRef.current = selectedRepeat;
+    addDetailDraftRef.current = detailValue;
     setInputValue(todo.title);
     setSelectedRepeat(todoRepeatToInput(todo));
+    // 기존 세부정보가 있으면 입력 줄을 펼친 채로 진입
+    setDetailValue(todo.detail ?? "");
+    setShowDetailInput(Boolean(todo.detail));
     setInputMode({ type: "todo-edit", todo });
     inputHandleRef.current?.focus();
   }
 
-  // 입력창 닫기 — todo-edit를 벗어날 땐 add 모드 반복 드래프트를 복원한다.
+  // 입력창 닫기 — todo-edit를 벗어날 땐 add 모드 반복·세부정보 드래프트를 복원한다.
   function handleCloseInput() {
     if (inputMode?.type === "todo-edit") {
       setSelectedRepeat(addRepeatDraftRef.current);
+      setDetailValue(addDetailDraftRef.current);
+      setShowDetailInput(Boolean(addDetailDraftRef.current));
     }
     setInputMode(null);
   }
@@ -236,6 +247,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       return;
     }
     setInputValue(addDraftRef.current);
+    setDetailValue(addDetailDraftRef.current);
+    setShowDetailInput(Boolean(addDetailDraftRef.current));
     setInputMode({ type: "add" });
     inputHandleRef.current?.focus();
   }
@@ -295,13 +308,14 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       setInputMode(null);
       return;
     }
-    // 투두 수정: 타이틀·반복 모두 그대로면 서버 호출 없이 닫기
+    // 투두 수정: 타이틀·세부정보·반복 모두 그대로면 서버 호출 없이 닫기
     if (inputMode.type === "todo-edit") {
       const sameTitle = value === inputMode.todo.title.trim();
+      const sameDetail = detailValue.trim() === (inputMode.todo.detail ?? "").trim();
       const sameRepeat =
         JSON.stringify(selectedRepeat) ===
         JSON.stringify(todoRepeatToInput(inputMode.todo));
-      if (sameTitle && sameRepeat) {
+      if (sameTitle && sameDetail && sameRepeat) {
         handleCloseInput();
         return;
       }
@@ -313,6 +327,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         // Phase C: 기준일 = 캘린더 선택 날짜 (기본 오늘). 반복 선택 시 루틴이 된다.
         const result = await addTodoAction(bucketId, {
           title: value,
+          detail: detailValue,
           scheduledDate: selectedDate,
           repeat: selectedRepeat,
           source: "manual",
@@ -327,7 +342,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           old ? { ...old, todos: [...old.todos, created] } : old
         );
         addDraftRef.current = "";
+        addDetailDraftRef.current = "";
         setInputValue("");
+        setDetailValue("");
+        setShowDetailInput(false);
         setSelectedRepeat(null);
         setInputMode(null);
       } else if (inputMode.type === "bucket-edit") {
@@ -343,6 +361,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         // R2: 투두 타이틀 + 반복 수정 → 캐시 todo 교체 (재페치 0)
         const result = await updateTodoAction(inputMode.todo.id, {
           title: value,
+          detail: detailValue,
           repeat: selectedRepeat,
         });
         if (!result.success || !result.todo) {
@@ -355,7 +374,10 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             ? { ...old, todos: old.todos.map((t) => (t.id === updated.id ? updated : t)) }
             : old
         );
-        setSelectedRepeat(addRepeatDraftRef.current); // add 모드 반복 드래프트 복원
+        // add 모드 드래프트 복원 (반복·세부정보)
+        setSelectedRepeat(addRepeatDraftRef.current);
+        setDetailValue(addDetailDraftRef.current);
+        setShowDetailInput(Boolean(addDetailDraftRef.current));
         setInputMode(null);
       } else {
         const result = await updateStrideItemAction(bucketId, inputMode.stride.level, value);
@@ -517,9 +539,37 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         isSubmitting={isSubmittingInput}
         isBusy={isGeneratingAI}
         busyPlaceholder={`${data.selectedBucket?.title ?? "버킷"} 관련 추천중...`}
+        // 세부정보(제목 아래 한 줄 메모) — add·todo-edit에서만
+        showDetail={
+          showDetailInput && (inputMode?.type === "add" || inputMode?.type === "todo-edit")
+        }
+        detail={detailValue}
+        onDetailChange={(v) => {
+          setDetailValue(v);
+          if (inputMode?.type === "add") addDetailDraftRef.current = v;
+        }}
         actions={
           inputMode?.type === "add" || inputMode?.type === "todo-edit" ? (
             <>
+              {/* 세부정보 추가/닫기 토글 — 아이콘·배치는 PR ②에서 피그마대로 마감 */}
+              <button
+                type="button"
+                onClick={() => setShowDetailInput((prev) => !prev)}
+                aria-label="세부정보 추가"
+                aria-pressed={showDetailInput}
+                className="inline-flex h-8 shrink-0 items-center whitespace-nowrap rounded-lg border px-2 text-xs transition-opacity hover:opacity-80"
+                style={
+                  showDetailInput
+                    ? {
+                        background: "var(--kai-accent)",
+                        color: "var(--kai-accent-text)",
+                        borderColor: "var(--kai-accent)",
+                      }
+                    : { color: "var(--kai-text)", borderColor: "var(--kai-border)" }
+                }
+              >
+                세부정보
+              </button>
               <button
                 type="button"
                 onClick={() => setRepeatSheetOpen(true)}
