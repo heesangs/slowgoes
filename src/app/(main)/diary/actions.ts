@@ -3,11 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { getDiaryEntries, getDiaryEntry } from "@/lib/diary/queries";
-import { toDiaryListItem } from "@/lib/diary/format";
+import { countTaskItems, toDiaryListItem } from "@/lib/diary/format";
 import { analyzeDiary } from "@/lib/ai/diary-analyze";
 import type { DiaryOrganizeMode } from "@/lib/ai/diary-prompts";
 import { AI_ERRORS, AUTH_ERRORS, DIARY_ERRORS } from "@/lib/constants";
-import type { Diary, DiaryComment, DiaryListItem } from "@/types";
+import type { Diary, DiaryComment, DiaryListItem, DiaryWeekKind, WeeklyGoalItem } from "@/types";
 
 // ── React Query queryFn용 읽기 액션 ──
 // 클라이언트 useQuery에서 호출한다. 인증 가드(getAuthUser) + RLS로 보호.
@@ -27,14 +27,16 @@ export async function fetchDiaryEntryAction(id: string): Promise<Diary | null> {
 }
 
 /**
- * 특정 주의 일기 묶음 — 그 주 7일간 쓴 일반 일기 + 그 주를 대상으로 한 주간 회고.
- * 주간 시트(52주 캘린더 셀 탭)가 카드 8장을 그리는 데 쓴다.
+ * 특정 주의 기록 묶음 — 주간 목표 + 그 주 7일간 쓴 일반 일기 + 주간 회고.
+ * 주간 시트(52주 캘린더 셀 탭)가 카드 9장을 그리는 데 쓴다.
  */
 export async function fetchWeekDiariesAction(weekStart: string): Promise<{
   /** 그 주에 작성된 일반 일기 (created_at 기준) */
   daily: DiaryListItem[];
   /** 그 주를 대상으로 한 주간 회고 (없으면 null) */
   weekly: DiaryListItem | null;
+  /** 그 주의 목표 — 체크박스 달성률 포함 (없으면 null) */
+  goal: WeeklyGoalItem | null;
 }> {
   const user = await getAuthUser();
   if (!user) throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
@@ -48,6 +50,8 @@ export async function fetchWeekDiariesAction(weekStart: string): Promise<{
   const end = new Date(`${weekStart}T00:00:00`);
   end.setDate(end.getDate() + 8);
 
+  // 주간 기록(목표·회고)은 한 번에 가져와 종류별로 나눈다.
+  // content는 목표의 체크박스 달성률을 서버에서 세기 위해서만 받는다(HTML은 반환하지 않는다).
   const [dailyResult, weeklyResult] = await Promise.all([
     supabase
       .from("diaries")
@@ -59,11 +63,10 @@ export async function fetchWeekDiariesAction(weekStart: string): Promise<{
       .order("created_at", { ascending: true }),
     supabase
       .from("diaries")
-      .select("id, plain_text, created_at, week_start, buckets(title)")
+      .select("id, plain_text, content, created_at, week_start, week_kind, buckets(title)")
       .eq("user_id", user.id)
       .eq("week_start", weekStart)
-      .order("created_at", { ascending: false })
-      .limit(1),
+      .order("created_at", { ascending: false }),
   ]);
 
   if (dailyResult.error) throw new Error(DIARY_ERRORS.LOAD_FAILED);
@@ -72,23 +75,34 @@ export async function fetchWeekDiariesAction(weekStart: string): Promise<{
   type WeeklyRow = {
     id: string;
     plain_text: string;
+    content: string;
     created_at: string;
     week_start: string | null;
+    week_kind: DiaryWeekKind | null;
     buckets: { title: string } | { title: string }[] | null;
   };
-  const weeklyRow = ((weeklyResult.data as WeeklyRow[] | null) ?? [])[0];
-  const bucket = weeklyRow
-    ? Array.isArray(weeklyRow.buckets)
-      ? weeklyRow.buckets[0]
-      : weeklyRow.buckets
-    : null;
+  const weeklyRows = (weeklyResult.data as WeeklyRow[] | null) ?? [];
+  const bucketTitleOf = (row: WeeklyRow) => {
+    const bucket = Array.isArray(row.buckets) ? row.buckets[0] : row.buckets;
+    return bucket?.title ?? null;
+  };
+
+  // 구분자 도입 전 행은 week_kind가 NULL — 회고로 취급한다
+  const goalRow = weeklyRows.find((row) => row.week_kind === "goal") ?? null;
+  const reviewRow = weeklyRows.find((row) => row.week_kind !== "goal") ?? null;
 
   return {
     daily: ((dailyResult.data as Array<{ id: string; plain_text: string; created_at: string }> | null) ?? []).map(
       (row) => toDiaryListItem(row)
     ),
-    weekly: weeklyRow
-      ? toDiaryListItem({ ...weeklyRow, bucket_title: bucket?.title ?? null })
+    weekly: reviewRow
+      ? toDiaryListItem({ ...reviewRow, bucket_title: bucketTitleOf(reviewRow) })
+      : null,
+    goal: goalRow
+      ? {
+          ...toDiaryListItem({ ...goalRow, bucket_title: bucketTitleOf(goalRow) }),
+          ...countTaskItems(goalRow.content ?? ""),
+        }
       : null,
   };
 }
@@ -119,8 +133,10 @@ interface DiarySaveInput {
   id: string;
   content: string;
   plainText: string;
-  /** 주간 회고일 때 대상 주의 시작일(일요일). 일반 일기는 생략 */
+  /** 주간 기록(목표·회고)일 때 대상 주의 시작일(일요일). 일반 일기는 생략 */
   weekStart?: string | null;
+  /** 주간 기록의 종류. weekStart와 항상 같이 온다 */
+  weekKind?: DiaryWeekKind | null;
   /** 작성 시점 버킷 — #버킷명 배지 */
   bucketId?: string | null;
 }
@@ -156,8 +172,9 @@ export async function saveDiaryAction(
       user_id: userId,
       content: input.content,
       plain_text: plainText,
-      // 주/버킷은 넘어온 경우에만 실어 보낸다 — 일반 일기 저장이 기존 값을 덮지 않도록.
+      // 주/종류/버킷은 넘어온 경우에만 실어 보낸다 — 일반 일기 저장이 기존 값을 덮지 않도록.
       ...(input.weekStart !== undefined ? { week_start: input.weekStart } : {}),
+      ...(input.weekKind !== undefined ? { week_kind: input.weekKind } : {}),
       ...(input.bucketId !== undefined ? { bucket_id: input.bucketId } : {}),
       updated_at: new Date().toISOString(),
     });

@@ -901,6 +901,103 @@ ${diaryNotes}
 }
 
 /**
+ * AI 주간 목표 생성 — 이번 주 안에 끝낼 수 있는 목표 4~5개.
+ *
+ * 투두(하루 단위 착수)와 달리 **한 주의 성과 단위**다. 유저는 주간 시트의
+ * 주간 목표 기록에서 이 제안을 골라 체크박스 목록으로 넣는다.
+ * 품질 규칙의 단일 기준은 루트 `aiprompt.md`("주간 목표 생성" 절).
+ */
+export interface GenerateWeeklyGoalsInput {
+  bucketTitle: string;
+  lifeArea: string;
+  strides: StrideItem[];
+  personalityType?: string | null;
+  age?: number | null;
+  recentDiaryNotes?: string[];
+  /** 그 주에 이미 등록된 투두 제목 — 의미 중복 방지 */
+  existingTitles?: string[];
+  /** 대상 주 범위 라벨 (예: "8.2 ~ 8.8") */
+  weekRange?: string;
+}
+
+const WEEKLY_GOAL_MAX = 5;
+
+export async function generateWeeklyGoals(
+  input: GenerateWeeklyGoalsInput
+): Promise<string[]> {
+  const bucketTitle = input.bucketTitle.trim();
+  const lifeArea = input.lifeArea.trim();
+
+  if (!bucketTitle) throw new Error(BUCKET_ERRORS.TITLE_EMPTY);
+  if (!lifeArea) throw new Error(STRIDE_ERRORS.LIFE_AREA_EMPTY);
+
+  const stridesSummary = input.strides
+    .map((item) => `- ${item.label}: ${item.action}`)
+    .join("\n");
+  const existingTitles =
+    (input.existingTitles ?? []).filter(Boolean).join(" | ") || "없음";
+  const diaryNotes =
+    (input.recentDiaryNotes ?? [])
+      .filter(Boolean)
+      .map((note, i) => `${i + 1}. ${note}`)
+      .join("\n") || "없음";
+
+  const prompt = `당신은 slowgoes 앱의 실행 코치입니다.
+유저가 **이번 주 안에 끝낼 수 있는** 목표 4~5개를 제안하세요.
+하루짜리 할 일이 아니라 "이번 주가 끝났을 때 남아 있을 결과"를 씁니다.
+
+컨텍스트:
+- 버킷: ${bucketTitle}
+- 삶의 영역: ${lifeArea}
+- 이번 주 범위: ${input.weekRange ?? "이번 주"}
+- 지향점 (목표는 가장 짧은 지평의 발걸음을 실제로 전진시켜야 한다):
+${stridesSummary || "- 정보 없음"}
+- 유저 성향(MBTI): ${input.personalityType ?? "정보 없음"} (I형이면 혼자 진행 가능한 목표 우선, E형이면 사람과 연결되는 목표 허용, J형이면 계획·정리형, P형이면 즉흥·탐색형으로 조정)
+- 나이: ${input.age != null ? `${input.age}세` : "정보 없음"}
+- 최근 일기 발췌 (관심사·막힘이 드러나면 1개는 이것과 연결):
+${diaryNotes}
+- 이미 등록된 할 일(의미 중복 금지): ${existingTitles}
+
+품질 규칙:
+1. 한 주(7일) 안에 완료 가능한 크기 — 한 달짜리 과제 금지
+2. 개수·횟수·산출물이 문장에 있어 주말에 "됐다/안 됐다"를 판정할 수 있을 것
+3. 구체적 행동 동사로 시작 ("~알아보기" 같은 추상 금지)
+4. 완벽한 준비보다 어설픈 착수를 우선하는 문장
+5. 서로 다른 유형으로 구성: 조사·준비형 / 실행·산출형 / 사람·환경 연결형 / 습관·반복형
+6. 부담이 크지 않게 — 이번 주에 다 해도 벅차지 않을 분량
+
+각 목표는 한국어, 40자 이내. 동기부여 문구·이모지·번호·설명 없이 목표 문장만.
+아래 JSON만 응답하세요:
+{ "goals": [ { "title": "..." }, { "title": "..." }, { "title": "..." }, { "title": "..." } ] }`;
+
+  let parsed: unknown;
+  try {
+    const result = await geminiModel.generateContent(prompt);
+    parsed = parseJsonResponse(result.response.text());
+  } catch (error) {
+    throw mapGeminiError(error);
+  }
+
+  const raw = (parsed as { goals?: Array<{ title?: unknown }> })?.goals;
+  if (!Array.isArray(raw)) {
+    throw new Error("AI 추천 결과 형식이 올바르지 않습니다.");
+  }
+  const seen = new Set<string>();
+  const titles: string[] = [];
+  for (const item of raw) {
+    const title = typeof item?.title === "string" ? item.title.trim() : "";
+    if (!title || seen.has(title)) continue;
+    seen.add(title);
+    titles.push(title);
+    if (titles.length >= WEEKLY_GOAL_MAX) break;
+  }
+  if (titles.length === 0) {
+    throw new Error("AI 추천 결과가 비어 있습니다.");
+  }
+  return titles;
+}
+
+/**
  * 단일 stride(발걸음) 재생성 — 특정 레벨의 action 하나만 새로 제안
  */
 export async function regenerateSingleStride(

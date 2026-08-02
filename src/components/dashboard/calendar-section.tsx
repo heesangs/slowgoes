@@ -689,7 +689,6 @@ export function CalendarSection({
           onCloseWeekSheet?.();
         }}
         initialWeekStart={weekSheetStart}
-        age={age ?? null}
         bucketId={bucketId}
         bucketTitle={bucketTitle}
       />

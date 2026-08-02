@@ -14,13 +14,17 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import type { Editor } from "@tiptap/react";
 import { MoreActionsMenu } from "@/components/ui/more-actions-menu";
 import { SubPageHeader } from "@/components/layout/sub-page-header";
+import { AiSuggestionsSheet } from "@/components/dashboard/ai-suggestions-sheet";
+import { SpinnerIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/toast";
-import { DIARY_ERRORS } from "@/lib/constants";
-import type { Diary, DiaryComment, DiaryListItem } from "@/types";
+import { AI_ERRORS, DIARY_ERRORS } from "@/lib/constants";
+import type { Diary, DiaryComment, DiaryListItem, DiaryWeekKind } from "@/types";
 import { deriveDiaryTitle, derivePreview, toDiaryListItem } from "@/lib/diary/format";
-import { formatWeekLabel } from "@/lib/date/week";
+import { formatWeekLabel, formatWeekRange } from "@/lib/date/week";
+import { generateWeeklyGoalsAction } from "@/app/(main)/dashboard/actions";
 import { saveDiaryDraft, clearDiaryDraft } from "@/lib/diary/draft";
 import {
   saveDiaryAction,
@@ -47,11 +51,13 @@ function formatDateLabel(iso: string): string {
 type SaveStatus = "idle" | "saving" | "saved";
 
 /**
- * 주간 회고 컨텍스트 — /diary/new?week=...&bucket=... 로 진입했을 때만 채워진다.
- * 값이 있으면 저장 시 week_start/bucket_id로 실려 가고, 헤더에 #버킷명이 표시된다.
+ * 주간 기록 컨텍스트 — /diary/new?week=...&kind=...&bucket=... 로 진입했을 때 채워진다.
+ * 값이 있으면 저장 시 week_start/week_kind/bucket_id로 실려 간다.
+ * 편집 모드에선 URL이 아니라 **기존 행(entry)** 에서 되살린다(아래 eff* 참고).
  */
 interface WeeklyContext {
   weekStart?: string | null;
+  weekKind?: DiaryWeekKind | null;
   bucketId?: string | null;
   bucketTitle?: string | null;
   /**
@@ -67,11 +73,21 @@ type DiaryEditorProps = WeeklyContext &
 export function DiaryEditor({
   mode,
   entry,
-  weekStart = null,
-  bucketId = null,
-  bucketTitle = null,
+  weekStart: weekStartProp = null,
+  weekKind: weekKindProp = null,
+  bucketId: bucketIdProp = null,
+  bucketTitle: bucketTitleProp = null,
   backHref = "/diary",
 }: DiaryEditorProps) {
+  // 주간 스코프는 **기존 행 우선**으로 확정한다.
+  // 편집 진입(DiaryEditorLoader)은 URL에 week/bucket을 싣지 않아 prop이 전부 null인데,
+  // 그대로 저장하면 upsert가 week_start/bucket_id를 NULL로 덮어써 주간 기록이
+  // 시트에서 사라진다(저장 액션은 undefined일 때만 컬럼을 건너뛴다).
+  const weekStart = weekStartProp ?? entry?.week_start ?? null;
+  const weekKind = weekKindProp ?? entry?.week_kind ?? (weekStart ? "review" : null);
+  const bucketId = bucketIdProp ?? entry?.bucket_id ?? null;
+  const bucketTitle = bucketTitleProp ?? entry?.bucket_title ?? null;
+
   const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -110,6 +126,50 @@ export function DiaryEditor({
     setAiOpen(true);
   }
 
+  // ── 주간 목표: AI 제안 → 체크박스 목록 삽입 ──
+  // 에디터 인스턴스를 잡아 둔다(내용을 프로그램적으로 넣는 유일한 경로).
+  const editorRef = useRef<Editor | null>(null);
+  const handleEditorReady = useCallback((editor: Editor) => {
+    editorRef.current = editor;
+  }, []);
+  const [goalSuggestions, setGoalSuggestions] = useState<string[]>([]);
+  const [goalSheetOpen, setGoalSheetOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const isGoal = weekKind === "goal" && !!weekStart;
+
+  async function handleGenerateGoals() {
+    if (!bucketId || !weekStart || isGenerating) return;
+    setIsGenerating(true);
+    const res = await generateWeeklyGoalsAction(bucketId, formatWeekRange(weekStart));
+    setIsGenerating(false);
+    if (!res.success || !res.goals?.length) {
+      toast(res.error ?? AI_ERRORS.ANALYSIS_GENERIC, "error");
+      return;
+    }
+    setGoalSuggestions(res.goals);
+    setGoalSheetOpen(true);
+  }
+
+  // 선택한 목표를 체크박스(taskList)로 본문 끝에 넣는다.
+  // insertContent가 onUpdate를 발화하므로 저장은 기존 자동저장 경로가 그대로 처리한다.
+  function handleInsertGoals(titles: string[]) {
+    const editor = editorRef.current;
+    if (!editor || titles.length === 0) return;
+    editor
+      .chain()
+      .focus("end")
+      .insertContent({
+        type: "taskList",
+        content: titles.map((title) => ({
+          type: "taskItem",
+          attrs: { checked: false },
+          content: [{ type: "paragraph", content: [{ type: "text", text: title }] }],
+        })),
+      })
+      .run();
+    setGoalSheetOpen(false);
+  }
+
   // organize 코멘트 — 일기 아래에 붙는다(제목=버튼명/질문). 본문과 분리 저장이라 재-organize에 미포함.
   const [comments, setComments] = useState<DiaryComment[]>(entry?.comments ?? []);
 
@@ -125,7 +185,7 @@ export function DiaryEditor({
     const plainText = plainTextRef.current.trim();
     if (plainText && content !== savedContentRef.current) {
       savedContentRef.current = content;
-      const saveRes = await saveDiaryAction({ id: diaryId, content, plainText, weekStart, bucketId });
+      const saveRes = await saveDiaryAction({ id: diaryId, content, plainText, weekStart, weekKind, bucketId });
       if (!saveRes.success) {
         toast(saveRes.error ?? DIARY_ERRORS.UPDATE_FAILED, "error");
         return false;
@@ -203,6 +263,7 @@ export function DiaryEditor({
           plain_text: plainText,
           created_at: savedAt,
           week_start: weekStart,
+          week_kind: weekKind,
           bucket_title: bucketTitle,
         }),
         ...old,
@@ -211,14 +272,14 @@ export function DiaryEditor({
 
     // ③ 백그라운드 서버 flush. queryClient/toast는 루트 프로바이더 소속이라
     //    이 컴포넌트가 언마운트된 뒤에도 안전하게 동작한다.
-    void saveDiaryAction({ id: diaryId, content, plainText, weekStart, bucketId }).then((result) => {
+    void saveDiaryAction({ id: diaryId, content, plainText, weekStart, weekKind, bucketId }).then((result) => {
       if (result.success) {
         clearDiaryDraft(diaryId);
       }
       // 실패해도 드래프트가 남아 목록 재진입 시 자동 재전송 → 유실 아님. 표시는 저장됨 유지.
       setSaveStatus("saved");
     });
-  }, [diaryId, queryClient, weekStart, bucketId, bucketTitle]);
+  }, [diaryId, queryClient, weekStart, weekKind, bucketId, bucketTitle]);
 
   // TipTap onUpdate → 안정 참조(memo된 에디터가 리렌더되지 않도록 useCallback).
   const handleChange = useCallback(
@@ -291,6 +352,18 @@ export function DiaryEditor({
         title={dateLabel}
         actions={
           <>
+            {/* AI 목표 — 주간 목표 기록에서만. 제안을 시트에서 골라 체크박스로 넣는다 */}
+            {isGoal && bucketId && (
+              <button
+                type="button"
+                onClick={handleGenerateGoals}
+                disabled={isGenerating}
+                className="inline-flex h-7 items-center gap-1 rounded-md border border-foreground/15 px-2.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/5 disabled:opacity-50"
+              >
+                {isGenerating && <SpinnerIcon className="h-3 w-3" />}
+                AI 목표
+              </button>
+            )}
             {/* organize — 본문이 있을 때(편집 모드이거나 입력을 시작한 뒤) 노출.
                 크기는 우측 ⋮ 트리거(h-7)에 맞춘다. pointerdown에서 선택 텍스트를 캡처
                 (클릭 시 blur로 선택이 사라지므로). */}
@@ -327,14 +400,18 @@ export function DiaryEditor({
 
       {/* 본문 에디터 — 좌우 여백 최소화로 작성 폭 확보 */}
       <div className="mx-auto max-w-2xl px-3 py-4">
-        {/* 주간 회고 컨텍스트 — 어느 주/버킷에 대한 기록인지 본문 위에 밝힌다 */}
+        {/* 주간 기록 컨텍스트 — 어느 주/버킷의 무엇인지 본문 위에 밝힌다 */}
         {weekStart && (
           <p className="mb-2 text-xs text-foreground/45">
-            {formatWeekLabel(weekStart)} 회고
+            {formatWeekLabel(weekStart)} {weekKind === "goal" ? "목표" : "회고"}
             {bucketTitle ? ` · #${bucketTitle}` : ""}
           </p>
         )}
-        <MarkdownEditor initialContent={entry?.content ?? ""} onChange={handleChange} />
+        <MarkdownEditor
+          initialContent={entry?.content ?? ""}
+          onChange={handleChange}
+          onReady={handleEditorReady}
+        />
 
         {/* organize 코멘트 — 일기 아래. 제목=버튼명/질문, 본문=AI 응답. (본문과 분리 저장) */}
         {comments.length > 0 && (
@@ -366,6 +443,18 @@ export function DiaryEditor({
           </div>
         )}
       </div>
+
+      {/* AI 주간 목표 제안 — 고른 항목만 본문에 체크박스로 들어간다 */}
+      <AiSuggestionsSheet
+        open={goalSheetOpen}
+        onClose={() => setGoalSheetOpen(false)}
+        suggestions={goalSuggestions}
+        onRegister={handleInsertGoals}
+        title="AI 목표 제안"
+        description="이번 주에 담을 목표를 고르세요. 고른 항목이 체크박스로 들어갑니다."
+        confirmLabel={(count) => `${count}개 넣기`}
+        busyLabel="넣는 중..."
+      />
 
       <DiaryAiSheet
         key={aiOpenCount}

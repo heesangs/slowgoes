@@ -453,6 +453,12 @@ export interface DiaryComment {
   created_at: string;
 }
 
+/**
+ * 주간 기록의 종류 — 같은 주에 목표와 회고가 공존한다.
+ * DB에서 NULL로 온 과거 행은 'review'로 간주한다(구분자 도입 전 데이터).
+ */
+export type DiaryWeekKind = "goal" | "review";
+
 export interface Diary {
   id: string;
   user_id: string;
@@ -462,10 +468,14 @@ export interface Diary {
   plain_text: string;
   /** organize 코멘트 목록 (jsonb) — 본문과 분리 */
   comments: DiaryComment[];
-  /** 주간 회고면 그 주 시작일(일요일, YYYY-MM-DD). 일반 일기는 null */
+  /** 주간 기록이면 그 주 시작일(일요일, YYYY-MM-DD). 일반 일기는 null */
   week_start: string | null;
+  /** 주간 기록의 종류. week_start가 있을 때만 의미가 있다 */
+  week_kind: DiaryWeekKind | null;
   /** 작성 시점 버킷 — 목록에서 #버킷명 표시용 */
   bucket_id: string | null;
+  /** #버킷명 (조인 결과) — 편집 화면 컨텍스트 줄에 쓴다 */
+  bucket_title?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -476,10 +486,20 @@ export interface DiaryListItem {
   title: string;
   preview: string;
   created_at: string;
-  /** 주간 회고면 그 주 시작일. 목록의 주 그룹·회고 배지 판정에 쓴다 */
+  /** 주간 기록이면 그 주 시작일. 목록의 주 그룹·배지 판정에 쓴다 */
   week_start: string | null;
+  /** 주간 기록의 종류 — 배지 문구(목표/회고) 분기용 */
+  week_kind: DiaryWeekKind | null;
   /** #버킷명 배지 (조인 결과). 버킷이 지워졌거나 일반 일기면 null */
   bucket_title: string | null;
+}
+
+/** 주간 목표 카드용 — 체크박스 달성률을 함께 싣는다 */
+export interface WeeklyGoalItem extends DiaryListItem {
+  /** 체크된 항목 수 */
+  done: number;
+  /** 전체 체크박스 수 (0이면 아직 목록이 없다) */
+  total: number;
 }
 
 export interface DashboardV2Data {

@@ -16,7 +16,7 @@
 // 본문 폰트: 작성화면 스크린샷 기준 17px.
 
 import { memo } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
@@ -26,6 +26,12 @@ interface MarkdownEditorProps {
   initialContent?: string;
   /** 본문 변경 시 상위로 HTML + 순수 텍스트 전달 */
   onChange: (html: string, text: string) => void;
+  /**
+   * 생성 직후 editor 인스턴스 전달 — 상위가 프로그램적으로 내용을 넣을 때 쓴다
+   * (예: AI 주간 목표를 체크박스 목록으로 삽입).
+   * memo 유지를 위해 **useCallback으로 안정화한 함수**를 넘길 것.
+   */
+  onReady?: (editor: Editor) => void;
 }
 
 // .ProseMirror 하위 요소 스타일 — 전부 앱 토큰(foreground) 기반, sky/blue 없음.
@@ -58,7 +64,7 @@ const EDITOR_WRAPPER_CLASS = [
 // React.memo — 부모(DiaryEditor)가 저장 상태 표시로 리렌더돼도 에디터 서브트리는
 // 리렌더하지 않는다. 특히 한글 IME 조합 중 EditorContent 리렌더는 캐럿을 튀게 하므로,
 // onChange를 안정 참조(useCallback)로 받아 memo가 유지되게 하는 것이 중요하다.
-function MarkdownEditorImpl({ initialContent = "", onChange }: MarkdownEditorProps) {
+function MarkdownEditorImpl({ initialContent = "", onChange, onReady }: MarkdownEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -72,6 +78,7 @@ function MarkdownEditorImpl({ initialContent = "", onChange }: MarkdownEditorPro
     // 에디터 생성 직후 텍스트 포커스 (키보드 오픈이 아닌 커서 배치가 목적)
     onCreate: ({ editor }) => {
       editor.commands.focus("end");
+      onReady?.(editor);
     },
     editorProps: {
       attributes: {
