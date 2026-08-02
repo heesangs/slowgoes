@@ -786,14 +786,13 @@ export function LifeCalendar({
         const col = Math.floor((e.clientX - rect.left - PAD_LEFT) / L.pitch);
         const row = Math.floor((e.clientY - rect.top - PAD_TOP) / L.pitch);
         if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+          // 어느 셀이든 부모가 "이번 주"를 연다 — 미래/과거를 가릴 이유가 없다.
+          // (셀 위치를 날짜로 역산하지 않으므로 index는 참고용으로만 넘긴다)
           const index = row * COLS + col;
-          // 아직 오지 않은 주는 열지 않는다
-          if (index <= currentIndex) {
-            const cellLeft = rect.left + PAD_LEFT + col * L.pitch;
-            const cellTop = rect.top + PAD_TOP + row * L.pitch;
-            onCellTap({ index, rect: { left: cellLeft, top: cellTop, size: L.cell } });
-            return;
-          }
+          const cellLeft = rect.left + PAD_LEFT + col * L.pitch;
+          const cellTop = rect.top + PAD_TOP + row * L.pitch;
+          onCellTap({ index, rect: { left: cellLeft, top: cellTop, size: L.cell } });
+          return;
         }
       }
     }

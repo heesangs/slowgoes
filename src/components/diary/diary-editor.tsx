@@ -54,6 +54,11 @@ interface WeeklyContext {
   weekStart?: string | null;
   bucketId?: string | null;
   bucketTitle?: string | null;
+  /**
+   * 뒤로가기 목적지. 주간 시트에서 들어온 경우 대시보드의 그 주 시트로 돌아간다.
+   * 미지정이면 일기 목록(/diary).
+   */
+  backHref?: string;
 }
 
 type DiaryEditorProps = WeeklyContext &
@@ -65,6 +70,7 @@ export function DiaryEditor({
   weekStart = null,
   bucketId = null,
   bucketTitle = null,
+  backHref = "/diary",
 }: DiaryEditorProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -273,7 +279,7 @@ export function DiaryEditor({
         old?.filter((item) => item.id !== entry.id)
       );
       queryClient.removeQueries({ queryKey: ["diary", "entry", entry.id] });
-      router.push("/diary");
+      router.push(backHref);
     });
   }
 
@@ -281,7 +287,7 @@ export function DiaryEditor({
     <>
       {/* 서브페이지 상단 네비 — 뒤로가기 + 날짜 + (더보기) + 저장 상태(패시브) */}
       <SubPageHeader
-        backHref="/diary"
+        backHref={backHref}
         title={dateLabel}
         actions={
           <>

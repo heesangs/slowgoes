@@ -35,7 +35,7 @@ function EditorSkeleton() {
   );
 }
 
-export function DiaryEditorLoader({ id }: { id: string }) {
+export function DiaryEditorLoader({ id, backHref }: { id: string; backHref?: string }) {
   const router = useRouter();
   const { data: entry, isLoading, isError } = useDiaryEntry(id);
   const showSkeleton = useDelayedFlag(isLoading || !entry);
@@ -59,5 +59,5 @@ export function DiaryEditorLoader({ id }: { id: string }) {
     return showSkeleton ? <EditorSkeleton /> : null;
   }
 
-  return <DiaryEditor mode="edit" entry={entry} />;
+  return <DiaryEditor mode="edit" entry={entry} backHref={backHref} />;
 }

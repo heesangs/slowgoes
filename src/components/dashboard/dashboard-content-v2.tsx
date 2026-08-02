@@ -172,6 +172,14 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     }
   }, [searchParams, toast, router]);
 
+  // 일기 상세에서 뒤로가기로 돌아온 경우(?week=YYYY-MM-DD) 그 주 시트를 다시 연다.
+  // 마운트 시점 값만 쓴다 — 시트를 닫으면 URL을 지우므로 여기서 계속 구독하면
+  // 닫자마자 다시 열리는 싸움이 된다.
+  const [initialWeekSheet] = useState(() => {
+    const raw = searchParams.get("week");
+    return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
+  });
+
   useEffect(() => {
     if (fetchError) {
       toast(fetchError, "error");
@@ -487,6 +495,11 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           // 52주 셀 탭 → 주간 시트의 회고에 붙일 버킷
           bucketId={data.selectedBucket?.id ?? null}
           bucketTitle={data.selectedBucket?.title ?? null}
+          initialWeekSheet={initialWeekSheet}
+          // 시트를 닫으면 ?week= 를 지운다 — 안 지우면 새로고침 때 다시 열린다
+          onCloseWeekSheet={() => {
+            if (searchParams.get("week")) router.replace("/dashboard");
+          }}
         />
       )}
 

@@ -91,6 +91,10 @@ interface CalendarSectionProps {
   /** 주간 회고에 붙일 현재 버킷 (52주 셀 탭 → 주간 시트) */
   bucketId?: string | null;
   bucketTitle?: string | null;
+  /** ?week= 로 진입했을 때 열어둘 주 (일기 상세에서 뒤로가기 복귀) */
+  initialWeekSheet?: string | null;
+  /** 그 시트를 닫을 때 — 부모가 URL을 정리한다 */
+  onCloseWeekSheet?: () => void;
 }
 
 export function CalendarSection({
@@ -106,12 +110,15 @@ export function CalendarSection({
   onDeleteTodo,
   bucketId = null,
   bucketTitle = null,
+  initialWeekSheet = null,
+  onCloseWeekSheet,
 }: CalendarSectionProps) {
   // 주 ↔ 월 확장 상태 (전환은 핸들 버튼 단일 — 드래그 제스처는 날짜 탭과 충돌해 제거)
   const [expanded, setExpanded] = useState(false);
 
-  // 52주 셀 탭 → 그 주의 기록 시트 (시트 상태는 이 컴포넌트가 소유 — BucketBar 패턴)
-  const [weekSheetStart, setWeekSheetStart] = useState<string | null>(null);
+  // 52주 셀 탭 → 그 주의 기록 시트 (시트 상태는 이 컴포넌트가 소유 — BucketBar 패턴).
+  // ?week= 로 복귀한 경우 그 주로 열어둔 채 시작한다.
+  const [weekSheetStart, setWeekSheetStart] = useState<string | null>(initialWeekSheet);
 
   // ── 3단 스크럽 페이저: 주 캘린더 ↔ 일생 캘린더 ↔ 인생시계 ──
   // 주↔일생은 손가락을 따라오는 스크럽(progress 0=주, 1=일생 그리드).
@@ -266,22 +273,15 @@ export function CalendarSection({
   // 역방향 취소 — 캔버스 스냅백은 LifeCalendar가 처리, 부모는 일생 유지
   const handleReverseCancel = useCallback(() => {}, []);
 
-  // 셀 인덱스 → 그 주의 시작일. 그리드 규약(행=나이, 열=1월1일부터 7일 블록)의 역함수다.
-  //   생년월일이 없고 나이(정수)만 있어 "나이가 1월 1일에 오른다"는 가정이 들어간다 →
-  //   생일 전후 1년, 연말 1~2일(52×7=364) 오차가 있을 수 있어 시트에 날짜 범위를 함께 적는다.
-  const handleCellTap = useCallback(
-    ({ index }: { index: number }) => {
-      if (!hasAge) return;
-      const row = Math.floor(index / 52);
-      const col = index % 52;
-      const targetYear =
-        parseDateString(getTodayDateString()).getFullYear() - Math.floor(age as number) + row;
-      const jan1 = new Date(targetYear, 0, 1);
-      jan1.setDate(jan1.getDate() + col * 7);
-      setWeekSheetStart(getWeekStart(formatDateString(jan1)));
-    },
-    [age, hasAge]
-  );
+  // 셀을 어디 탭하든 **이번 주**를 연다. 주 이동은 시트 헤더의 ‹ › 로 한다.
+  //
+  // 예전엔 셀 인덱스를 날짜로 역산했는데, 그리드 열(1/1부터 고정 7일 블록)과
+  // 일기의 주(일요일 시작)가 다른 좌표계라 현재 주 셀조차 한 주 어긋났다.
+  // (2026-08-02 기준: 30열 → 역산 7/26 vs 실제 주 8/2) 그 탓에 오늘 일기가
+  // 시트에서 사라지고 회고가 지난 주에 붙는 문제가 있었다. 역산을 없애 해소한다.
+  const handleCellTap = useCallback(() => {
+    setWeekSheetStart(getWeekStart(getTodayDateString()));
+  }, []);
 
   // ── 주 뷰 스크럽 제스처 (달력 영역 + 아래 여백. 투두 행은 제외) ──
   const fwd = useRef<{ x: number; y: number; active: boolean; capturing: boolean } | null>(null);
@@ -678,9 +678,13 @@ export function CalendarSection({
 
       {/* 주간 시트 — 52주 셀 탭으로 열린다 (그 주 일기 7장 + 주간 회고) */}
       <WeekSheet
+        key={weekSheetStart ?? "closed"}
         open={weekSheetStart !== null}
-        onClose={() => setWeekSheetStart(null)}
-        weekStart={weekSheetStart}
+        onClose={() => {
+          setWeekSheetStart(null);
+          onCloseWeekSheet?.();
+        }}
+        initialWeekStart={weekSheetStart}
         age={age ?? null}
         bucketId={bucketId}
         bucketTitle={bucketTitle}
