@@ -12,8 +12,9 @@
 //   RUN    : 우향 이동 → 상단 중앙(cx) — 원 최상단(0시)에서 접선이 수평이라
 //            직선 이동이 끊김 없이 원호로 이어진다 (스크럽 핸드오프 지점)
 // 릴리스(임계 이상) 시 자동 재생:
-//   WRAP   : 시계방향 360° 링(산/남은 2톤 유지), 직선 궤적은 페이드 아웃
-//   DIAL   : 링 → 테두리 점·라벨 → 중심점 → 시침 → 분침 → 초침 (timE 디자인)
+//   WRAP   : 시계방향 360° — 지나간 자리에 눈금 점이 찍힌다(산/남은 2톤 유지),
+//            직선 궤적은 페이드 아웃
+//   DIAL   : 라벨 → 중심점 → 시침 → 분침 → 초침 (timE 디자인)
 //
 // 진행도는 ref + rAF(리액트 상태는 phase 전환점만). 5200칸은 오프스크린 프리렌더.
 // prefers-reduced-motion이면 즉시 전환.
@@ -39,6 +40,13 @@ const ST_TURN = 0.48; // 좌상단 쿼터 아크
 const ST_RUN = 0.58; // 상단 중앙까지 우향(가로 궤적) — 스크럽 핸드오프
 const ST_WRAP = 0.86; // 시계방향 360° 링 완성
 const CORNER_R = 14; // 방향 전환 쿼터 아크 반경(px)
+
+// 궤적 잔상 — 펜에서 멀어질수록 옅어진다(길 전체는 남는다)
+const TRAIL_STEPS = 200; // 경로 샘플 수 (세그먼트 ~2px)
+const TRAIL_HEAD_ALPHA = 0.55; // 펜 바로 뒤 알파
+const TRAIL_MIN_ALPHA = 0.04; // 출발점 쪽 하한 — 완전히 지워지지는 않는다
+const TRAIL_FALLOFF = 1.6; // 클수록 머리 쪽에 진함이 몰린다
+const WRAP_DOT_GAP = 5; // WRAP 구간 점 꼬리 간격(px)
 const DUR_FORWARD = 2400; // 릴리스 후 잔여 자동 재생 (전체 기준 ms, 잔여 비율 비례)
 const DUR_REVERSE = 2200; // 시계 → 그리드 역재생(ms)
 const SWIPE_FIRE_PX = 40; // 시계→그리드 트리거 임계
@@ -64,6 +72,26 @@ function hexToRgba(hex: string, a: number): string {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
+// 라운드 사각형 경로 — 칸(주)은 전부 이 헬퍼를 거친다.
+// roundRect는 Safari 16.4+ 라 폴백을 둔다(각진 사각형으로 그려질 뿐 레이아웃은 동일).
+function roundRectPath(
+  c: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  c.beginPath();
+  if (typeof c.roundRect === "function") {
+    c.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
+  } else {
+    c.rect(x, y, w, h);
+  }
+}
+
+const CELL_R = 2; // 주 칸 라운드(px)
+
 // 다이얼 스펙 (timE): 침은 중심에서 간격을 두고 시작
 const HAND_INNER = 0.18; // 침 시작 반지름 비율
 const HOUR_OUTER = 0.48;
@@ -83,6 +111,8 @@ export interface LifeCellRect {
 interface LifeCalendarProps {
   /** 현재 나이 (life_clock_age) */
   age: number;
+  /** 시계 문구의 호칭 (display_name). 없으면 호칭 없이 표시 */
+  userName?: string | null;
   /** 올해 경과 주차(0~51) — 현재 주 칸 = age×52 + weekOfYear (실제 현재 주 열에 위치) */
   weekOfYear?: number;
   /** 진입 시 순차 채움 애니메이션 여부 */
@@ -145,6 +175,7 @@ type Layout = ReturnType<typeof getLayout>;
 
 export function LifeCalendar({
   age,
+  userName,
   weekOfYear = 0,
   animate,
   onReady,
@@ -257,7 +288,8 @@ export function LifeCalendar({
       for (let i = weeksLived; i < COLS * ROWS; i++) {
         if (i === currentIndex) continue;
         const { x, y } = cellXY(i);
-        rest.x.strokeRect(x + 0.5, y + 0.5, L.cell, L.cell);
+        roundRectPath(rest.x, x + 0.5, y + 0.5, L.cell, L.cell, CELL_R);
+        rest.x.stroke();
       }
       rest.x.globalAlpha = 0.4;
       rest.x.fillStyle = fg;
@@ -278,15 +310,19 @@ export function LifeCalendar({
       for (let i = 0; i < weeksLived; i++) {
         if (i === currentIndex) continue;
         const { x, y } = cellXY(i);
-        lived.x.fillRect(x, y, L.cell, L.cell);
+        roundRectPath(lived.x, x, y, L.cell, L.cell, CELL_R);
+        lived.x.fill();
       }
       lived.x.globalAlpha = 1;
       const cur = cellXY(currentIndex);
-      lived.x.fillRect(cur.x, cur.y, L.cell, L.cell);
-      // 현재 주 강조 링 — 셀에서 2px 간격 + 2px 라인
+      roundRectPath(lived.x, cur.x, cur.y, L.cell, L.cell, CELL_R);
+      lived.x.fill();
+      // 현재 주 강조 링 — 셀에서 2px 간격 + 2px 라인.
+      // 칸보다 3px 바깥이므로 반경도 그만큼 키워 곡률을 맞춘다.
       lived.x.strokeStyle = fg;
       lived.x.lineWidth = 2;
-      lived.x.strokeRect(cur.x - 3, cur.y - 3, L.cell + 6, L.cell + 6);
+      roundRectPath(lived.x, cur.x - 3, cur.y - 3, L.cell + 6, L.cell + 6, CELL_R + 3);
+      lived.x.stroke();
     }
 
     // 역방향 커밋용 지오메트리(현재 칸)
@@ -308,25 +344,50 @@ export function LifeCalendar({
       ctx.globalAlpha = 1;
     }
 
-    // 감긴 원호 (0..segs년) — 산/남은 톤 분할. alphaMul은 D단계 페이드용
+    // ── 둘레는 선이 아니라 점 ──
+    // 원이 지나간 자리에 15°마다 눈금 점이 하나씩 찍히고, 한 바퀴 돌면 그게 곧
+    // 시계 테두리가 된다(링을 그렸다가 점으로 바꾸던 중간 단계를 없앴다).
     const livedAngle = (weeksLived / (COLS * ROWS)) * 360;
-    function drawRing(sweepDeg: number, alphaMul: number) {
-      if (sweepDeg <= 0) return;
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = fg;
-      const toRad = (deg: number) => ((deg - 90) * Math.PI) / 180;
-      const darkEnd = Math.min(sweepDeg, livedAngle);
-      if (darkEnd > 0) {
-        ctx.globalAlpha = 0.5 * alphaMul;
+
+    // 링이 쓰던 산/남은 2톤을 점이 이어받는다. 0시·12시는 항상 강조.
+    function tickAlpha(h: number): number {
+      if (h === 0 || h === 12) return 1;
+      return (h / 24) * 360 <= livedAngle ? 0.45 : 0.2;
+    }
+
+    function drawTicks(sweepDeg: number, alphaMul: number) {
+      if (alphaMul <= 0) return;
+      ctx.fillStyle = fg;
+      for (let h = 0; h < 24; h++) {
+        const a = (h / 24) * 360;
+        if (a > sweepDeg) continue;
+        const pos = polar(L.R, a);
+        // 막 지나간 눈금은 살짝 부풀었다 제자리로 — "찍히는" 느낌
+        const settle = clamp01((sweepDeg - a) / 12);
+        const r = (h === 0 || h === 12 ? 2 : 1.25) * (1 + 0.8 * (1 - settle));
+        ctx.globalAlpha = tickAlpha(h) * alphaMul;
         ctx.beginPath();
-        ctx.arc(L.cx, L.cy, L.R, toRad(0), toRad(darkEnd));
-        ctx.stroke();
+        ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+        ctx.fill();
       }
-      if (sweepDeg > livedAngle) {
-        ctx.globalAlpha = 0.2 * alphaMul;
+      ctx.globalAlpha = 1;
+    }
+
+    // 눈금 사이 — 펜 뒤로 남는 점 꼬리. 직선 궤적과 같은 거리 페이드를 쓴다.
+    function drawWrapTail(sweepDeg: number, alphaMul: number) {
+      const arcLen = (sweepDeg / 360) * 2 * Math.PI * L.R;
+      if (arcLen < WRAP_DOT_GAP || alphaMul <= 0) return;
+      ctx.fillStyle = fg;
+      const count = Math.floor(arcLen / WRAP_DOT_GAP);
+      for (let i = 1; i <= count; i++) {
+        const back = i * WRAP_DOT_GAP;
+        const behind = back / arcLen; // 0=펜 근처, 1=시작점
+        const pos = polar(L.R, sweepDeg - (back / (2 * Math.PI * L.R)) * 360);
+        ctx.globalAlpha =
+          alphaMul * Math.max(TRAIL_MIN_ALPHA, TRAIL_HEAD_ALPHA * Math.pow(1 - behind, TRAIL_FALLOFF));
         ctx.beginPath();
-        ctx.arc(L.cx, L.cy, L.R, toRad(livedAngle), toRad(sweepDeg));
-        ctx.stroke();
+        ctx.arc(pos.x, pos.y, 1, 0, Math.PI * 2);
+        ctx.fill();
       }
       ctx.globalAlpha = 1;
     }
@@ -334,7 +395,7 @@ export function LifeCalendar({
     // ── 키오브젝트 여정 경로 (EXIT → TURN-UP → RISE → TURN → RUN → WRAP) ──
     // 좌측 세로축 x, 상단 가로축 y(=원 꼭대기). 원 최상단에서 접선이 수평이라
     // RUN 직선이 WRAP 원호로 끊김 없이 이어진다.
-    const keyR = Math.max(7, 1.5 * L.pitch); // 키오브젝트(원) 반지름
+    const keyR = Math.max(3.5, 0.75 * L.pitch); // 키오브젝트(원) 반지름 — 칸보다 조금 큰 정도
     const xL = PAD_LEFT + keyR; // 좌측 세로 경로 x (원이 잘리지 않게 반지름만큼 안쪽)
     const yT = L.cy - L.R; // 상단 가로 경로 y = 원 꼭대기
     const kStart = { x: curCell.x + L.cell / 2, y: curCell.y + L.cell / 2 }; // 현재 주 칸 중심
@@ -371,42 +432,46 @@ export function LifeCalendar({
       return { x: C2.x + (L.cx - C2.x) * t, y: yT };
     }
 
-    // 지나간 궤적(2px) — TURN-UP부터 시작 (EXIT 좌향 이동은 궤적 없음)
+    // 지나간 궤적(2px) — 경로(penAt)를 조밀하게 샘플한 폴리라인.
+    //
+    // 왜 구간별 stroke가 아니라 샘플링인가: 아크·직선을 각각 그리면 접합부가 두 번
+    // 칠해져 **꺾이는 지점만 진해졌다**. 짧은 선분을 butt cap으로 이어 그리면 겹침이
+    // 없다(곡률 구간의 틈은 세그먼트가 촘촘해 눈에 띄지 않는다).
+    // 알파는 펜에서 뒤로 떨어진 거리로 정한다 — 원 근처가 진하고 뒤로 갈수록 옅어져
+    // "지나간 자리"로 읽힌다. 출발점(p=0)부터 샘플하므로 좌향 이동 구간에도 궤적이 남고,
+    // 역재생(시계→그리드)은 같은 산식이 뒤집혀 적용된다.
     function drawTrail(p: number, alpha: number) {
-      if (p <= ST_EXIT || alpha <= 0) return;
+      const pEnd = Math.min(p, ST_RUN);
+      if (pEnd <= 0 || alpha <= 0) return;
+
+      const pts: Array<{ x: number; y: number }> = [];
+      for (let i = 0; i <= TRAIL_STEPS; i++) pts.push(penAt((pEnd * i) / TRAIL_STEPS));
+
+      const segLen: number[] = [];
+      let total = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+        segLen.push(d);
+        total += d;
+      }
+      if (total < 1) return;
+
       ctx.strokeStyle = fg;
       ctx.lineWidth = 2;
-      ctx.lineCap = "round";
-      ctx.globalAlpha = 0.45 * alpha;
-      ctx.beginPath();
-      // 좌하단 아크
-      const a1 = 90 + 90 * clamp01((p - ST_EXIT) / (ST_TURNUP - ST_EXIT));
-      ctx.arc(C1.x, C1.y, CORNER_R, rcDeg(90), rcDeg(a1));
-      ctx.stroke();
-      // 세로 상승
-      if (p > ST_TURNUP) {
-        const pen = penAt(Math.min(p, ST_RISE));
+      ctx.lineCap = "butt";
+      let acc = 0;
+      for (let i = 1; i < pts.length; i++) {
+        acc += segLen[i - 1];
+        const behind = (total - acc) / total; // 0=펜 바로 뒤, 1=출발점
+        ctx.globalAlpha =
+          alpha * Math.max(TRAIL_MIN_ALPHA, TRAIL_HEAD_ALPHA * Math.pow(1 - behind, TRAIL_FALLOFF));
         ctx.beginPath();
-        ctx.moveTo(xL, C1.y);
-        ctx.lineTo(xL, Math.min(p, ST_RISE) === ST_RISE ? C2.y : pen.y);
-        ctx.stroke();
-      }
-      // 좌상단 아크
-      if (p > ST_RISE) {
-        const a2 = 180 + 90 * clamp01((p - ST_RISE) / (ST_TURN - ST_RISE));
-        ctx.beginPath();
-        ctx.arc(C2.x, C2.y, CORNER_R, rcDeg(180), rcDeg(a2));
-        ctx.stroke();
-      }
-      // 가로 이동
-      if (p > ST_TURN) {
-        const pen = penAt(Math.min(p, ST_RUN));
-        ctx.beginPath();
-        ctx.moveTo(C2.x, yT);
-        ctx.lineTo(pen.x, yT);
+        ctx.moveTo(pts[i - 1].x, pts[i - 1].y);
+        ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
+      ctx.lineCap = "round";
     }
 
     // 키오브젝트(펜) — EXIT 동안 사각형→원 morph + 크기 전환, 이후 원
@@ -415,13 +480,10 @@ export function LifeCalendar({
       ctx.fillStyle = fg;
       ctx.globalAlpha = alpha;
       const half = (L.cell / 2) * (1 - morph) + keyR * morph;
-      const radius = half * morph; // 0=사각형 → half=완전한 원
-      ctx.beginPath();
-      if (typeof ctx.roundRect === "function") {
-        ctx.roundRect(pos.x - half, pos.y - half, half * 2, half * 2, radius);
-      } else {
-        ctx.arc(pos.x, pos.y, half, 0, Math.PI * 2);
-      }
+      // 그리드 칸과 같은 라운드(2px)에서 출발해 완전한 원(half)까지 — 0에서 시작하면
+      // 칸이 각져 보여 morph 첫 프레임이 튄다
+      const radius = CELL_R + (half - CELL_R) * morph;
+      roundRectPath(ctx, pos.x - half, pos.y - half, half * 2, half * 2, radius);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -446,30 +508,21 @@ export function LifeCalendar({
         return;
       }
 
-      // WRAP: 상단 중앙에서 접선 연속으로 시계방향 링. 직선 궤적은 전반부 페이드 아웃
+      // WRAP: 상단 중앙에서 접선 연속으로 시계방향 한 바퀴. 직선 궤적은 전반부 페이드 아웃
       const w = clamp01((p - ST_RUN) / (ST_WRAP - ST_RUN));
       const sweep = 360 * easeInOutCubic(w);
       drawTrail(ST_RUN, 1 - clamp01(w / 0.4));
-      drawRing(sweep, 1);
+      drawWrapTail(sweep, 1);
+      drawTicks(sweep, 1);
       const penPos = polar(L.R, sweep);
       drawPen(penPos, 1, 1 - clamp01((sweep - 330) / 30)); // 완성 직전 페이드
     }
 
     // D단계: 링 → 시계 (점 테두리·라벨 → 중심점 → 시침 → 분침 → 초침)
     function drawDial(d: number) {
-      const chrome = clamp01(d / 0.3); // 테두리 점 + 라벨 페이드인
-      drawRing(360, 1 - chrome); // 링은 점 테두리로 녹아든다
-
-      // 테두리 점 24개 — 0시(상단)·12시(하단)만 진하게
-      ctx.fillStyle = fg;
-      for (let h = 0; h < 24; h++) {
-        const pos = polar(L.R, (h / 24) * 360);
-        const emphasized = h === 0 || h === 12;
-        ctx.globalAlpha = (emphasized ? 1 : 0.25) * chrome;
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, emphasized ? 2 : 1.25, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      const chrome = clamp01(d / 0.3); // 라벨 페이드인
+      // 테두리 점은 WRAP에서 이미 다 찍혔다 — 같은 알파로 이어받아 전환 점프가 없다
+      drawTicks(360, 1);
 
       // 라벨 — 상단 100세 + 3·6·9·15·18·21
       ctx.textAlign = "center";
@@ -548,7 +601,9 @@ export function LifeCalendar({
       const side = L.cell + (3 * L.pitch - L.cell) * easeInOutCubic(r);
       ctx.fillStyle = fg;
       ctx.globalAlpha = 1;
-      ctx.fillRect(cx0 - side / 2, cy0 - side / 2, side, side);
+      // 라운드도 확대 비율만큼 — 커지면서 각져 보이지 않게
+      roundRectPath(ctx, cx0 - side / 2, cy0 - side / 2, side, side, (CELL_R * side) / L.cell);
+      ctx.fill();
     }
     drawExitRef.current = drawExit;
 
@@ -838,11 +893,13 @@ export function LifeCalendar({
   const layout = width > 0 ? getLayout(width) : null;
   const messageTop = layout ? layout.cy + layout.R + 20 : 0;
 
-  const showGridChrome = phase === "grid"; // '한 줄이 1년' + 스와이프 힌트
-  const showClockChrome = phase === "clock" && !!clock; // 메시지 + 복귀 힌트
+  const showClockChrome = phase === "clock" && !!clock; // 시계 완성 후 메시지
 
+  // "24시간으로 보면 OO님은 오전 10시 04분입니다." (이름이 없으면 호칭 없이)
   const message = clock
-    ? `당신의 인생시간은 ${clock.meridiem} ${clock.hour12}시 ${String(clock.minute).padStart(2, "0")}분입니다.`
+    ? `24시간으로 보면 ${userName ? `${userName}님은 ` : ""}${clock.meridiem} ${
+        clock.hour12
+      }시 ${String(clock.minute).padStart(2, "0")}분입니다.`
     : "";
 
   return (
@@ -855,18 +912,6 @@ export function LifeCalendar({
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
     >
-      {/* 상단 캡션 행 — 좌: 스와이프 힌트 / 우: '한 줄이 1년' (그리드 상태에서만) */}
-      <div
-        className={cn(
-          "mb-1 flex items-center justify-between text-[10px] text-foreground/40 transition-opacity",
-          showGridChrome ? "opacity-100" : "opacity-0"
-        )}
-        aria-hidden={!showGridChrome}
-      >
-        <span className="text-foreground/35">← 밀어서 인생시계 보기</span>
-        <span>한 줄이 1년</span>
-      </div>
-
       {/* 캔버스 + 캔버스 좌표계를 쓰는 오버레이.
           relative 컨테이너로 감싸 absolute 자식의 원점을 캔버스 좌상단에 맞춘다 —
           래퍼에 직접 걸면 캡션 행·상단 패딩만큼 어긋난다. */}
@@ -886,23 +931,18 @@ export function LifeCalendar({
             className="pointer-events-none absolute inset-x-0 flex flex-col items-center gap-3 px-4 text-center"
             style={{ top: messageTop }}
           >
-            <p className="text-sm text-foreground/80">
+            <p className="text-lg font-medium text-foreground/85">
               {[...message].map((ch, i) => (
                 <span
                   key={i}
                   className="inline-block animate-[char-rise_0.45s_ease_both]"
                   style={{ animationDelay: `${i * 45}ms` }}
                 >
-                  {ch === " " ? " " : ch}
+                  {/* 글자마다 inline-block이라 보통 공백은 무너진다 → nbsp */}
+                  {ch === " " ? " " : ch}
                 </span>
               ))}
             </p>
-            <span
-              className="text-[10px] text-foreground/35 animate-[char-rise_0.45s_ease_both]"
-              style={{ animationDelay: `${message.length * 45 + 300}ms` }}
-            >
-              주 단위로 보기 →
-            </span>
           </div>
         )}
       </div>
