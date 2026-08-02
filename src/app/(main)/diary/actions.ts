@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { getDiaryEntries, getDiaryEntry } from "@/lib/diary/queries";
+import { toDiaryListItem } from "@/lib/diary/format";
 import { analyzeDiary } from "@/lib/ai/diary-analyze";
 import type { DiaryOrganizeMode } from "@/lib/ai/diary-prompts";
 import { AI_ERRORS, AUTH_ERRORS, DIARY_ERRORS } from "@/lib/constants";
@@ -23,6 +24,69 @@ export async function fetchDiaryEntryAction(id: string): Promise<Diary | null> {
   if (!user) throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
   const supabase = await createClient();
   return getDiaryEntry(supabase, user.id, id);
+}
+
+/**
+ * 특정 주의 일기 묶음 — 그 주 7일간 쓴 일반 일기 + 그 주를 대상으로 한 주간 회고.
+ * 주간 시트(52주 캘린더 셀 탭)가 카드 8장을 그리는 데 쓴다.
+ */
+export async function fetchWeekDiariesAction(weekStart: string): Promise<{
+  /** 그 주에 작성된 일반 일기 (created_at 기준) */
+  daily: DiaryListItem[];
+  /** 그 주를 대상으로 한 주간 회고 (없으면 null) */
+  weekly: DiaryListItem | null;
+}> {
+  const user = await getAuthUser();
+  if (!user) throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
+  const supabase = await createClient();
+
+  const start = new Date(`${weekStart}T00:00:00`);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+
+  const [dailyResult, weeklyResult] = await Promise.all([
+    supabase
+      .from("diaries")
+      .select("id, plain_text, created_at, week_start")
+      .eq("user_id", user.id)
+      .is("week_start", null)
+      .gte("created_at", start.toISOString())
+      .lt("created_at", end.toISOString())
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("diaries")
+      .select("id, plain_text, created_at, week_start, buckets(title)")
+      .eq("user_id", user.id)
+      .eq("week_start", weekStart)
+      .order("created_at", { ascending: false })
+      .limit(1),
+  ]);
+
+  if (dailyResult.error) throw new Error(DIARY_ERRORS.LOAD_FAILED);
+  if (weeklyResult.error) throw new Error(DIARY_ERRORS.LOAD_FAILED);
+
+  type WeeklyRow = {
+    id: string;
+    plain_text: string;
+    created_at: string;
+    week_start: string | null;
+    buckets: { title: string } | { title: string }[] | null;
+  };
+  const weeklyRow = ((weeklyResult.data as WeeklyRow[] | null) ?? [])[0];
+  const bucket = weeklyRow
+    ? Array.isArray(weeklyRow.buckets)
+      ? weeklyRow.buckets[0]
+      : weeklyRow.buckets
+    : null;
+
+  return {
+    daily: ((dailyResult.data as Array<{ id: string; plain_text: string; created_at: string }> | null) ?? []).map(
+      (row) => toDiaryListItem(row)
+    ),
+    weekly: weeklyRow
+      ? toDiaryListItem({ ...weeklyRow, bucket_title: bucket?.title ?? null })
+      : null,
+  };
 }
 
 function toClientErrorMessage(error: unknown, fallback: string): string {
@@ -51,6 +115,10 @@ interface DiarySaveInput {
   id: string;
   content: string;
   plainText: string;
+  /** 주간 회고일 때 대상 주의 시작일(일요일). 일반 일기는 생략 */
+  weekStart?: string | null;
+  /** 작성 시점 버킷 — #버킷명 배지 */
+  bucketId?: string | null;
 }
 
 // 저장 — 생성/수정 공용 **멱등** 액션.
@@ -84,6 +152,9 @@ export async function saveDiaryAction(
       user_id: userId,
       content: input.content,
       plain_text: plainText,
+      // 주/버킷은 넘어온 경우에만 실어 보낸다 — 일반 일기 저장이 기존 값을 덮지 않도록.
+      ...(input.weekStart !== undefined ? { week_start: input.weekStart } : {}),
+      ...(input.bucketId !== undefined ? { bucket_id: input.bucketId } : {}),
       updated_at: new Date().toISOString(),
     });
 
