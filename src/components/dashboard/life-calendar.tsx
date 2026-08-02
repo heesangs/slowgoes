@@ -100,6 +100,11 @@ interface LifeCalendarProps {
   /** 그리드 채움 시작 지연(ms) — 주→일생 오버레이 비행과 타이밍 동기화용 */
   entryDelayMs?: number;
   /**
+   * 주 셀 탭 — 드래그가 아닌 짧은 탭일 때만. 미래 주(index > 현재)는 발화하지 않는다.
+   * rect는 뷰포트 기준(그 자리에서 확대 연출을 이어가려는 부모용).
+   */
+  onCellTap?: (payload: { index: number; rect: LifeCellRect }) => void;
+  /**
    * 루트 래퍼 클래스 (기본 "mt-3").
    * 제스처 핸들러가 이 래퍼에 붙으므로, 여백을 마진 대신 패딩으로 흡수하도록
    * 넘기면 그만큼 스와이프 가능한 영역이 넓어진다(래퍼 밖 마진은 히트 대상이 아니다).
@@ -149,6 +154,7 @@ export function LifeCalendar({
   onPhaseChange,
   entryDelayMs = 0,
   className,
+  onCellTap,
 }: LifeCalendarProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -630,6 +636,8 @@ export function LifeCalendar({
     fired: boolean;
     forwarding: boolean; // 우드래그: 주 복귀 스크럽 중
     fwdScrub: boolean; // 좌드래그: 시계로 여정 스크럽 중
+    moved: boolean; // 임계 이상 움직였는가 — 탭/드래그 구분 (TodoRow guardClick과 같은 방식)
+    t: number; // 시작 시각 — 길게 누른 뒤 뗀 것은 탭으로 보지 않는다
   } | null>(null);
 
   function handlePointerDown(e: React.PointerEvent) {
@@ -640,6 +648,8 @@ export function LifeCalendar({
       fired: false,
       forwarding: false,
       fwdScrub: false,
+      moved: false,
+      t: performance.now(),
     };
   }
   function handlePointerMove(e: React.PointerEvent) {
@@ -647,6 +657,9 @@ export function LifeCalendar({
     if (!g?.active) return;
     const dx = e.clientX - g.x;
     const dy = e.clientY - g.y;
+    // 스크럽 캡처 임계(8px)와 같은 값 — 캡처된 제스처는 항상 moved가 서고,
+    // 세로 스크롤로 양보된 경우에도 서서 스크롤 끝의 오탭을 막는다.
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) g.moved = true;
 
     // 이미 역방향 스크럽 중이면 캔버스를 손가락 따라 갱신
     if (g.forwarding) {
@@ -751,6 +764,38 @@ export function LifeCalendar({
         rafRef.current = requestAnimationFrame(tick);
       }
       return;
+    }
+
+    // ── 탭(주 셀 선택) ── 스크럽이 아니었던 릴리스만 여기까지 온다.
+    // 캔버스 좌표로 역산해 셀 인덱스를 구하고 부모에 올린다(미래 주는 무시).
+    if (
+      !g.forwarding &&
+      !g.moved &&
+      !g.fired &&
+      phase === "grid" &&
+      e.type === "pointerup" &&
+      performance.now() - g.t < 500 &&
+      onCellTap
+    ) {
+      const canvas = canvasRef.current;
+      if (canvas && width > 0) {
+        const L = getLayout(width);
+        // 래퍼가 아니라 캔버스 rect 기준 — 래퍼는 -mt-9 pt-9로 넓혀져 있다.
+        // CSS px = 레이아웃 px라 DPR 보정은 필요 없다.
+        const rect = canvas.getBoundingClientRect();
+        const col = Math.floor((e.clientX - rect.left - PAD_LEFT) / L.pitch);
+        const row = Math.floor((e.clientY - rect.top - PAD_TOP) / L.pitch);
+        if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+          const index = row * COLS + col;
+          // 아직 오지 않은 주는 열지 않는다
+          if (index <= currentIndex) {
+            const cellLeft = rect.left + PAD_LEFT + col * L.pitch;
+            const cellTop = rect.top + PAD_TOP + row * L.pitch;
+            onCellTap({ index, rect: { left: cellLeft, top: cellTop, size: L.cell } });
+            return;
+          }
+        }
+      }
     }
 
     if (!g.forwarding) return;

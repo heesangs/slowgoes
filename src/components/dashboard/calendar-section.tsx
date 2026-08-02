@@ -18,7 +18,9 @@ import {
   type LifeCellRect,
   type LifePhase,
 } from "@/components/dashboard/life-calendar";
+import { WeekSheet } from "@/components/dashboard/week-sheet";
 import { FEATURE_NAMES } from "@/lib/constants";
+import { getWeekStart } from "@/lib/date/week";
 import { RepeatIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import {
@@ -86,6 +88,9 @@ interface CalendarSectionProps {
   onEditTodo: (todo: TodoWithCompletion) => void;
   /** R2: 좌측 스와이프 → 삭제 버튼 탭 (2단계 제스처라 confirm 없음) */
   onDeleteTodo: (todo: TodoWithCompletion) => void;
+  /** 주간 회고에 붙일 현재 버킷 (52주 셀 탭 → 주간 시트) */
+  bucketId?: string | null;
+  bucketTitle?: string | null;
 }
 
 export function CalendarSection({
@@ -99,9 +104,14 @@ export function CalendarSection({
   onToggleTodo,
   onEditTodo,
   onDeleteTodo,
+  bucketId = null,
+  bucketTitle = null,
 }: CalendarSectionProps) {
   // 주 ↔ 월 확장 상태 (전환은 핸들 버튼 단일 — 드래그 제스처는 날짜 탭과 충돌해 제거)
   const [expanded, setExpanded] = useState(false);
+
+  // 52주 셀 탭 → 그 주의 기록 시트 (시트 상태는 이 컴포넌트가 소유 — BucketBar 패턴)
+  const [weekSheetStart, setWeekSheetStart] = useState<string | null>(null);
 
   // ── 3단 스크럽 페이저: 주 캘린더 ↔ 일생 캘린더 ↔ 인생시계 ──
   // 주↔일생은 손가락을 따라오는 스크럽(progress 0=주, 1=일생 그리드).
@@ -256,6 +266,23 @@ export function CalendarSection({
   // 역방향 취소 — 캔버스 스냅백은 LifeCalendar가 처리, 부모는 일생 유지
   const handleReverseCancel = useCallback(() => {}, []);
 
+  // 셀 인덱스 → 그 주의 시작일. 그리드 규약(행=나이, 열=1월1일부터 7일 블록)의 역함수다.
+  //   생년월일이 없고 나이(정수)만 있어 "나이가 1월 1일에 오른다"는 가정이 들어간다 →
+  //   생일 전후 1년, 연말 1~2일(52×7=364) 오차가 있을 수 있어 시트에 날짜 범위를 함께 적는다.
+  const handleCellTap = useCallback(
+    ({ index }: { index: number }) => {
+      if (!hasAge) return;
+      const row = Math.floor(index / 52);
+      const col = index % 52;
+      const targetYear =
+        parseDateString(getTodayDateString()).getFullYear() - Math.floor(age as number) + row;
+      const jan1 = new Date(targetYear, 0, 1);
+      jan1.setDate(jan1.getDate() + col * 7);
+      setWeekSheetStart(getWeekStart(formatDateString(jan1)));
+    },
+    [age, hasAge]
+  );
+
   // ── 주 뷰 스크럽 제스처 (달력 영역 + 아래 여백. 투두 행은 제외) ──
   const fwd = useRef<{ x: number; y: number; active: boolean; capturing: boolean } | null>(null);
   function handleZonePointerDown(e: React.PointerEvent) {
@@ -406,6 +433,7 @@ export function CalendarSection({
           onReverseCommit={handleReverseCommit}
           onReverseCancel={handleReverseCancel}
           onPhaseChange={setLifePhase}
+          onCellTap={handleCellTap}
         />
       ) : (
       <>
@@ -647,6 +675,16 @@ export function CalendarSection({
           {formatWeekOfMonth(selectedDate)}
         </span>
       </div>
+
+      {/* 주간 시트 — 52주 셀 탭으로 열린다 (그 주 일기 7장 + 주간 회고) */}
+      <WeekSheet
+        open={weekSheetStart !== null}
+        onClose={() => setWeekSheetStart(null)}
+        weekStart={weekSheetStart}
+        age={age ?? null}
+        bucketId={bucketId}
+        bucketTitle={bucketTitle}
+      />
     </section>
   );
 }
