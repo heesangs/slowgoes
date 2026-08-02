@@ -40,9 +40,13 @@ export async function fetchWeekDiariesAction(weekStart: string): Promise<{
   if (!user) throw new Error(AUTH_ERRORS.LOGIN_REQUIRED);
   const supabase = await createClient();
 
+  // 서버 타임존이 사용자와 다르면(배포 UTC vs KST) 주 경계 기록이 밀린다.
+  // 앞뒤로 하루씩 넉넉히 가져오고, 실제 날짜별 배치는 클라이언트가
+  // formatDateString(created_at)으로 정확히 맞춘다.
   const start = new Date(`${weekStart}T00:00:00`);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 7);
+  start.setDate(start.getDate() - 1);
+  const end = new Date(`${weekStart}T00:00:00`);
+  end.setDate(end.getDate() + 8);
 
   const [dailyResult, weeklyResult] = await Promise.all([
     supabase
