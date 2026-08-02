@@ -21,8 +21,8 @@ import { AiSuggestionsSheet } from "@/components/dashboard/ai-suggestions-sheet"
 import { SpinnerIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/toast";
 import { AI_ERRORS, DIARY_ERRORS } from "@/lib/constants";
-import type { Diary, DiaryComment, DiaryListItem, DiaryWeekKind } from "@/types";
-import { deriveDiaryTitle, derivePreview, toDiaryListItem } from "@/lib/diary/format";
+import type { Diary, DiaryComment, DiaryListItem, DiaryWeekKind, WeeklyGoalItem } from "@/types";
+import { countTaskItems, deriveDiaryTitle, derivePreview, toDiaryListItem } from "@/lib/diary/format";
 import { formatWeekLabel, formatWeekRange } from "@/lib/date/week";
 import { generateWeeklyGoalsAction } from "@/app/(main)/dashboard/actions";
 import { saveDiaryDraft, clearDiaryDraft } from "@/lib/diary/draft";
@@ -49,6 +49,13 @@ function formatDateLabel(iso: string): string {
 }
 
 type SaveStatus = "idle" | "saving" | "saved";
+
+/** 주간 시트 쿼리(["diary","week",weekStart])의 캐시 형태 — fetchWeekDiariesAction 반환값 */
+interface WeekDiaries {
+  daily: DiaryListItem[];
+  weekly: DiaryListItem | null;
+  goal: WeeklyGoalItem | null;
+}
 
 /**
  * 주간 기록 컨텍스트 — /diary/new?week=...&kind=...&bucket=... 로 진입했을 때 채워진다.
@@ -270,6 +277,24 @@ export function DiaryEditor({
       ];
     });
 
+    // ②-b 주간 시트 캐시도 같이 손본다 — 목표를 체크하고 시트로 돌아왔을 때
+    //     예전 달성률이 보이지 않도록. invalidate(재페치) 대신 직접 갱신한다.
+    if (weekStart && weekKind) {
+      queryClient.setQueryData<WeekDiaries>(["diary", "week", weekStart], (old) => {
+        if (!old) return old;
+        const title = deriveDiaryTitle(plainText);
+        const preview = derivePreview(plainText);
+        if (weekKind === "goal") {
+          return old.goal?.id === diaryId
+            ? { ...old, goal: { ...old.goal, title, preview, ...countTaskItems(content) } }
+            : old;
+        }
+        return old.weekly?.id === diaryId
+          ? { ...old, weekly: { ...old.weekly, title, preview } }
+          : old;
+      });
+    }
+
     // ③ 백그라운드 서버 flush. queryClient/toast는 루트 프로바이더 소속이라
     //    이 컴포넌트가 언마운트된 뒤에도 안전하게 동작한다.
     void saveDiaryAction({ id: diaryId, content, plainText, weekStart, weekKind, bucketId }).then((result) => {
@@ -358,7 +383,7 @@ export function DiaryEditor({
                 type="button"
                 onClick={handleGenerateGoals}
                 disabled={isGenerating}
-                className="inline-flex h-7 items-center gap-1 rounded-md border border-foreground/15 px-2.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/5 disabled:opacity-50"
+                className="inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-foreground/15 px-2.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/5 disabled:opacity-50"
               >
                 {isGenerating && <SpinnerIcon className="h-3 w-3" />}
                 AI 목표

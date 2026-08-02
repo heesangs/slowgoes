@@ -58,11 +58,12 @@ export function toDiaryListItem(row: {
 
 /**
  * TipTap 체크박스 개수 — 주간 목표 달성률("2/5 완료")용.
- * 저장 형식이 HTML이라 파싱 대신 태그를 센다:
- *   <li data-type="taskItem" data-checked="true">…
+ * 저장 형식이 HTML이라 파싱 대신 속성을 센다. 체크 항목의 마크업은
+ *   <ul data-type="taskList"><li data-checked="true">…
+ * 이라 **data-checked를 가진 li가 곧 항목**이다(li에는 data-type이 없다).
  */
 export function countTaskItems(html: string): { done: number; total: number } {
-  const items = html.match(/data-type="taskItem"/g);
+  const items = html.match(/data-checked="/g);
   const checked = html.match(/data-checked="true"/g);
   return { done: checked?.length ?? 0, total: items?.length ?? 0 };
 }
