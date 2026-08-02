@@ -462,6 +462,10 @@ export interface Diary {
   plain_text: string;
   /** organize 코멘트 목록 (jsonb) — 본문과 분리 */
   comments: DiaryComment[];
+  /** 주간 회고면 그 주 시작일(일요일, YYYY-MM-DD). 일반 일기는 null */
+  week_start: string | null;
+  /** 작성 시점 버킷 — 목록에서 #버킷명 표시용 */
+  bucket_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -472,6 +476,10 @@ export interface DiaryListItem {
   title: string;
   preview: string;
   created_at: string;
+  /** 주간 회고면 그 주 시작일. 목록의 주 그룹·회고 배지 판정에 쓴다 */
+  week_start: string | null;
+  /** #버킷명 배지 (조인 결과). 버킷이 지워졌거나 일반 일기면 null */
+  bucket_title: string | null;
 }
 
 export interface DashboardV2Data {

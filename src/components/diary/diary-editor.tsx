@@ -20,6 +20,7 @@ import { useToast } from "@/components/ui/toast";
 import { DIARY_ERRORS } from "@/lib/constants";
 import type { Diary, DiaryComment, DiaryListItem } from "@/types";
 import { deriveDiaryTitle, derivePreview, toDiaryListItem } from "@/lib/diary/format";
+import { formatWeekLabel } from "@/lib/date/week";
 import { saveDiaryDraft, clearDiaryDraft } from "@/lib/diary/draft";
 import {
   saveDiaryAction,
@@ -45,11 +46,26 @@ function formatDateLabel(iso: string): string {
 
 type SaveStatus = "idle" | "saving" | "saved";
 
-type DiaryEditorProps =
-  | { mode: "create"; entry?: undefined }
-  | { mode: "edit"; entry: Diary };
+/**
+ * 주간 회고 컨텍스트 — /diary/new?week=...&bucket=... 로 진입했을 때만 채워진다.
+ * 값이 있으면 저장 시 week_start/bucket_id로 실려 가고, 헤더에 #버킷명이 표시된다.
+ */
+interface WeeklyContext {
+  weekStart?: string | null;
+  bucketId?: string | null;
+  bucketTitle?: string | null;
+}
 
-export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
+type DiaryEditorProps = WeeklyContext &
+  ({ mode: "create"; entry?: undefined } | { mode: "edit"; entry: Diary });
+
+export function DiaryEditor({
+  mode,
+  entry,
+  weekStart = null,
+  bucketId = null,
+  bucketTitle = null,
+}: DiaryEditorProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -103,7 +119,7 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
     const plainText = plainTextRef.current.trim();
     if (plainText && content !== savedContentRef.current) {
       savedContentRef.current = content;
-      const saveRes = await saveDiaryAction({ id: diaryId, content, plainText });
+      const saveRes = await saveDiaryAction({ id: diaryId, content, plainText, weekStart, bucketId });
       if (!saveRes.success) {
         toast(saveRes.error ?? DIARY_ERRORS.UPDATE_FAILED, "error");
         return false;
@@ -175,19 +191,28 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
             : item
         );
       }
-      return [toDiaryListItem({ id: diaryId, plain_text: plainText, created_at: savedAt }), ...old];
+      return [
+        toDiaryListItem({
+          id: diaryId,
+          plain_text: plainText,
+          created_at: savedAt,
+          week_start: weekStart,
+          bucket_title: bucketTitle,
+        }),
+        ...old,
+      ];
     });
 
     // ③ 백그라운드 서버 flush. queryClient/toast는 루트 프로바이더 소속이라
     //    이 컴포넌트가 언마운트된 뒤에도 안전하게 동작한다.
-    void saveDiaryAction({ id: diaryId, content, plainText }).then((result) => {
+    void saveDiaryAction({ id: diaryId, content, plainText, weekStart, bucketId }).then((result) => {
       if (result.success) {
         clearDiaryDraft(diaryId);
       }
       // 실패해도 드래프트가 남아 목록 재진입 시 자동 재전송 → 유실 아님. 표시는 저장됨 유지.
       setSaveStatus("saved");
     });
-  }, [diaryId, queryClient]);
+  }, [diaryId, queryClient, weekStart, bucketId, bucketTitle]);
 
   // TipTap onUpdate → 안정 참조(memo된 에디터가 리렌더되지 않도록 useCallback).
   const handleChange = useCallback(
@@ -296,6 +321,13 @@ export function DiaryEditor({ mode, entry }: DiaryEditorProps) {
 
       {/* 본문 에디터 — 좌우 여백 최소화로 작성 폭 확보 */}
       <div className="mx-auto max-w-2xl px-3 py-4">
+        {/* 주간 회고 컨텍스트 — 어느 주/버킷에 대한 기록인지 본문 위에 밝힌다 */}
+        {weekStart && (
+          <p className="mb-2 text-xs text-foreground/45">
+            {formatWeekLabel(weekStart)} 회고
+            {bucketTitle ? ` · #${bucketTitle}` : ""}
+          </p>
+        )}
         <MarkdownEditor initialContent={entry?.content ?? ""} onChange={handleChange} />
 
         {/* organize 코멘트 — 일기 아래. 제목=버튼명/질문, 본문=AI 응답. (본문과 분리 저장) */}

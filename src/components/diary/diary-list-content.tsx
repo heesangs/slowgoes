@@ -97,36 +97,50 @@ export function DiaryListContent() {
           {groups.map((group) => (
             <section key={group.key}>
               <h2 className="mb-2 text-sm font-semibold text-foreground/50">{group.label}</h2>
-              <ul className="flex flex-col divide-y divide-foreground/10 border-y border-foreground/10">
-                {group.items.map((item) => (
-                  <li key={item.id}>
-                    <Link
-                      href={`/diary/${item.id}`}
-                      className="flex gap-3 py-3 transition-colors hover:bg-foreground/[0.03]"
-                    >
-                      {/* 날짜 컬럼 */}
-                      <div className="w-9 shrink-0 pt-0.5 text-center">
-                        <div className="text-xs text-foreground/45">{item.weekday}</div>
-                        <div className="text-lg font-semibold leading-tight text-foreground">
-                          {String(item.day).padStart(2, "0")}
-                        </div>
-                      </div>
-                      {/* 본문 컬럼 */}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[15px] font-semibold text-foreground">
-                          {item.title}
-                        </p>
-                        {item.preview && (
-                          <p className="mt-0.5 line-clamp-2 text-[14px] text-foreground/60">
-                            {item.preview}
-                          </p>
-                        )}
-                        <p className="mt-1 text-[12px] text-foreground/45">{item.time}</p>
-                      </div>
-                    </Link>
-                  </li>
+              {/* 월 안에서 다시 주 단위로 묶는다 — 주간 회고는 대상 주에 붙는다 */}
+              <div className="flex flex-col gap-3">
+                {group.weeks.map((week) => (
+                  <div key={week.key}>
+                    <h3 className="mb-1 text-xs font-medium text-foreground/35">{week.label}</h3>
+                    <ul className="flex flex-col divide-y divide-foreground/10 border-y border-foreground/10">
+                      {week.items.map((item) => (
+                        <li key={item.id}>
+                          <Link
+                            href={`/diary/${item.id}`}
+                            className="flex gap-3 py-3 transition-colors hover:bg-foreground/[0.03]"
+                          >
+                            {/* 날짜 컬럼 */}
+                            <div className="w-9 shrink-0 pt-0.5 text-center">
+                              <div className="text-xs text-foreground/45">{item.weekday}</div>
+                              <div className="text-lg font-semibold leading-tight text-foreground">
+                                {String(item.day).padStart(2, "0")}
+                              </div>
+                            </div>
+                            {/* 본문 컬럼 */}
+                            <div className="min-w-0 flex-1">
+                              {/* 주간 회고 표식 — #버킷명 (버킷이 지워졌으면 라벨만) */}
+                              {item.isWeekly && (
+                                <p className="mb-0.5 truncate text-[11px] font-medium text-foreground/45">
+                                  주간 회고{item.bucket_title ? ` · #${item.bucket_title}` : ""}
+                                </p>
+                              )}
+                              <p className="truncate text-[15px] font-semibold text-foreground">
+                                {item.title}
+                              </p>
+                              {item.preview && (
+                                <p className="mt-0.5 line-clamp-2 text-[14px] text-foreground/60">
+                                  {item.preview}
+                                </p>
+                              )}
+                              <p className="mt-1 text-[12px] text-foreground/45">{item.time}</p>
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </section>
           ))}
         </div>
