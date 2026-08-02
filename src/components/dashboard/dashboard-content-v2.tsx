@@ -484,6 +484,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           onToggleTodo={handleToggleTodo}
           onEditTodo={handleEditTodo}
           onDeleteTodo={handleDeleteTodo}
+          // 52주 셀 탭 → 주간 시트의 회고에 붙일 버킷
+          bucketId={data.selectedBucket?.id ?? null}
+          bucketTitle={data.selectedBucket?.title ?? null}
         />
       )}
 
