@@ -485,6 +485,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           thisMonthStride={thisMonthStride}
           onOpenDirection={() => setDirectionOpen(true)}
           age={data.profile.life_clock_age}
+          userName={data.profile.display_name}
           todos={todos}
           isLoadingTodos={isLoadingTodos}
           selectedDate={selectedDate}

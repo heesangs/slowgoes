@@ -78,6 +78,8 @@ interface CalendarSectionProps {
   onOpenDirection: () => void;
   /** R4: 일생 캘린더용 나이 (life_clock_age). 없으면 토글 숨김 */
   age?: number | null;
+  /** 인생시계 문구의 호칭 (display_name) */
+  userName?: string | null;
   /** 선택 날짜의 할 일 (useTodos 결과) */
   todos: TodoWithCompletion[];
   isLoadingTodos?: boolean;
@@ -101,6 +103,7 @@ export function CalendarSection({
   thisMonthStride,
   onOpenDirection,
   age,
+  userName = null,
   todos,
   isLoadingTodos = false,
   selectedDate,
@@ -422,6 +425,7 @@ export function CalendarSection({
       {view === "life" ? (
         <LifeCalendar
           age={age as number}
+          userName={userName}
           weekOfYear={weekOfYear}
           animate
           // 제스처 데드존 제거: 섹션 상단(타이틀 행·py-4)을 음수 마진으로 덮고 같은 양의
