@@ -122,6 +122,18 @@ export function CalendarSection({
   // 52주 셀 탭 → 그 주의 기록 시트 (시트 상태는 이 컴포넌트가 소유 — BucketBar 패턴).
   // ?week= 로 복귀한 경우 그 주로 열어둔 채 시작한다.
   const [weekSheetStart, setWeekSheetStart] = useState<string | null>(initialWeekSheet);
+  // 닫는 동안에도 시트가 내용을 그려야 슬라이드 아웃이 보인다 → 마지막으로 연 주를 붙잡아 둔다.
+  // (weekSheetStart를 그대로 넘기면 닫는 순간 내용이 사라져 시트가 즉시 언마운트된다)
+  const [lastWeekSheet, setLastWeekSheet] = useState<string | null>(initialWeekSheet);
+  // 열 때마다 새로 마운트해 시트 내부의 주 이동 상태를 초기화한다.
+  // key를 weekSheetStart로 두면 닫는 순간 key가 바뀌어 아웃 애니메이션이 잘린다.
+  const [sheetSeq, setSheetSeq] = useState(0);
+
+  const openWeekSheet = useCallback((week: string) => {
+    setLastWeekSheet(week);
+    setWeekSheetStart(week);
+    setSheetSeq((n) => n + 1);
+  }, []);
 
   // ── 3단 스크럽 페이저: 주 캘린더 ↔ 일생 캘린더 ↔ 인생시계 ──
   // 주↔일생은 손가락을 따라오는 스크럽(progress 0=주, 1=일생 그리드).
@@ -283,8 +295,8 @@ export function CalendarSection({
   // (2026-08-02 기준: 30열 → 역산 7/26 vs 실제 주 8/2) 그 탓에 오늘 일기가
   // 시트에서 사라지고 회고가 지난 주에 붙는 문제가 있었다. 역산을 없애 해소한다.
   const handleCellTap = useCallback(() => {
-    setWeekSheetStart(getWeekStart(getTodayDateString()));
-  }, []);
+    openWeekSheet(getWeekStart(getTodayDateString()));
+  }, [openWeekSheet]);
 
   // ── 주 뷰 스크럽 제스처 (달력 영역 + 아래 여백. 투두 행은 제외) ──
   const fwd = useRef<{ x: number; y: number; active: boolean; capturing: boolean } | null>(null);
@@ -682,13 +694,13 @@ export function CalendarSection({
 
       {/* 주간 시트 — 52주 셀 탭으로 열린다 (그 주 일기 7장 + 주간 회고) */}
       <WeekSheet
-        key={weekSheetStart ?? "closed"}
+        key={sheetSeq}
         open={weekSheetStart !== null}
         onClose={() => {
           setWeekSheetStart(null);
           onCloseWeekSheet?.();
         }}
-        initialWeekStart={weekSheetStart}
+        initialWeekStart={lastWeekSheet}
         bucketId={bucketId}
         bucketTitle={bucketTitle}
       />
