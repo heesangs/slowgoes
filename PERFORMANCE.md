@@ -189,6 +189,31 @@ if (isLoading || !data) return showSkeleton ? <Skeleton /> : null; // <300ms: �
 - **라우트 `loading.tsx`는 두지 않는다**: 즉시 뜨는 Suspense fallback이라 "300ms 미만 미표시" 원칙과 충돌. 얇은 페이지라 셸 전환 중엔 이전 화면이 유지되고, 재방문 셸은 staleTimes로 캐시된다. 로딩 UI는 지연 스켈레톤이 단일 관장.
 - SSR 주의: 전체 로드 시 첫 페인트에서 최대 300ms 동안 콘텐츠 영역은 비어 있고(헤더/nav는 유지) 이후 스켈레톤/콘텐츠. 의도된 트레이드오프.
 
+## 5. 미리받기 — 다음 화면을 기다리지 않게 (도입 완료)
+
+두 종류를 구분한다. 둘 다 "누르기 전에 받아 둔다"가 핵심이다.
+
+### 데이터 프리페치 (React Query)
+좌우 이동처럼 **다음에 볼 것이 뻔한 화면**은 미리 받는다. 예: 주간 시트가 열리면
+앞뒤 주를 `queryClient.prefetchQuery`로 받아 둔다 → 화살표 이동이 캐시 히트라 즉시.
+```tsx
+useEffect(() => {
+  for (const w of [prevWeek, nextWeek]) {
+    void queryClient.prefetchQuery({ queryKey: ["diary", "week", w], queryFn: () => fetchWeekDiariesAction(w) });
+  }
+}, [weekStart, queryClient]);
+```
+- 키가 바뀌는 전환에는 `placeholderData: keepPreviousData`를 같이 건다. 없으면 콜드 키로
+  바뀌는 순간 `data`가 `undefined`가 되어 화면이 통째로 비었다가 채워진다.
+- 갱신 중 표시는 **비우지 말고** 흐리게(`isFetching` → opacity) 정도로만.
+
+### 코드(청크) 프리로드 (next/dynamic)
+그 화면에서만 쓰는 무거운 라이브러리는 라우트 초기 번들에서 떼어내고, 들어가기 전에 받아 둔다.
+- 예: TipTap+ProseMirror → `markdown-editor-lazy.tsx`가 `next/dynamic(..., { ssr: false })`로 분리하고
+  `preloadMarkdownEditor()`를 주간 시트·일기 목록에서 호출한다.
+- `loading` fallback도 **지연 스켈레톤**을 쓴다(미리 받아 뒀으면 아예 안 보인다).
+- 배럴 import 정리는 `next.config.ts`의 `optimizePackageImports`가 보조한다.
+
 ---
 
 ## 새 기능 추가 체크리스트
@@ -197,6 +222,7 @@ if (isLoading || !data) return showSkeleton ? <Skeleton /> : null; // <300ms: �
 3. 공유 UI 상태? → 로컬이면 `useState`, 진짜 전역이면 Zustand(서버데이터 금지).
 4. 북마크/공유 상태? → `searchParams`.
 5. 로딩 UI? → `useDelayedFlag`(300ms). `loading.tsx` 만들지 말 것.
+6. 다음 화면이 뻔한가? → 데이터는 `prefetchQuery`(+`keepPreviousData`), 무거운 라이브러리는 `next/dynamic` + preload.
 
 ## 측정 / 디버깅
 - 재방문 즉시성: 네트워크 탭에서 재방문 시 서버액션/RSC 재요청이 없는지 확인.

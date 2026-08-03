@@ -13,11 +13,12 @@
 // 카드에서 일기로 나갈 때 ?from=week&week=... 를 실어 보낸다 →
 // 상세에서 뒤로가기하면 대시보드가 이 주 시트를 다시 연다.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { fetchWeekDiariesAction } from "@/app/(main)/diary/actions";
+import { preloadMarkdownEditor } from "@/components/diary/markdown-editor-lazy";
 import { buildWeekDates, formatWeekLabel, formatWeekRange, getWeekStart } from "@/lib/date/week";
 import {
   formatDateString,
@@ -60,18 +61,45 @@ export function WeekSheet({
   // (호출부에서 key={weekStart} — effect 내 setState 회피).
   const [weekStart, setWeekStart] = useState<string | null>(initialWeekStart);
   const [listOpen, setListOpen] = useState(false);
+  const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const today = getTodayDateString();
+  const thisWeek = getWeekStart(today);
+
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ["diary", "week", weekStart],
     queryFn: () => fetchWeekDiariesAction(weekStart as string),
     enabled: open && !!weekStart,
+    // 주를 옮겨도 이전 주 카드를 그대로 두고 조용히 갱신한다.
+    // (없으면 화살표를 누르는 순간 콜드 키가 되어 카드가 통째로 비었다가 채워진다)
+    placeholderData: keepPreviousData,
   });
+
+  // 시트가 열리면 일기 에디터 청크(TipTap)를 미리 받아 둔다 —
+  // 여기서 카드를 누르면 곧장 작성 화면이므로, 그 사이에 받아 두면 진입이 즉시가 된다.
+  useEffect(() => {
+    if (open) preloadMarkdownEditor();
+  }, [open]);
+
+  // 앞뒤 주를 미리 받아 둔다 — 화살표 이동이 캐시 히트라 즉시 열린다.
+  // 시트는 열 때마다 key로 리마운트되므로, 프리페치 결과는 컴포넌트가 아니라
+  // 쿼리 캐시(staleTime 60초)에 남겨 다음 열림에서도 재사용된다.
+  useEffect(() => {
+    if (!open || !weekStart) return;
+    const neighbors = [shiftWeek(weekStart, -1), shiftWeek(weekStart, 1)].filter(
+      (w) => w <= thisWeek // 미래 주는 이동할 수 없으니 받지 않는다
+    );
+    for (const w of neighbors) {
+      void queryClient.prefetchQuery({
+        queryKey: ["diary", "week", w],
+        queryFn: () => fetchWeekDiariesAction(w),
+      });
+    }
+  }, [open, weekStart, thisWeek, queryClient]);
 
   if (!weekStart) return null;
 
   const dates = buildWeekDates(weekStart);
-  const today = getTodayDateString();
-  const thisWeek = getWeekStart(today);
   // 이번 주가 상한 — 미래로는 이동하지 않는다
   const canGoNext = weekStart < thisWeek;
 
@@ -136,7 +164,13 @@ export function WeekSheet({
             <ChevronIcon className="h-4 w-4 rotate-180" />
           </button>
         </div>
-        <p className="mt-0.5 text-center text-xs text-foreground/45">
+        {/* 갱신 중은 날짜 범위를 살짝 흐리게만 — 카드를 비우지 않는다 */}
+        <p
+          className={cn(
+            "mt-0.5 text-center text-xs text-foreground/45 transition-opacity",
+            isFetching && "opacity-40"
+          )}
+        >
           {formatWeekRange(weekStart)}
         </p>
       </div>
