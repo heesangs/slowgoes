@@ -23,7 +23,8 @@ import { useToast } from "@/components/ui/toast";
 import { AI_ERRORS, DIARY_ERRORS } from "@/lib/constants";
 import type { Diary, DiaryComment, DiaryListItem, DiaryWeekKind, WeeklyGoalItem } from "@/types";
 import { countTaskItems, deriveDiaryTitle, derivePreview, toDiaryListItem } from "@/lib/diary/format";
-import { formatWeekLabel, formatWeekRange } from "@/lib/date/week";
+import { formatWeekLabel, formatWeekRange, getWeekStart } from "@/lib/date/week";
+import { formatDateString } from "@/lib/todos/repeat";
 import { generateWeeklyGoalsAction } from "@/app/(main)/dashboard/actions";
 import { saveDiaryDraft, clearDiaryDraft } from "@/lib/diary/draft";
 import {
@@ -277,23 +278,44 @@ export function DiaryEditor({
       ];
     });
 
-    // ②-b 주간 시트 캐시도 같이 손본다 — 목표를 체크하고 시트로 돌아왔을 때
-    //     예전 달성률이 보이지 않도록. invalidate(재페치) 대신 직접 갱신한다.
-    if (weekStart && weekKind) {
-      queryClient.setQueryData<WeekDiaries>(["diary", "week", weekStart], (old) => {
-        if (!old) return old;
-        const title = deriveDiaryTitle(plainText);
-        const preview = derivePreview(plainText);
-        if (weekKind === "goal") {
-          return old.goal?.id === diaryId
-            ? { ...old, goal: { ...old.goal, title, preview, ...countTaskItems(content) } }
-            : old;
-        }
-        return old.weekly?.id === diaryId
-          ? { ...old, weekly: { ...old.weekly, title, preview } }
-          : old;
-      });
-    }
+    // ②-b 주간 시트 캐시 **upsert** — invalidate(재페치) 대신 직접 갱신한다.
+    //
+    // 패치만 하던 시절엔 시트에서 **새로** 만든 기록이 캐시에 없어 무시됐고,
+    // 뒤로가기해도 staleTime(60초) 동안 "기록 없음"이 그대로 보였다(재조회가 일어나야
+    // 나타남). 새 기록이면 슬롯을 채우고, 기존 기록이면 내용을 갱신한다.
+    const cacheItem = toDiaryListItem({
+      id: diaryId,
+      plain_text: plainText,
+      created_at: entry?.created_at ?? savedAt,
+      week_start: weekStart,
+      week_kind: weekKind,
+      bucket_title: bucketTitle,
+    });
+    // 일반 일기는 작성일이 속한 주 시트에 붙는다(주간 기록은 대상 주)
+    const weekCacheKey =
+      weekStart ?? getWeekStart(formatDateString(new Date(cacheItem.created_at)));
+
+    queryClient.setQueryData<WeekDiaries>(["diary", "week", weekCacheKey], (old) => {
+      // 그 주 시트를 아직 연 적이 없으면 캐시가 없다 — 다음 조회 때 서버가 준다
+      if (!old) return old;
+
+      if (!weekStart) {
+        const exists = old.daily.some((item) => item.id === diaryId);
+        return {
+          ...old,
+          daily: exists
+            ? old.daily.map((item) => (item.id === diaryId ? { ...item, ...cacheItem } : item))
+            : [...old.daily, cacheItem],
+        };
+      }
+      if (weekKind === "goal") {
+        // 그 주에 다른 목표가 대표로 잡혀 있으면 건드리지 않는다(서버가 최신 1건을 고른다)
+        if (old.goal && old.goal.id !== diaryId) return old;
+        return { ...old, goal: { ...cacheItem, ...countTaskItems(content) } };
+      }
+      if (old.weekly && old.weekly.id !== diaryId) return old;
+      return { ...old, weekly: cacheItem };
+    });
 
     // ③ 백그라운드 서버 flush. queryClient/toast는 루트 프로바이더 소속이라
     //    이 컴포넌트가 언마운트된 뒤에도 안전하게 동작한다.
@@ -304,7 +326,7 @@ export function DiaryEditor({
       // 실패해도 드래프트가 남아 목록 재진입 시 자동 재전송 → 유실 아님. 표시는 저장됨 유지.
       setSaveStatus("saved");
     });
-  }, [diaryId, queryClient, weekStart, weekKind, bucketId, bucketTitle]);
+  }, [diaryId, entry?.created_at, queryClient, weekStart, weekKind, bucketId, bucketTitle]);
 
   // TipTap onUpdate → 안정 참조(memo된 에디터가 리렌더되지 않도록 useCallback).
   const handleChange = useCallback(
@@ -364,6 +386,17 @@ export function DiaryEditor({
       queryClient.setQueryData<DiaryListItem[]>(["diary", "list"], (old) =>
         old?.filter((item) => item.id !== entry.id)
       );
+      // 주간 시트에서도 즉시 비운다(저장 upsert와 대칭)
+      const weekCacheKey =
+        weekStart ?? getWeekStart(formatDateString(new Date(entry.created_at)));
+      queryClient.setQueryData<WeekDiaries>(["diary", "week", weekCacheKey], (old) => {
+        if (!old) return old;
+        return {
+          daily: old.daily.filter((item) => item.id !== entry.id),
+          weekly: old.weekly?.id === entry.id ? null : old.weekly,
+          goal: old.goal?.id === entry.id ? null : old.goal,
+        };
+      });
       queryClient.removeQueries({ queryKey: ["diary", "entry", entry.id] });
       router.push(backHref);
     });
