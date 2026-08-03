@@ -1,7 +1,7 @@
 // 일기 목록 렌더용 순수 헬퍼.
 // plain_text(순수 텍스트)에서 제목/미리보기를 파생하고, 월별로 그룹핑한다.
 
-import { formatWeekLabel, getWeekStart } from "@/lib/date/week";
+import { formatWeekLabelInMonth, getWeekStart } from "@/lib/date/week";
 import { formatDateString, parseDateString } from "@/lib/todos/repeat";
 import type { DiaryListItem, DiaryWeekKind } from "@/types";
 
@@ -108,11 +108,12 @@ function formatTime(date: Date): string {
 
 // 최신순 목록을 월 → 주 2단으로 그룹핑 (입력은 created_at DESC 정렬 가정).
 //
-// 주 판정: 주간 회고는 week_start(대상 주), 일반 일기는 작성일이 속한 주.
+// 주 판정: 주간 기록(목표·회고)은 week_start(대상 주), 일반 일기는 작성일이 속한 주.
 //   그래야 "지난 주 회고를 이번 주에 썼어도" 그 주 묶음에 들어간다.
-// 월 판정: **주 시작일의 월**을 쓴다(작성일의 월이 아니라).
-//   달을 걸친 주(예: 7/26~8/1)를 작성일 기준으로 나누면 같은 주가 두 월 그룹으로
-//   쪼개져 "8월" 밑에 "7월 5주"가 또 뜬다. 주를 통째로 한 달에 붙여 라벨을 일치시킨다.
+// 월 판정: 일반 일기는 **작성일의 월**, 주간 기록은 **대상 주 시작일의 월**.
+//   달을 걸친 주(예: 7/26~8/1)는 일별 기록이 두 달로 갈리는데, 라벨을 그 달 기준으로
+//   붙이므로(7월 5주 / 8월 1주) 같은 이름이 두 번 뜨지 않는다 — 31일과 1일이 한 덩어리로
+//   묶여 있는 것보다 이쪽이 덜 헷갈린다는 피드백을 반영했다.
 export function groupDiariesByMonth(items: DiaryListItem[]): DiaryMonthGroup[] {
   const groups: DiaryMonthGroup[] = [];
   const monthIdxByKey = new Map<string, number>();
@@ -128,11 +129,12 @@ export function groupDiariesByMonth(items: DiaryListItem[]): DiaryMonthGroup[] {
       isWeekly: item.week_start != null,
     };
 
-    // 주 키 — 회고면 대상 주, 아니면 작성일이 속한 주
+    // 주 키 — 주간 기록이면 대상 주, 아니면 작성일이 속한 주
     const weekKey = item.week_start ?? getWeekStart(formatDateString(date));
-    const weekDate = parseDateString(weekKey);
-    const year = weekDate.getFullYear();
-    const month = weekDate.getMonth() + 1;
+    // 월 키 — 주간 기록은 대상 주의 월(주 전체가 그 주의 기록이므로), 일반 일기는 작성일의 월
+    const monthDate = item.week_start ? parseDateString(item.week_start) : date;
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth() + 1;
     const monthKey = `${year}-${String(month).padStart(2, "0")}`;
 
     let monthIdx = monthIdxByKey.get(monthKey);
@@ -147,7 +149,11 @@ export function groupDiariesByMonth(items: DiaryListItem[]): DiaryMonthGroup[] {
     if (week) {
       week.items.push(displayItem);
     } else {
-      weeks.push({ key: weekKey, label: formatWeekLabel(weekKey), items: [displayItem] });
+      weeks.push({
+        key: weekKey,
+        label: formatWeekLabelInMonth(weekKey, year, month),
+        items: [displayItem],
+      });
     }
   }
 
