@@ -14,7 +14,7 @@
 // 릴리스(임계 이상) 시 자동 재생:
 //   WRAP   : 시계방향 360° — 지나간 자리에 눈금 점이 찍힌다(산/남은 2톤 유지),
 //            직선 궤적은 페이드 아웃
-//   DIAL   : 라벨 → 중심점 → 시침 → 분침 → 초침 (timE 디자인)
+//   DIAL   : 라벨(100세/50세) → 시침 → 분침 → 초침 (timE 디자인, 중심점 없음)
 //
 // 진행도는 ref + rAF(리액트 상태는 phase 전환점만). 5200칸은 오프스크린 프리렌더.
 // prefers-reduced-motion이면 즉시 전환.
@@ -524,13 +524,16 @@ export function LifeCalendar({
       // 테두리 점은 WRAP에서 이미 다 찍혔다 — 같은 알파로 이어받아 전환 점프가 없다
       drawTicks(360, 1);
 
-      // 라벨 — 상단 100세 + 3·6·9·15·18·21
+      // 라벨 — 위아래로 100세(0시)·50세(12시) + 3·6·9·15·18·21.
+      // 24시간이 100년이므로 반 바퀴가 곧 50세다.
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.font = "11px sans-serif";
       ctx.globalAlpha = chrome;
       const top = polar(L.R * 0.82, 0);
       ctx.fillText("100세", top.x, top.y);
+      const bottom = polar(L.R * 0.82, 180);
+      ctx.fillText("50세", bottom.x, bottom.y);
       ctx.globalAlpha = 0.4 * chrome;
       for (const h of DIAL_LABELS) {
         const pos = polar(L.R * 0.82, (h / 24) * 360);
@@ -538,15 +541,8 @@ export function LifeCalendar({
       }
       ctx.globalAlpha = 1;
 
-      // 중심점 pop-in
-      const dot = clamp01((d - 0.15) / 0.15);
-      if (dot > 0) {
-        ctx.globalAlpha = dot;
-        ctx.beginPath();
-        ctx.arc(L.cx, L.cy, 2.5 * dot, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
+      // 중심점은 두지 않는다 — 침이 HAND_INNER(0.18R)에서 시작해 가운데가 비어도
+      // 형태가 유지되고, 비워 두는 편이 일반 시계와 구분된다.
 
       // 침 — 중심과 간격(HAND_INNER)을 두고 안→밖으로 grow (timE 디자인)
       function drawHand(t: number, angle: number, outer: number, widthPx: number, alpha: number) {
@@ -896,11 +892,16 @@ export function LifeCalendar({
   const showClockChrome = phase === "clock" && !!clock; // 시계 완성 후 메시지
 
   // "24시간으로 보면 OO님은 오전 10시 04분입니다." (이름이 없으면 호칭 없이)
-  const message = clock
-    ? `24시간으로 보면 ${userName ? `${userName}님은 ` : ""}${clock.meridiem} ${
-        clock.hour12
-      }시 ${String(clock.minute).padStart(2, "0")}분입니다.`
-    : "";
+  // "24시간으로 보면 OOO님은" / "Am 10시 04분입니다." — 두 줄로 끊어 보여준다.
+  // 오전/오후 대신 Am/Pm. computeLifeClock의 label은 대시보드 "나의 시간"이 쓰므로 건드리지 않고
+  // 여기서만 파생한다.
+  const messageLines = clock
+    ? [
+        `24시간으로 보면 ${userName ? `${userName}님은` : "당신은"}`,
+        `${clock.hour24 < 12 ? "Am" : "Pm"} ${clock.hour12}시 ${String(clock.minute).padStart(2, "0")}분입니다.`,
+      ]
+    : [];
+  const message = messageLines.join(" "); // aria-label용(한 줄)
 
   return (
     <div
@@ -931,17 +932,27 @@ export function LifeCalendar({
             className="pointer-events-none absolute inset-x-0 flex flex-col items-center gap-3 px-4 text-center"
             style={{ top: messageTop }}
           >
-            <p className="text-lg font-medium text-foreground/85">
-              {[...message].map((ch, i) => (
-                <span
-                  key={i}
-                  className="inline-block animate-[char-rise_0.45s_ease_both]"
-                  style={{ animationDelay: `${i * 45}ms` }}
-                >
-                  {/* 글자마다 inline-block이라 보통 공백은 무너진다 → nbsp */}
-                  {ch === " " ? " " : ch}
-                </span>
-              ))}
+            <p className="text-lg font-medium leading-snug text-foreground/85">
+              {messageLines.map((line, lineIdx) => {
+                // 줄이 바뀌어도 stagger 지연은 이어진다
+                const offset = messageLines
+                  .slice(0, lineIdx)
+                  .reduce((n, prev) => n + prev.length, 0);
+                return (
+                  <span key={lineIdx} className="block">
+                    {[...line].map((ch, i) => (
+                      <span
+                        key={i}
+                        className="inline-block animate-[char-rise_0.45s_ease_both]"
+                        style={{ animationDelay: `${(offset + i) * 45}ms` }}
+                      >
+                        {/* 글자마다 inline-block이라 보통 공백은 무너진다 → nbsp */}
+                        {ch === " " ? "\u00A0" : ch}
+                      </span>
+                    ))}
+                  </span>
+                );
+              })}
             </p>
           </div>
         )}

@@ -204,11 +204,16 @@ export function WeekSheet({
           const isToday = dateStr === today;
           const day = Number(dateStr.slice(8, 10));
 
+          // 오늘의 빈 카드만 "쓸 수 있다"가 보이게 — 나머지 빈 날은 점선(비활성)
+          const isWritable = !entry && isToday;
+
           const inner = (
             <div
               className={cn(
                 "flex gap-3 rounded-lg border px-3 py-2.5",
-                entry ? "border-foreground/15" : "border-dashed border-foreground/10"
+                entry && "border-foreground/15",
+                isWritable && "border-foreground/25 bg-foreground/[0.03]",
+                !entry && !isToday && "border-dashed border-foreground/10"
               )}
             >
               <div className="w-8 shrink-0 text-center">
@@ -222,18 +227,36 @@ export function WeekSheet({
                   {String(day).padStart(2, "0")}
                 </div>
               </div>
-              <div className="min-w-0 flex-1 self-center">
-                {entry ? (
-                  <>
-                    <p className="truncate text-sm font-medium text-foreground">{entry.title}</p>
-                    {entry.preview && (
-                      <p className="mt-0.5 truncate text-xs text-foreground/55">{entry.preview}</p>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-xs text-foreground/35">
-                    {isToday ? "오늘 일기 쓰기" : "기록 없음"}
-                  </p>
+              <div className="flex min-w-0 flex-1 items-center gap-2 self-center">
+                <div className="min-w-0 flex-1">
+                  {entry ? (
+                    <>
+                      <p className="truncate text-sm font-medium text-foreground">{entry.title}</p>
+                      {entry.preview && (
+                        <p className="mt-0.5 truncate text-xs text-foreground/55">{entry.preview}</p>
+                      )}
+                    </>
+                  ) : (
+                    <p
+                      className={cn(
+                        "text-xs",
+                        isWritable ? "font-medium text-foreground/70" : "text-foreground/35"
+                      )}
+                    >
+                      {isWritable ? "오늘 일기 쓰기" : "기록 없음"}
+                    </p>
+                  )}
+                </div>
+                {/* 눌러야 할 카드라는 신호 — 오늘의 빈 카드에만 */}
+                {isWritable && (
+                  <span
+                    aria-hidden
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-foreground/20 text-foreground/60"
+                  >
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+                    </svg>
+                  </span>
                 )}
               </div>
             </div>
