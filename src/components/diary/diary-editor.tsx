@@ -2,7 +2,7 @@
 
 // 일기 작성/편집 화면.
 // 상단: SubPageHeader(뒤로가기 + 날짜 + 더보기 + 저장 상태). 글로벌 헤더는 MainShell이 숨김.
-// 본문: MarkdownEditor(TipTap).
+// 본문: MarkdownEditor(TipTap) — 무거워서 next/dynamic으로 분리(markdown-editor-lazy).
 // 컬러는 앱 블랙 계열 토큰만 사용 (하늘색 미사용).
 //
 // 저장 모델(자동저장):
@@ -32,7 +32,7 @@ import {
   addDiaryCommentAction,
   deleteDiaryCommentAction,
 } from "@/app/(main)/diary/actions";
-import { MarkdownEditor } from "./markdown-editor";
+import { MarkdownEditor } from "./markdown-editor-lazy";
 import { DiaryAiSheet } from "./diary-ai-sheet";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];

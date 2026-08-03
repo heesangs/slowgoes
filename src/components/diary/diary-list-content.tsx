@@ -13,6 +13,7 @@ import { getDiaryDrafts, clearDiaryDraft } from "@/lib/diary/draft";
 import { saveDiaryAction } from "@/app/(main)/diary/actions";
 import { useDiaryEntries } from "@/hooks/use-diary";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
+import { preloadMarkdownEditor } from "./markdown-editor-lazy";
 
 const SKELETON = "rounded bg-foreground/10";
 
@@ -22,6 +23,11 @@ export function DiaryListContent() {
   // 300ms 미만 로딩엔 스켈레톤 미표시(깜빡임 방지)
   const showSkeleton = useDelayedFlag(isLoading);
   const groups = groupDiariesByMonth(entries ?? []);
+
+  // 목록에 들어왔다면 곧 일기를 열거나 쓴다 — 에디터 청크를 미리 받아 둔다.
+  useEffect(() => {
+    preloadMarkdownEditor();
+  }, []);
 
   // 백그라운드 flush가 실패했거나 탭이 닫혀 남은 드래프트를 자동 재전송한다.
   // saveDiaryAction은 클라 UUID + upsert라 멱등 → 여러 번 보내도 중복 생성 없음.

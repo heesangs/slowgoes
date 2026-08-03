@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
       dynamic: 30,
       static: 180,
     },
+    // 배럴 import를 실제 쓰는 모듈만 남기도록 정리 — TipTap은 확장이 많아 효과가 크다.
+    // (덩어리 자체는 markdown-editor-lazy의 next/dynamic이 라우트 초기 번들에서 떼어낸다)
+    optimizePackageImports: ["@tiptap/react", "@tiptap/starter-kit"],
   },
 };
 
