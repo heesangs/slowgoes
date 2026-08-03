@@ -1,12 +1,14 @@
 "use client";
 
-// 주간 시트 — 52주 캘린더의 셀을 탭하면 **이번 주**의 기록이 카드 8장으로 열린다.
+// 주간 시트 — 52주 캘린더의 셀을 탭하면 **이번 주**의 기록이 카드 9장으로 열린다.
 // 다른 주는 헤더의 ‹ › 또는 제목 탭(최근 주 목록)으로 이동한다(미래로는 가지 않는다).
 //
+//   카드 0   : 주간 목표(맨 위). 한 주를 여는 기록 — AI가 체크박스 목록을 제안해 채울 수 있다.
+//              달성률("2/5 완료")은 본문의 체크박스를 세서 서버가 실어 준다.
 //   카드 1~7 : 일~토. 그 날 쓴 일기가 있으면 열고, 없으면 "기록 없음".
 //              과거 날짜로 새 일기를 만들 수는 없다(created_at이 DB default라 백데이팅 불가)
 //              → 빈 카드는 오늘에만 작성 링크를 건다.
-//   카드 8   : 주간 회고. 있으면 열고, 없으면 #버킷을 달아 새로 쓴다.
+//   카드 8   : 주간 회고(맨 아래). 있으면 열고, 없으면 #버킷을 달아 새로 쓴다.
 //
 // 카드에서 일기로 나갈 때 ?from=week&week=... 를 실어 보낸다 →
 // 상세에서 뒤로가기하면 대시보드가 이 주 시트를 다시 연다.
@@ -34,9 +36,7 @@ interface WeekSheetProps {
   onClose: () => void;
   /** 열릴 때의 주 시작일(일요일). 이후 이동은 시트가 자체 관리한다 */
   initialWeekStart: string | null;
-  /** 헤더에 "N세"로 표시 */
-  age: number | null;
-  /** 회고에 붙일 현재 버킷 */
+  /** 목표·회고에 붙일 현재 버킷 */
   bucketId: string | null;
   bucketTitle: string | null;
 }
@@ -52,7 +52,6 @@ export function WeekSheet({
   open,
   onClose,
   initialWeekStart,
-  age,
   bucketId,
   bucketTitle,
 }: WeekSheetProps) {
@@ -90,12 +89,18 @@ export function WeekSheet({
   // (오늘 일기 카드에 week을 붙이면 일반 일기가 회고로 저장돼 버린다)
   const backQs = `?from=week&backWeek=${weekStart}`;
 
+  // 새 주간 기록 작성 링크 — kind로 목표/회고를 가른다.
+  // week=대상 주, backWeek=복귀할 주 (같은 값이어도 의미가 달라 분리해 둔다)
+  const newWeeklyHref = (kind: "goal" | "review") =>
+    `/diary/new?week=${weekStart}&kind=${kind}${bucketId ? `&bucket=${bucketId}` : ""}${
+      bucketTitle ? `&bucketTitle=${encodeURIComponent(bucketTitle)}` : ""
+    }&from=week&backWeek=${weekStart}`;
+
+  const goal = data?.goal ?? null;
+  const goalHref = goal ? `/diary/${goal.id}${backQs}` : newWeeklyHref("goal");
+
   const weekly = data?.weekly ?? null;
-  const reviewHref = weekly
-    ? `/diary/${weekly.id}${backQs}`
-    : `/diary/new?week=${weekStart}${bucketId ? `&bucket=${bucketId}` : ""}${
-        bucketTitle ? `&bucketTitle=${encodeURIComponent(bucketTitle)}` : ""
-      }&from=week&backWeek=${weekStart}`;
+  const reviewHref = weekly ? `/diary/${weekly.id}${backQs}` : newWeeklyHref("review");
 
   return (
     <BottomSheet open={open} onClose={onClose} size="large" hideHeader>
@@ -132,7 +137,6 @@ export function WeekSheet({
           </button>
         </div>
         <p className="mt-0.5 text-center text-xs text-foreground/45">
-          {age != null ? `${age}세 · ` : ""}
           {formatWeekRange(weekStart)}
         </p>
       </div>
@@ -164,6 +168,37 @@ export function WeekSheet({
       )}
 
       <ul className="flex flex-col gap-2">
+        {/* 맨 위 — 주간 목표. 한 주를 여는 기록이라 일별 카드보다 앞에 둔다 */}
+        <li className="mb-1">
+          <Link
+            href={goalHref}
+            className="flex flex-col gap-1 rounded-lg border border-foreground/25 bg-foreground/[0.03] px-3 py-3"
+          >
+            <span className="flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-medium text-foreground/45">
+                주간 목표{bucketTitle ? ` · #${bucketTitle}` : ""}
+              </span>
+              {goal && goal.total > 0 && (
+                <span className="shrink-0 text-[11px] font-medium text-foreground/60">
+                  {goal.done}/{goal.total} 완료
+                </span>
+              )}
+            </span>
+            {goal ? (
+              <>
+                <span className="truncate text-sm font-semibold text-foreground">{goal.title}</span>
+                {goal.preview && (
+                  <span className="truncate text-xs text-foreground/55">{goal.preview}</span>
+                )}
+              </>
+            ) : (
+              <span className="text-sm font-semibold text-foreground">
+                {isLoading ? "불러오는 중…" : "이번 주에 할 일을 정해보기"}
+              </span>
+            )}
+          </Link>
+        </li>
+
         {dates.map((dateStr, i) => {
           const entry = byDate.get(dateStr);
           const isToday = dateStr === today;

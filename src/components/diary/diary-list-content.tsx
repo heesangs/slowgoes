@@ -118,10 +118,11 @@ export function DiaryListContent() {
                             </div>
                             {/* 본문 컬럼 */}
                             <div className="min-w-0 flex-1">
-                              {/* 주간 회고 표식 — #버킷명 (버킷이 지워졌으면 라벨만) */}
+                              {/* 주간 기록 표식 — 목표/회고 + #버킷명 (버킷이 지워졌으면 라벨만) */}
                               {item.isWeekly && (
                                 <p className="mb-0.5 truncate text-[11px] font-medium text-foreground/45">
-                                  주간 회고{item.bucket_title ? ` · #${item.bucket_title}` : ""}
+                                  {item.week_kind === "goal" ? "주간 목표" : "주간 회고"}
+                                  {item.bucket_title ? ` · #${item.bucket_title}` : ""}
                                 </p>
                               )}
                               <p className="truncate text-[15px] font-semibold text-foreground">

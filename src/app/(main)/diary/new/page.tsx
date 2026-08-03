@@ -1,7 +1,7 @@
 // 일기 작성 페이지 (Server Component)
 //
-// ?week=YYYY-MM-DD&bucket=<id> 로 들어오면 **주간 회고** 작성이 된다
-// (52주 캘린더 셀 탭 → 주간 시트 → 회고 카드). 없으면 일반 일기.
+// ?week=YYYY-MM-DD&bucket=<id>&kind=goal|review 로 들어오면 **주간 기록**이 된다
+// (52주 캘린더 셀 탭 → 주간 시트 → 목표/회고 카드). week이 없으면 일반 일기.
 
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/supabase/auth";
@@ -12,6 +12,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 interface NewDiaryPageProps {
   searchParams?: Promise<{
     week?: string;
+    /** "goal"이면 주간 목표, 그 외/없으면 주간 회고 */
+    kind?: string;
     bucket?: string;
     bucketTitle?: string;
     /** "week"이면 뒤로가기가 주간 시트로 돌아간다 */
@@ -46,6 +48,7 @@ export default async function NewDiaryPage({ searchParams }: NewDiaryPageProps) 
     <DiaryEditor
       mode="create"
       weekStart={weekStart}
+      weekKind={weekStart ? (resolved.kind === "goal" ? "goal" : "review") : null}
       bucketId={weekStart ? (resolved.bucket ?? null) : null}
       bucketTitle={weekStart ? (resolved.bucketTitle ?? null) : null}
       backHref={backHref}

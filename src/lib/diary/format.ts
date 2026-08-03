@@ -3,7 +3,7 @@
 
 import { formatWeekLabel, getWeekStart } from "@/lib/date/week";
 import { formatDateString, parseDateString } from "@/lib/todos/repeat";
-import type { DiaryListItem } from "@/types";
+import type { DiaryListItem, DiaryWeekKind } from "@/types";
 
 const TITLE_MAX = 60;
 const PREVIEW_MAX = 120;
@@ -41,6 +41,7 @@ export function toDiaryListItem(row: {
   plain_text: string;
   created_at: string;
   week_start?: string | null;
+  week_kind?: DiaryWeekKind | null;
   bucket_title?: string | null;
 }): DiaryListItem {
   return {
@@ -49,8 +50,22 @@ export function toDiaryListItem(row: {
     preview: derivePreview(row.plain_text),
     created_at: row.created_at,
     week_start: row.week_start ?? null,
+    // 구분자 도입 전 주간 기록은 전부 회고였다 (NULL → review)
+    week_kind: row.week_kind ?? (row.week_start ? "review" : null),
     bucket_title: row.bucket_title ?? null,
   };
+}
+
+/**
+ * TipTap 체크박스 개수 — 주간 목표 달성률("2/5 완료")용.
+ * 저장 형식이 HTML이라 파싱 대신 속성을 센다. 체크 항목의 마크업은
+ *   <ul data-type="taskList"><li data-checked="true">…
+ * 이라 **data-checked를 가진 li가 곧 항목**이다(li에는 data-type이 없다).
+ */
+export function countTaskItems(html: string): { done: number; total: number } {
+  const items = html.match(/data-checked="/g);
+  const checked = html.match(/data-checked="true"/g);
+  return { done: checked?.length ?? 0, total: items?.length ?? 0 };
 }
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -79,7 +94,7 @@ export interface DiaryDisplayItem extends DiaryListItem {
   weekday: string;
   /** 시간 라벨 (예: "오후 8:28") */
   time: string;
-  /** 주간 회고 여부 — 배지 표시용 */
+  /** 주간 기록 여부 — 배지 표시용 */
   isWeekly: boolean;
 }
 

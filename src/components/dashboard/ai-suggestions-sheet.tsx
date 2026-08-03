@@ -1,10 +1,11 @@
 "use client";
 
-// AI 투두 추천 선택 시트 (R2) — 체크박스 리스트 3개 → 선택 등록.
+// AI 제안 선택 시트 (R2) — 체크박스 리스트 → 선택한 것만 반영.
 //
-// [AI] 버튼 → generateTodoSuggestionsAction(aiprompt.md 규칙) → 이 시트로 3개 제안.
-// 유저가 선택 후 "등록"하면 addTodosAction으로 한 번에 저장된다.
-// 기본 전체 선택 — 등록 마찰을 최소화 (해제도 한 탭).
+// 두 곳에서 쓴다 (문구만 prop으로 갈아끼운다):
+//   대시보드  [AI] → generateTodoSuggestionsAction → 선택 후 addTodosAction으로 등록
+//   주간 목표 [AI 목표] → generateWeeklyGoalsAction → 선택 후 일기 본문에 체크박스로 삽입
+// 기본 전체 선택 — 마찰을 최소화 (해제도 한 탭).
 
 import { useEffect, useState } from "react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
@@ -14,11 +15,19 @@ import { cn } from "@/lib/utils";
 interface AiSuggestionsSheetProps {
   open: boolean;
   onClose: () => void;
-  /** AI가 제안한 투두 타이틀 (최대 3개) */
+  /** AI가 제안한 타이틀 */
   suggestions: string[];
   /** 선택 등록 — 선택된 타이틀 배열 */
   onRegister: (titles: string[]) => void;
   isRegistering?: boolean;
+  /** 시트 제목 (기본: 투두 추천) */
+  title?: string;
+  /** 안내 문구 (기본: 투두 추천) */
+  description?: string;
+  /** 확인 버튼 문구 — (n) => "3개 등록" 형태. 기본은 등록 */
+  confirmLabel?: (count: number) => string;
+  /** 처리 중 버튼 문구 */
+  busyLabel?: string;
 }
 
 export function AiSuggestionsSheet({
@@ -27,6 +36,10 @@ export function AiSuggestionsSheet({
   suggestions,
   onRegister,
   isRegistering = false,
+  title = "AI 추천",
+  description = "등록할 항목을 선택하세요. 어설퍼도 시작할 수 있는 70점짜리 행동이면 충분해요.",
+  confirmLabel = (count) => `${count}개 등록`,
+  busyLabel = "등록 중...",
 }: AiSuggestionsSheetProps) {
   const [checked, setChecked] = useState<Set<number>>(new Set());
 
@@ -49,13 +62,11 @@ export function AiSuggestionsSheet({
   const selectedTitles = suggestions.filter((_, i) => checked.has(i));
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="AI 추천">
-      <p className="mb-3 text-xs text-foreground/50">
-        등록할 항목을 선택하세요. 어설퍼도 시작할 수 있는 70점짜리 행동이면 충분해요.
-      </p>
+    <BottomSheet open={open} onClose={onClose} title={title}>
+      <p className="mb-3 text-xs text-foreground/50">{description}</p>
 
       <ul className="flex flex-col gap-1.5">
-        {suggestions.map((title, index) => {
+        {suggestions.map((suggestion, index) => {
           const isChecked = checked.has(index);
           return (
             <li key={index}>
@@ -85,7 +96,7 @@ export function AiSuggestionsSheet({
                     </svg>
                   )}
                 </span>
-                <span className="min-w-0 flex-1 break-words leading-snug">{title}</span>
+                <span className="min-w-0 flex-1 break-words leading-snug">{suggestion}</span>
               </button>
             </li>
           );
@@ -97,7 +108,7 @@ export function AiSuggestionsSheet({
         disabled={selectedTitles.length === 0 || isRegistering}
         className="mt-4 w-full"
       >
-        {isRegistering ? "등록 중..." : `${selectedTitles.length}개 등록`}
+        {isRegistering ? busyLabel : confirmLabel(selectedTitles.length)}
       </Button>
     </BottomSheet>
   );

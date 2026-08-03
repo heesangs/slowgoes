@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DIARY_ERRORS } from "@/lib/constants";
-import type { Diary, DiaryListItem } from "@/types";
+import type { Diary, DiaryListItem, DiaryWeekKind } from "@/types";
 import { toDiaryListItem } from "./format";
 
 // 목록: 사용자별 최신순. content(HTML)는 제외하고 미리보기용 필드만 조회.
@@ -11,7 +11,7 @@ export async function getDiaryEntries(
   // buckets(title) 관계 조인 — 주간 회고의 #버킷명 배지용
   const { data, error } = await supabase
     .from("diaries")
-    .select("id, plain_text, created_at, week_start, buckets(title)")
+    .select("id, plain_text, created_at, week_start, week_kind, buckets(title)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -25,6 +25,7 @@ export async function getDiaryEntries(
     plain_text: string;
     created_at: string;
     week_start: string | null;
+    week_kind: DiaryWeekKind | null;
     // 조인 결과는 관계 카디널리티에 따라 객체/배열 어느 쪽으로도 올 수 있어 둘 다 받는다
     buckets: { title: string } | { title: string }[] | null;
   };
@@ -36,6 +37,7 @@ export async function getDiaryEntries(
       plain_text: row.plain_text,
       created_at: row.created_at,
       week_start: row.week_start,
+      week_kind: row.week_kind,
       bucket_title: bucket?.title ?? null,
     });
   });
@@ -70,10 +72,11 @@ export async function getDiaryEntry(
   userId: string,
   id: string
 ): Promise<Diary | null> {
+  // buckets(title) 조인 — 주간 기록을 편집할 때 컨텍스트 줄의 #버킷명에 쓴다
   const { data, error } = await supabase
     .from("diaries")
     .select(
-      "id, user_id, content, plain_text, comments, week_start, bucket_id, created_at, updated_at"
+      "id, user_id, content, plain_text, comments, week_start, week_kind, bucket_id, created_at, updated_at, buckets(title)"
     )
     .eq("id", id)
     .eq("user_id", userId)
@@ -83,5 +86,9 @@ export async function getDiaryEntry(
     throw new Error(DIARY_ERRORS.LOAD_FAILED);
   }
 
-  return (data as Diary | null) ?? null;
+  if (!data) return null;
+
+  const row = data as Diary & { buckets: { title: string } | { title: string }[] | null };
+  const bucket = Array.isArray(row.buckets) ? row.buckets[0] : row.buckets;
+  return { ...row, bucket_title: bucket?.title ?? null };
 }

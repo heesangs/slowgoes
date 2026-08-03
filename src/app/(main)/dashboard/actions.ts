@@ -11,6 +11,7 @@ import {
 } from "@/lib/dashboard";
 import {
   generateTodoSuggestions,
+  generateWeeklyGoals,
   regenerateSingleStride,
   STRIDE_ORDER,
   STRIDE_LABELS,
@@ -242,6 +243,52 @@ export async function generateTodoSuggestionsAction(
     });
 
     return { success: true, todos };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, TODO_ERRORS.WEEKLY_GENERATE_FAILED),
+    };
+  }
+}
+
+/**
+ * AI 주간 목표 4~5개 제안 — 주간 시트의 "주간 목표" 기록에서 체크박스로 넣는다.
+ *
+ * 일기 쪽 기능이지만 이 파일에 두는 이유: 버킷·영역·발걸음·기존 투두를 모으는
+ * loadNextStepContext가 여기에만 있다. DB 저장 없음(유저가 골라 본문에 넣는다).
+ */
+export async function generateWeeklyGoalsAction(
+  bucketId: string,
+  weekRange?: string
+): Promise<{ success: boolean; goals?: string[]; error?: string }> {
+  try {
+    const ctx = await loadNextStepContext(bucketId);
+
+    const [profileResult, diaryNotes] = await Promise.all([
+      ctx.supabase
+        .from("profiles")
+        .select("personality_type, life_clock_age")
+        .eq("id", ctx.userId)
+        .maybeSingle(),
+      getRecentDiaryExcerpts(ctx.supabase, ctx.userId, 3),
+    ]);
+    const profile = profileResult.data as {
+      personality_type: string | null;
+      life_clock_age: number | null;
+    } | null;
+
+    const goals = await generateWeeklyGoals({
+      bucketTitle: ctx.bucket.title,
+      lifeArea: ctx.lifeArea,
+      strides: ctx.strides,
+      personalityType: profile?.personality_type ?? null,
+      age: profile?.life_clock_age ?? null,
+      recentDiaryNotes: diaryNotes,
+      existingTitles: ctx.todoRows.map((row) => row.title),
+      weekRange,
+    });
+
+    return { success: true, goals };
   } catch (error) {
     return {
       success: false,
