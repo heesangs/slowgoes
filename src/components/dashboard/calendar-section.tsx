@@ -837,13 +837,14 @@ function TodoRow({
             onClick={guardClick(() => onToggle(todo.id))}
             aria-pressed={isCompleted}
             aria-label={`${todo.title} ${isCompleted ? "완료 취소" : "완료"}`}
-            // after 의사요소로 터치 타겟만 넓힌다(레이아웃 크기는 16×20 유지).
+            // 상자는 20×20 — 타이틀 한 줄(leading-5)과 같은 높이라 2줄 이상이 돼도
+            // 체크박스가 첫 줄 중앙에 선다. after 의사요소로 터치 타겟을 더 넓히되
             // 오른쪽으로는 넓히지 않아 타이틀 탭(수정)을 가로채지 않는다.
-            className="relative flex h-5 w-4 shrink-0 items-center justify-center after:absolute after:-inset-y-2 after:-left-2 after:right-0 after:content-['']"
+            className="relative flex h-5 w-5 shrink-0 items-center justify-center after:absolute after:-inset-y-2 after:-left-2 after:right-0 after:content-['']"
           >
             <span
               className={cn(
-                "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors",
                 isCompleted
                   ? "border-foreground bg-foreground text-background"
                   : "border-foreground/30 bg-transparent"
@@ -851,7 +852,7 @@ function TodoRow({
               aria-hidden
             >
               {isCompleted && (
-                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               )}
@@ -884,9 +885,9 @@ function TodoRow({
           )}
         </div>
 
-        {/* 2행 — 세부정보 한 줄. pl-5(20px)로 타이틀과 좌측을 맞춘다(체크박스 16 + gap 4) */}
+        {/* 2행 — 세부정보 한 줄. pl-6(24px)로 타이틀과 좌측을 맞춘다(체크박스 20 + gap 4) */}
         {todo.detail && (
-          <p className="mt-1 line-clamp-1 pl-5 text-xs leading-4 text-foreground/45">
+          <p className="mt-1 line-clamp-1 pl-6 text-xs leading-4 text-foreground/45">
             {todo.detail}
           </p>
         )}
