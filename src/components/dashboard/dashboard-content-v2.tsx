@@ -111,7 +111,11 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   // 어떤 날짜를 탭해도 서버 왕복 0회(버킷당 최초 1회만 로드).
   const [selectedDate, setSelectedDate] = useState(() => getTodayDateString());
   const bucketId = data.selectedBucket?.id ?? null;
-  const { data: bucketTodos, isLoading: isLoadingTodos } = useBucketTodos(bucketId);
+  const {
+    data: bucketTodos,
+    isLoading: isLoadingTodos,
+    isError: isTodosError,
+  } = useBucketTodos(bucketId, data.bucketTodos);
   const todosKey = useMemo(() => ["todos", bucketId] as const, [bucketId]);
 
   const todos = useMemo(
@@ -488,6 +492,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           userName={data.profile.display_name}
           todos={todos}
           isLoadingTodos={isLoadingTodos}
+          isTodosError={isTodosError}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
           onToggleTodo={handleToggleTodo}

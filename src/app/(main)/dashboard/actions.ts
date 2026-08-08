@@ -100,11 +100,17 @@ export async function fetchDashboardDataAction(
   const selectedBucket =
     (selectedBucketId && buckets.find((b) => b.id === selectedBucketId)) || null;
 
-  // Phase C: todos는 날짜별 독립 쿼리(fetchTodosForDateAction)로 분리 —
-  // 날짜 전환 시 대시보드 셸(profile/buckets/stride)을 재조회하지 않는다.
-  const stridePlan = await getStridePlan(supabase, user.id, selectedBucketId);
+  // todos는 ['todos', bucketId] 캐시가 따로 관리하지만(날짜 전환 왕복 0회),
+  // **첫 진입분만은 여기서 같이 실어 보낸다.**
+  // 안 그러면 "대시보드 응답 → 그제서야 bucketId 확정 → todos 요청"으로 순차 2왕복이
+  // 되고, 그 사이 빈 상태("오늘의 할 일이 없어요")가 스친다. 특히 최초 로그인은
+  // 쿠키가 없어 클라이언트가 프리페치할 버킷 id조차 모른다.
+  const [stridePlan, bucketTodos] = await Promise.all([
+    getStridePlan(supabase, user.id, selectedBucketId),
+    getBucketTodos(supabase, user.id, selectedBucketId),
+  ]);
 
-  return { profile, buckets, selectedBucket, stridePlan };
+  return { profile, buckets, selectedBucket, stridePlan, bucketTodos };
 }
 
 // 버킷 단위 todos 캐시 (React Query queryFn — 키: ['todos', bucketId]).

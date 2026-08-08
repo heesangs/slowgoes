@@ -21,6 +21,7 @@ import {
 import { WeekSheet } from "@/components/dashboard/week-sheet";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { getWeekStart } from "@/lib/date/week";
+import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { RepeatIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import {
@@ -83,6 +84,8 @@ interface CalendarSectionProps {
   /** 선택 날짜의 할 일 (useTodos 결과) */
   todos: TodoWithCompletion[];
   isLoadingTodos?: boolean;
+  /** 할 일 조회 실패 — 빈 상태로 위장하지 않고 실패를 밝힌다 */
+  isTodosError?: boolean;
   selectedDate: string;
   onSelectDate: (dateStr: string) => void;
   onToggleTodo: (todoId: string) => void;
@@ -106,6 +109,7 @@ export function CalendarSection({
   userName = null,
   todos,
   isLoadingTodos = false,
+  isTodosError = false,
   selectedDate,
   onSelectDate,
   onToggleTodo,
@@ -363,6 +367,11 @@ export function CalendarSection({
 
   const activeTodos = todos.filter((t) => !t.is_completed);
   const completedTodos = todos.filter((t) => t.is_completed);
+  const showTodosSkeleton = useDelayedFlag(isLoadingTodos);
+  // 빈 상태가 300ms 이상 지속될 때만 문구를 낸다
+  const showEmptyTodos = useDelayedFlag(
+    !isLoadingTodos && !isTodosError && activeTodos.length === 0 && completedTodos.length === 0
+  );
 
   const isToday = selectedDate === today;
   const dateLabel = isToday
@@ -626,14 +635,23 @@ export function CalendarSection({
 
       {/* 선택 날짜의 할 일 — 진행중/완료 상하 구분 (탭 없음) */}
       {isLoadingTodos ? (
-        <div className="mt-3 flex flex-col gap-2 animate-pulse" aria-label="할 일 로딩 중">
-          <div className="h-3 w-10 rounded bg-foreground/10" />
-          <div className="h-10 w-full rounded-lg bg-foreground/10" />
-          <div className="h-10 w-full rounded-lg bg-foreground/10" />
-        </div>
+        // 300ms 안에 끝나면 스켈레톤도 그리지 않는다(깜빡임 방지 — 앱 공통 정책)
+        showTodosSkeleton ? (
+          <div className="mt-3 flex flex-col gap-2 animate-pulse" aria-label="할 일 로딩 중">
+            <div className="h-3 w-10 rounded bg-foreground/10" />
+            <div className="h-10 w-full rounded-lg bg-foreground/10" />
+            <div className="h-10 w-full rounded-lg bg-foreground/10" />
+          </div>
+        ) : null
+      ) : isTodosError ? (
+        <p className="mt-4 text-center text-xs text-foreground/45">
+          할 일을 불러오지 못했어요.
+        </p>
       ) : (
         <>
-          {activeTodos.length === 0 && completedTodos.length === 0 && (
+          {/* 빈 상태도 지연 표시 — 데이터가 곧 도착하는 상황에서 "없어요"가 스치면
+              실제로 없는 것처럼 읽힌다. isLoading이 잠깐 false인 순간에 대한 방어. */}
+          {activeTodos.length === 0 && completedTodos.length === 0 && showEmptyTodos && (
             <p className="mt-4 text-center text-xs text-foreground/45">
               {dateLabel}의 할 일이 없어요.
             </p>
