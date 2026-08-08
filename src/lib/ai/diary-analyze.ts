@@ -6,7 +6,7 @@
 import { geminiModel } from "./gemini";
 import { mapGeminiError } from "./analyze";
 import { buildDiaryPrompt, type DiaryOrganizeMode } from "./diary-prompts";
-import { DIARY_ERRORS } from "@/lib/constants";
+import { AI_ERRORS, DIARY_ERRORS } from "@/lib/constants";
 
 export interface AnalyzeDiaryInput {
   /** 일기 본문(순수 텍스트). */
@@ -23,6 +23,8 @@ export interface AnalyzeDiaryInput {
 const MAX_CONTENT = 8000;
 const MAX_SELECTION = 2000;
 const MAX_QUESTION = 500;
+/** AI 응답 대기 상한 — 플랫폼 함수 한도(maxDuration 60초)보다 넉넉히 앞서 끊는다 */
+const AI_TIMEOUT_MS = 45_000;
 
 /**
  * 일기를 읽고 organize 요청(모드 또는 자유 질문)에 한국어 텍스트로 답한다.
@@ -43,11 +45,20 @@ export async function analyzeDiary(input: AnalyzeDiaryInput): Promise<string> {
   });
 
   try {
-    const result = await geminiModel.generateContent(prompt);
+    // 타임아웃을 우리가 건다. 없으면 플랫폼이 함수를 끊어 **응답 자체가 사라지고**,
+    // 클라이언트에서는 이유 없는 실패로 보인다(서버액션 promise reject).
+    const result = await Promise.race([
+      geminiModel.generateContent(prompt),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(AI_ERRORS.TIMEOUT)), AI_TIMEOUT_MS)
+      ),
+    ]);
     const text = result.response.text().trim();
     if (!text) throw new Error("");
     return text;
   } catch (error) {
+    // 타임아웃 문구는 그대로 올린다(mapGeminiError를 타면 generic으로 뭉개진다)
+    if (error instanceof Error && error.message === AI_ERRORS.TIMEOUT) throw error;
     throw mapGeminiError(error);
   }
 }
