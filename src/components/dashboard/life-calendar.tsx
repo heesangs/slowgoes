@@ -19,7 +19,7 @@
 // 진행도는 ref + rAF(리액트 상태는 phase 전환점만). 5200칸은 오프스크린 프리렌더.
 // prefers-reduced-motion이면 즉시 전환.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { computeLifeClock } from "@/components/auth/onboarding/utils";
 import { cn } from "@/lib/utils";
 
@@ -112,6 +112,17 @@ export interface LifeCellRect {
   size: number;
 }
 
+/**
+ * 외부(하단 탭)에서 전환을 시작하기 위한 명령형 핸들.
+ * 제스처가 부르는 것과 **같은 함수**를 노출한다 — 연출이 갈리지 않게.
+ */
+export interface LifeCalendarHandle {
+  /** 그리드(0) ↔ 시계(1) 재생. 제스처 릴리스 커밋과 동일 경로 */
+  play: (target: 0 | 1) => void;
+  /** 현재 주 칸의 뷰포트 사각형 — 일생→주 비행의 출발점 */
+  getCellRect: () => LifeCellRect | null;
+}
+
 interface LifeCalendarProps {
   /** 현재 나이 (life_clock_age) */
   age: number;
@@ -181,20 +192,23 @@ function getLayout(width: number) {
 
 type Layout = ReturnType<typeof getLayout>;
 
-export function LifeCalendar({
-  age,
-  userName,
-  weekOfYear = 0,
-  animate,
-  onReady,
-  onReverseDrag,
-  onReverseCommit,
-  onReverseCancel,
-  onPhaseChange,
-  entryDelayMs = 0,
-  className,
-  onCellTap,
-}: LifeCalendarProps) {
+export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(function LifeCalendar(
+  {
+    age,
+    userName,
+    weekOfYear = 0,
+    animate,
+    onReady,
+    onReverseDrag,
+    onReverseCommit,
+    onReverseCancel,
+    onPhaseChange,
+    entryDelayMs = 0,
+    className,
+    onCellTap,
+  },
+  ref
+) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -691,6 +705,19 @@ export function LifeCalendar({
     rafRef.current = requestAnimationFrame(tick);
   }, []);
 
+  // 현재 주 칸의 뷰포트 사각형 — 하단 탭으로 일생→주를 누를 때 비행 출발점이 된다.
+  // 제스처 경로는 우드래그 진행도만큼 셀을 확대해서 넘기지만(drawExit), 탭에는
+  // 확대 단계가 없으므로 칸 크기 그대로 준다.
+  const getCellRect = useCallback((): LifeCellRect | null => {
+    const canvas = canvasRef.current;
+    const geom = geomRef.current;
+    if (!canvas || !geom) return null;
+    const rect = canvas.getBoundingClientRect();
+    return { left: rect.left + geom.curX, top: rect.top + geom.curY, size: geom.cell };
+  }, []);
+
+  useImperativeHandle(ref, () => ({ play, getCellRect }), [play, getCellRect]);
+
   // ── 스와이프 (터치+마우스, 가로 우세 시만 — 세로 스크롤 양보) ──
   // grid: 좌드래그 = 시계로 **스크럽**(여정 전반부 손가락 추종) / 우드래그 = 주 복귀 스크럽
   // clock: 우드래그 = 그리드로(트리거)
@@ -1003,4 +1030,4 @@ export function LifeCalendar({
       </span>
     </div>
   );
-}
+});
