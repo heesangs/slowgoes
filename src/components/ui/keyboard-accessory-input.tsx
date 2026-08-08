@@ -227,7 +227,9 @@ export const KeyboardAccessoryInput = forwardRef<
   }
 
   return createPortal(
-    // 항상 마운트 — 닫힘 상태는 opacity-0 (visibility:hidden은 focus 불가라 사용 금지)
+    // 항상 마운트 — 닫힘 상태는 opacity-0 (visibility:hidden은 focus 불가라 사용 금지).
+    // iOS에서 소프트 키보드를 띄우려면 사용자 제스처 안에서 동기 focus를 해야 하고,
+    // 그러려면 input이 이미 DOM에 있어야 한다.
     <div
       className={cn(
         "fixed inset-0 z-50 transition-opacity",
@@ -237,14 +239,18 @@ export const KeyboardAccessoryInput = forwardRef<
       role="dialog"
       aria-modal={open || undefined}
     >
-      {/* 오버레이 — 탭하면 닫힘. 배경 오버스크롤 차단 */}
-      <button
-        type="button"
-        aria-label="닫기"
-        tabIndex={open ? 0 : -1}
-        onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default touch-none overscroll-contain bg-black/30"
-      />
+      {/* 오버레이(딤) — 탭하면 닫힘. 배경 오버스크롤 차단.
+          **열려 있을 때만 렌더한다.** 예전엔 이것도 상시 마운트라 화면 전체를 덮는
+          어두운 레이어가 닫힌 뒤에도 남았고, iOS가 상태바 주변을 그 합성 결과로
+          붙들고 있어 "키보드를 닫아도 상태바만 어둡다"가 됐다. */}
+      {open && (
+        <button
+          type="button"
+          aria-label="닫기"
+          onClick={onClose}
+          className="absolute inset-0 h-full w-full cursor-default touch-none overscroll-contain bg-black/30"
+        />
+      )}
 
       {/* 입력 서피스 — 키보드 상단 밀착. paddingBottom으로 키보드까지 배경을 채움 */}
       <div
