@@ -14,7 +14,11 @@ import { APP, FEATURE_NAMES } from "@/lib/constants";
 
 export function MainHeader() {
   return (
-    <header className="border-b border-foreground/10 px-4 py-3">
+    <header
+      // 홈 화면 앱(standalone)에는 브라우저 크롬이 없어 헤더가 상태바 밑으로 들어간다.
+      // 브라우저에서는 이 값이 0이라 변화 없음.
+      className="border-b border-foreground/10 px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))]"
+    >
       <div className="mx-auto flex max-w-2xl items-center justify-between">
         <Link href="/dashboard" className="text-lg font-bold">
           {APP.NAME}
