@@ -9,7 +9,7 @@
 // 구 '나의 시간' nav 바는 제거됨 — 인생시계는 대시보드 일생보기로 통합.
 // 대시보드는 버킷 상단바(BucketBar)가 헤더 바로 아래 flush로 붙도록 pt-0.
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { BottomNavBar } from "@/components/layout/bottom-nav-bar";
 import { MainHeader } from "@/components/layout/main-header";
@@ -32,8 +32,21 @@ function isFocusRoute(pathname: string | null): boolean {
 
 export function MainShell({ children }: MainShellProps) {
   const pathname = usePathname();
+  const focus = isFocusRoute(pathname);
 
-  if (isFocusRoute(pathname)) {
+  // 포커스 라우트에는 바텀 네비가 없다 → --bottom-nav-h를 0으로 덮는다.
+  // 이 변수를 토스트·FAB·본문 하단 여백이 함께 참조하므로, 안 덮으면 없는 네비
+  // 높이(56px)만큼 붕 떠서 뜬다("코멘트를 달았어요" 토스트 위치가 이상했던 이유).
+  useEffect(() => {
+    const el = document.documentElement;
+    if (focus) el.style.setProperty("--bottom-nav-h", "0px");
+    else el.style.removeProperty("--bottom-nav-h");
+    return () => {
+      el.style.removeProperty("--bottom-nav-h");
+    };
+  }, [focus]);
+
+  if (focus) {
     // 포커스 라우트: 글로벌 헤더/네비 없이 페이지가 상단을 관리.
     // 블록 컨테이너 사용 — flex-col로 감싸면 자식의 mx-auto가 shrink-to-fit 되어
     // 본문 폭이 무너진다. 일반 블록 흐름 + sticky 헤더로 처리.

@@ -71,6 +71,19 @@ body {
 }
 
 /* 인생시계 메시지 — 글자별 stagger 등장 */
+/* 토스트 등장 — animate-[fadeIn_0.2s_ease-out]가 참조한다.
+   정의가 없어 그동안 애니메이션이 무시되고 있었다. */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes char-rise {
   from {
     opacity: 0;

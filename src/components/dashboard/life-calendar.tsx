@@ -91,6 +91,10 @@ function roundRectPath(
 }
 
 const CELL_R = 2; // 주 칸 라운드(px)
+// 지나간 주 색 — 최근 RECENT_FADE주만 그라디언트로 진하고, 그 이전은 PAST_ALPHA 한 톤.
+// (현재 1.0 → 1주전 0.84 → 2주전 0.68 → 3주전 0.51 → 4주전부터 0.35)
+const PAST_ALPHA = 0.35;
+const RECENT_FADE = 4;
 
 // 다이얼 스펙 (timE): 침은 중심에서 간격을 두고 시작
 const HAND_INNER = 0.18; // 침 시작 반지름 비율
@@ -154,10 +158,14 @@ export function clamp01(v: number): number {
 function getLayout(width: number) {
   const pitch = Math.max(MIN_CELL + GAP, Math.floor((width - PAD_LEFT) / COLS));
   const cell = pitch - GAP;
+  // 주 칸은 정사각이 아니라 **가로보다 1px 낮다**(예: 5×4). 100줄이라 세로 1px 차이가
+  // 캔버스 높이 100px을 줄인다 — 화면 안에 담기게 하려는 의도.
+  const cellH = Math.max(MIN_CELL - 1, cell - 1);
+  const pitchY = cellH + GAP;
   const lineW = COLS * pitch; // 라인(1년) 전체 길이
   const cssWidth = PAD_LEFT + lineW;
   // 캔버스 높이는 100줄 그리드 기준 — 시계는 이보다 훨씬 작다(지름이 높이의 40%대).
-  const cssHeight = PAD_TOP + ROWS * pitch;
+  const cssHeight = PAD_TOP + ROWS * pitchY;
   const cx = cssWidth / 2;
   // 반지름은 폭에서만 정한다. 예전엔 `Math.min(폭항, cssHeight/2 - 50)`이었는데
   // 높이항은 실제 뷰포트에서 한 번도 선택되지 않는 죽은 조건이었다.
@@ -168,7 +176,7 @@ function getLayout(width: number) {
   // (cy는 다이얼뿐 아니라 여정 경로의 상단 가로선 yT = cy - R 도 파생시키므로
   //  이 값만 바꾸면 전환 모션도 함께 올라가고 12시 접선 연속성은 그대로 유지된다.)
   const cy = PAD_TOP + CLOCK_TOP_GAP + R;
-  return { pitch, cell, lineW, cssWidth, cssHeight, cx, cy, R };
+  return { pitch, cell, pitchY, cellH, lineW, cssWidth, cssHeight, cx, cy, R };
 }
 
 type Layout = ReturnType<typeof getLayout>;
@@ -193,7 +201,7 @@ export function LifeCalendar({
   const progressRef = useRef(0); // 0=그리드, 1=시계
   const drawRef = useRef<((p: number, entryRows?: number) => void) | null>(null);
   const drawExitRef = useRef<((r: number) => void) | null>(null); // 역방향 캔버스 연출
-  const geomRef = useRef<{ curX: number; curY: number; cell: number; pitch: number } | null>(null); // 현재 칸 지오메트리
+  const geomRef = useRef<{ curX: number; curY: number; cell: number; cellH: number; pitch: number } | null>(null); // 현재 칸 지오메트리
   const reverseRRef = useRef(0); // 현재 역방향 진행도
   const enteredRef = useRef(false); // 진입 채움 애니는 1회만
   const [reverseArrow, setReverseArrow] = useState(false); // 좌측 화살표(역방향)
@@ -276,7 +284,7 @@ export function LifeCalendar({
     };
     const cellXY = (index: number) => ({
       x: PAD_LEFT + (index % COLS) * L.pitch,
-      y: PAD_TOP + Math.floor(index / COLS) * L.pitch,
+      y: PAD_TOP + Math.floor(index / COLS) * L.pitchY,
     });
 
     // 레이어 1: 남은 주 테두리 + 나이 라벨
@@ -288,7 +296,7 @@ export function LifeCalendar({
       for (let i = weeksLived; i < COLS * ROWS; i++) {
         if (i === currentIndex) continue;
         const { x, y } = cellXY(i);
-        roundRectPath(rest.x, x + 0.5, y + 0.5, L.cell, L.cell, CELL_R);
+        roundRectPath(rest.x, x + 0.5, y + 0.5, L.cell, L.cellH, CELL_R);
         rest.x.stroke();
       }
       rest.x.globalAlpha = 0.4;
@@ -297,37 +305,43 @@ export function LifeCalendar({
       rest.x.textBaseline = "middle";
       rest.x.textAlign = "right";
       for (let r = LABEL_STEP; r <= ROWS; r += LABEL_STEP) {
-        rest.x.fillText(String(r), PAD_LEFT - 4, PAD_TOP + (r - 1) * L.pitch + L.cell / 2);
+        rest.x.fillText(String(r), PAD_LEFT - 4, PAD_TOP + (r - 1) * L.pitchY + L.cellH / 2);
       }
       rest.x.globalAlpha = 1;
     }
 
-    // 레이어 2: 산 주 채움 + 현재 주 강조
+    // 레이어 2: 산 주 채움 + 현재 주 강조.
+    // 최근일수록 진하다 — 현재 주(1.0)에서 RECENT_FADE주에 걸쳐 옅어지다가
+    // 그보다 오래된 주는 전부 PAST_ALPHA로 평평해진다(옛 기록은 한 톤).
     const lived = makeLayer();
     if (lived.x) {
       lived.x.fillStyle = fg;
-      lived.x.globalAlpha = 0.35;
       for (let i = 0; i < weeksLived; i++) {
         if (i === currentIndex) continue;
+        const weeksAgo = currentIndex - i;
+        lived.x.globalAlpha =
+          weeksAgo >= RECENT_FADE
+            ? PAST_ALPHA
+            : PAST_ALPHA + (1 - PAST_ALPHA) * (1 - weeksAgo / RECENT_FADE);
         const { x, y } = cellXY(i);
-        roundRectPath(lived.x, x, y, L.cell, L.cell, CELL_R);
+        roundRectPath(lived.x, x, y, L.cell, L.cellH, CELL_R);
         lived.x.fill();
       }
       lived.x.globalAlpha = 1;
       const cur = cellXY(currentIndex);
-      roundRectPath(lived.x, cur.x, cur.y, L.cell, L.cell, CELL_R);
+      roundRectPath(lived.x, cur.x, cur.y, L.cell, L.cellH, CELL_R);
       lived.x.fill();
       // 현재 주 강조 링 — 셀에서 2px 간격 + 2px 라인.
       // 칸보다 3px 바깥이므로 반경도 그만큼 키워 곡률을 맞춘다.
       lived.x.strokeStyle = fg;
       lived.x.lineWidth = 2;
-      roundRectPath(lived.x, cur.x - 3, cur.y - 3, L.cell + 6, L.cell + 6, CELL_R + 3);
+      roundRectPath(lived.x, cur.x - 3, cur.y - 3, L.cell + 6, L.cellH + 6, CELL_R + 3);
       lived.x.stroke();
     }
 
     // 역방향 커밋용 지오메트리(현재 칸)
     const curCell = cellXY(currentIndex);
-    geomRef.current = { curX: curCell.x, curY: curCell.y, cell: L.cell, pitch: L.pitch };
+    geomRef.current = { curX: curCell.x, curY: curCell.y, cell: L.cell, cellH: L.cellH, pitch: L.pitch };
 
     // ── 그리기 프리미티브 ──
 
@@ -335,7 +349,7 @@ export function LifeCalendar({
     function drawGrid(alpha: number, entryRows: number = ROWS) {
       ctx.globalAlpha = alpha;
       ctx.drawImage(rest.c, 0, 0, L.cssWidth, L.cssHeight);
-      const clipH = Math.min(L.cssHeight, PAD_TOP + entryRows * L.pitch);
+      const clipH = Math.min(L.cssHeight, PAD_TOP + entryRows * L.pitchY);
       ctx.drawImage(
         lived.c,
         0, 0, L.cssWidth * dpr, clipH * dpr,
@@ -398,7 +412,7 @@ export function LifeCalendar({
     const keyR = Math.max(3.5, 0.75 * L.pitch); // 키오브젝트(원) 반지름 — 칸보다 조금 큰 정도
     const xL = PAD_LEFT + keyR; // 좌측 세로 경로 x (원이 잘리지 않게 반지름만큼 안쪽)
     const yT = L.cy - L.R; // 상단 가로 경로 y = 원 꼭대기
-    const kStart = { x: curCell.x + L.cell / 2, y: curCell.y + L.cell / 2 }; // 현재 주 칸 중심
+    const kStart = { x: curCell.x + L.cell / 2, y: curCell.y + L.cellH / 2 }; // 현재 주 칸 중심
     const rcDeg = (a: number) => (a * Math.PI) / 180;
     // 쿼터 아크 포인트: 중심 C, 반지름 r, 각도 a(도) — canvas 기준(0=+x, 90=+y↓)
     const arcPt = (C: { x: number; y: number }, r: number, a: number) => ({
@@ -593,7 +607,7 @@ export function LifeCalendar({
       ctx.fillRect(0, 0, L.cssWidth, L.cssHeight);
       // 현재 주 셀(키오브젝트) 확대 — 셀 중심 기준 1 → ~3×3
       const cx0 = curCell.x + L.cell / 2;
-      const cy0 = curCell.y + L.cell / 2;
+      const cy0 = curCell.y + L.cellH / 2;
       const side = L.cell + (3 * L.pitch - L.cell) * easeInOutCubic(r);
       ctx.fillStyle = fg;
       ctx.globalAlpha = 1;
@@ -835,13 +849,13 @@ export function LifeCalendar({
         // CSS px = 레이아웃 px라 DPR 보정은 필요 없다.
         const rect = canvas.getBoundingClientRect();
         const col = Math.floor((e.clientX - rect.left - PAD_LEFT) / L.pitch);
-        const row = Math.floor((e.clientY - rect.top - PAD_TOP) / L.pitch);
+        const row = Math.floor((e.clientY - rect.top - PAD_TOP) / L.pitchY);
         if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
           // 어느 셀이든 부모가 "이번 주"를 연다 — 미래/과거를 가릴 이유가 없다.
           // (셀 위치를 날짜로 역산하지 않으므로 index는 참고용으로만 넘긴다)
           const index = row * COLS + col;
           const cellLeft = rect.left + PAD_LEFT + col * L.pitch;
-          const cellTop = rect.top + PAD_TOP + row * L.pitch;
+          const cellTop = rect.top + PAD_TOP + row * L.pitchY;
           onCellTap({ index, rect: { left: cellLeft, top: cellTop, size: L.cell } });
           return;
         }
@@ -859,7 +873,7 @@ export function LifeCalendar({
       if (canvas && geom) {
         const rect = canvas.getBoundingClientRect();
         const cx0 = geom.curX + geom.cell / 2;
-        const cy0 = geom.curY + geom.cell / 2;
+        const cy0 = geom.curY + geom.cellH / 2;
         const side = geom.cell + (3 * geom.pitch - geom.cell) * r;
         onReverseCommit?.({ left: rect.left + cx0 - side / 2, top: rect.top + cy0 - side / 2, size: side });
       } else {
