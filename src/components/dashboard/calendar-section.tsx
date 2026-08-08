@@ -11,16 +11,18 @@
 //
 // 선택 날짜만 흑색 하이라이트(달성 도트 없음 — 기록은 하단 리스트로 확인).
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   clamp01,
   LifeCalendar,
+  type LifeCalendarHandle,
   type LifeCellRect,
   type LifePhase,
 } from "@/components/dashboard/life-calendar";
 import { WeekSheet } from "@/components/dashboard/week-sheet";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { getWeekStart } from "@/lib/date/week";
+import type { CalendarView } from "@/lib/dashboard/calendar-view";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { RepeatIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
@@ -96,6 +98,10 @@ interface CalendarSectionProps {
   /** 주간 회고에 붙일 현재 버킷 (52주 셀 탭 → 주간 시트) */
   bucketId?: string | null;
   bucketTitle?: string | null;
+  /** 하단 탭이 요청한 뷰(URL ?view=). 값이 바뀌면 그 뷰로 전환한다 */
+  requestedView?: CalendarView;
+  /** 제스처/탭으로 뷰가 실제로 바뀌었을 때 — 부모가 URL을 맞춘다 */
+  onViewChange?: (view: CalendarView) => void;
   /** ?week= 로 진입했을 때 열어둘 주 (일기 상세에서 뒤로가기 복귀) */
   initialWeekSheet?: string | null;
   /** 그 시트를 닫을 때 — 부모가 URL을 정리한다 */
@@ -117,6 +123,8 @@ export function CalendarSection({
   onDeleteTodo,
   bucketId = null,
   bucketTitle = null,
+  requestedView = "week",
+  onViewChange,
   initialWeekSheet = null,
   onCloseWeekSheet,
 }: CalendarSectionProps) {
@@ -147,6 +155,23 @@ export function CalendarSection({
   // 일생↔시계는 LifeCalendar 내부 morph.
   const [view, setView] = useState<"week" | "life">("week");
   const [lifePhase, setLifePhase] = useState<LifePhase>("grid");
+  // 전환 오케스트레이션은 콜백 체인(비행 onFinish, phase 통지)에서 돌아가므로
+  // stale closure를 피하려고 현재 뷰/페이즈를 ref로도 들고 있는다.
+  const viewRef = useRef<"week" | "life">("week");
+  const phaseRef = useRef<LifePhase>("grid");
+  const applyView = useCallback((v: "week" | "life") => {
+    viewRef.current = v;
+    setView(v);
+  }, []);
+
+  // 전환 한 단계가 끝날 때마다 올리는 신호 — settle()이 이걸 보고 다음 단계를 잇는다.
+  // 콜백이 서로를 참조하는 순환(비행 onFinish ↔ settle)을 상태로 끊는다.
+  const [settleSignal, setSettleSignal] = useState(0);
+  const transitioningRef = useRef(false);
+  const signalSettle = useCallback(() => {
+    transitioningRef.current = false;
+    setSettleSignal((n) => n + 1);
+  }, []);
   const [progress, setProgressState] = useState(0); // 0=주, 1=일생
   const [dragging, setDragging] = useState(false); // 추종 중(트랜지션 없음)
   // 역방향(일생→주) 비행 중 — 응축 박스를 숨겨 오버레이만 보이게 한다
@@ -244,9 +269,9 @@ export function CalendarSection({
     weekSlotRef.current = box ? { left: box.left, top: box.top, height: box.height } : null;
     window.setTimeout(() => {
       pendingFlight.current = box;
-      setView("life");
+      applyView("life");
     }, SNAP_MS);
-  }, [setProgress]);
+  }, [setProgress, applyView]);
 
   // 일생 캘린더가 현재 칸 좌표를 올려주면 — 대기 중인 forward 비행 실행
   const handleLifeReady = useCallback(
@@ -258,11 +283,11 @@ export function CalendarSection({
         flyOverlay(
           from,
           { left: rect.left, top: rect.top, width: rect.size, height: rect.size },
-          { variant: "fill", label: "out" }
+          { variant: "fill", label: "out", onFinish: signalSettle }
         );
       }
     },
-    [flyOverlay]
+    [flyOverlay, signalSettle]
   );
 
   // 일생 → 주 커밋: LifeCalendar가 올려준 확대 키오브젝트(테두리)를 주 위치로 동일 크기 비행 →
@@ -274,7 +299,7 @@ export function CalendarSection({
       const to = slot
         ? { left: slot.left, top: slot.top, width: cellRect.size, height: cellRect.size }
         : from;
-      setView("week");
+      applyView("week");
       setProgress(1); // 주 뷰를 응축 상태로 마운트
       setReverseLanding(true); // 응축 박스를 숨김 — 비행 중엔 오버레이만 보이게
       flyOverlay(from, to, {
@@ -284,13 +309,100 @@ export function CalendarSection({
           // 오버레이가 착지한 자리에 응축 박스를 드러낸 뒤, 다음 프레임에 펼친다
           setReverseLanding(false);
           requestAnimationFrame(() => requestAnimationFrame(() => setProgress(0))); // 펼침
+          signalSettle(); // 다음 단계(주→시계 체이닝) 또는 부모 통지
         },
       });
     },
-    [flyOverlay, setProgress]
+    [flyOverlay, setProgress, applyView, signalSettle]
   );
   // 역방향 취소 — 캔버스 스냅백은 LifeCalendar가 처리, 부모는 일생 유지
   const handleReverseCancel = useCallback(() => {}, []);
+
+  // ── 하단 탭 → 뷰 전환 ──
+  // 제스처와 **같은 함수**를 부른다(commitToLife / play / handleReverseCommit).
+  // 연출을 따로 만들지 않으므로 탭으로 가든 밀어서 가든 화면이 동일하다.
+  //
+  // 인접 단계만 직접 전환할 수 있어서(주↔일생, 일생↔시계) 주↔시계는 2단 체이닝이다.
+  // 각 전환의 "안정 지점"(비행 완료, phase가 clock/grid 도달)에서 settle()이
+  // 다음 단계를 잇거나, 더 갈 곳이 없으면 부모에게 현재 뷰를 통지한다.
+  const lifeRef = useRef<LifeCalendarHandle | null>(null);
+  const pendingTargetRef = useRef<CalendarView | null>(null);
+  // 부모(URL)와 마지막으로 합의된 뷰 — URL↔상태가 서로를 되돌리는 싸움을 막는다.
+  // 초기값은 **실제 시작 뷰("week")**. requestedView로 두면 ?view=clock 으로 바로 들어왔을 때
+  // "이미 도달했다"고 판단해 전환을 건너뛴다(화면은 주 캘린더인데 URL만 clock).
+  const appliedViewRef = useRef<CalendarView>("week");
+
+  // 지금 "도착해 있는" 뷰. 재생 중(toClock/toGrid)이면 null —
+  // 그 사이 settle이 다음 단계를 시작해 버리면 중간 애니메이션이 잘린다
+  // (시계→주에서 역재생 2.2초가 통째로 날아갔다).
+  const readView = useCallback((): CalendarView | null => {
+    if (viewRef.current !== "life") return "week";
+    if (phaseRef.current === "clock") return "clock";
+    if (phaseRef.current === "grid") return "life";
+    return null;
+  }, []);
+
+  // 일생 → 주 (탭 경로). 제스처는 확대된 셀 사각형을 넘겨주지만 탭엔 그 단계가 없어
+  // 칸 크기 그대로 비행한다. 주 뷰를 한 번도 마운트한 적이 없으면(URL 직접 진입)
+  // 착지 위치를 모르므로 비행을 건너뛴다.
+  const reverseToWeek = useCallback(() => {
+    const rect = lifeRef.current?.getCellRect() ?? lifeCellRef.current;
+    if (!rect || !weekSlotRef.current) {
+      applyView("week");
+      setProgress(0);
+      signalSettle();
+      return;
+    }
+    handleReverseCommit(rect);
+  }, [applyView, setProgress, handleReverseCommit, signalSettle]);
+
+  const settle = useCallback(() => {
+    const cur = readView();
+    if (cur === null) return; // 재생 중 — 끝나면 phase 통지가 신호를 준다
+    const target = pendingTargetRef.current;
+    if (target && target !== cur) {
+      if (transitioningRef.current) return; // 이미 한 단계가 재생 중 — 끝나면 신호가 온다
+      transitioningRef.current = true;
+      if (cur === "week") commitToLife();
+      else if (cur === "life") {
+        if (target === "clock") lifeRef.current?.play(1);
+        else reverseToWeek();
+      } else {
+        lifeRef.current?.play(0); // clock → life (목표가 week이면 다음 settle에서 이어간다)
+      }
+      return;
+    }
+    transitioningRef.current = false;
+    pendingTargetRef.current = null;
+    if (appliedViewRef.current !== cur) {
+      appliedViewRef.current = cur;
+      onViewChange?.(cur);
+    }
+  }, [readView, commitToLife, reverseToWeek, onViewChange]);
+  // 신호가 오면 다음 단계를 잇는다. settle은 멱등이라(목표=현재면 통지만) 재실행이 안전하다.
+  useEffect(() => {
+    if (settleSignal === 0) return;
+    // 다음 프레임에 — 직전 전환의 커밋과 같은 프레임에서 상태를 또 바꾸면 애니메이션이 튄다.
+    // **cleanup으로 취소하지 않는다**: settle은 부모가 넘긴 onViewChange에 의존해
+    // 렌더마다 재생성되는데, 그때마다 cleanup이 돌면 예약한 프레임이 매번 취소돼
+    // 전환이 영영 시작되지 않는다. settle은 멱등이라 여러 번 불려도 안전하다.
+    requestAnimationFrame(() => settle());
+  }, [settleSignal, settle]);
+
+  // LifeCalendar phase 통지 — 전환이 끝난 지점(clock/grid)에서만 다음 단계를 잇는다
+  const handlePhaseChange = useCallback((p: LifePhase) => {
+    phaseRef.current = p;
+    setLifePhase(p);
+    if (p === "clock" || p === "grid") signalSettle();
+  }, [signalSettle]);
+
+  // URL(하단 탭)이 요청한 뷰로 이동. 애니메이션 중 setState가 겹치지 않게 다음 프레임에.
+  useEffect(() => {
+    if (requestedView === appliedViewRef.current) return;
+    appliedViewRef.current = requestedView;
+    pendingTargetRef.current = requestedView;
+    requestAnimationFrame(() => signalSettle());
+  }, [requestedView, signalSettle]);
 
   // 셀을 어디 탭하든 **이번 주**를 연다. 주 이동은 시트 헤더의 ‹ › 로 한다.
   //
@@ -346,15 +458,6 @@ export function CalendarSection({
     }
   }
 
-  // 페이지네이션 점 — 주=0, 일생 그리드=1, 시계=2 (스크럽 중간은 progress로 판단)
-  const dotIndex =
-    view === "life"
-      ? lifePhase === "toClock" || lifePhase === "clock"
-        ? 2
-        : 1
-      : progress >= 0.5
-        ? 1
-        : 0;
 
   const today = getTodayDateString();
   const selected = parseDateString(selectedDate);
@@ -425,26 +528,12 @@ export function CalendarSection({
       {/* 섹션 타이틀 행 — 우측: 페이지네이션 점 3개 (주 → 일생 → 시계) */}
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-medium text-foreground/70">{pageTitle}</p>
-        {hasAge && (
-          <div className="flex items-center gap-1.5" role="tablist" aria-label="캘린더 화면 위치">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                role="tab"
-                aria-selected={i === dotIndex}
-                className={cn(
-                  "h-1.5 rounded-full transition-all duration-300",
-                  i === dotIndex ? "w-3 bg-foreground" : "w-1.5 bg-foreground/25"
-                )}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
       {/* 일생 뷰에선 이번달 발걸음/날짜 그리드 대신 5200주 조망만 */}
       {view === "life" ? (
         <LifeCalendar
+          ref={lifeRef}
           age={age as number}
           userName={userName}
           weekOfYear={weekOfYear}
@@ -457,7 +546,7 @@ export function CalendarSection({
           onReady={handleLifeReady}
           onReverseCommit={handleReverseCommit}
           onReverseCancel={handleReverseCancel}
-          onPhaseChange={setLifePhase}
+          onPhaseChange={handlePhaseChange}
           onCellTap={handleCellTap}
         />
       ) : (

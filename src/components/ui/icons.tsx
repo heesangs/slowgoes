@@ -141,3 +141,64 @@ export function SpinnerIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+// ── 캘린더 3단 탭 아이콘 (1주 / 1년 / 1생) ──
+// 시간 스케일을 도형 개수로 표현한다 — 칸 1개(한 주) → 칸 4개(한 해) → 원(한 생).
+// active면 면(fill), 아니면 라인(stroke). 두 변형이 같은 도형·좌표를 써야
+// 탭을 오갈 때 모양이 흔들리지 않는다.
+
+interface TabIconProps extends IconProps {
+  /** 활성 탭은 면으로 채운다 */
+  active?: boolean;
+}
+
+/** 1주 — 네모 1개 */
+export function WeekTabIcon({ className, active }: TabIconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={1.5}
+      aria-hidden
+    >
+      <rect x="5" y="5" width="14" height="14" rx="3" />
+    </svg>
+  );
+}
+
+/** 1년 — 작은 네모 4개(2열 2행) */
+export function YearTabIcon({ className, active }: TabIconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={1.5}
+      aria-hidden
+    >
+      <rect x="4.5" y="4.5" width="6.5" height="6.5" rx="1.5" />
+      <rect x="13" y="4.5" width="6.5" height="6.5" rx="1.5" />
+      <rect x="4.5" y="13" width="6.5" height="6.5" rx="1.5" />
+      <rect x="13" y="13" width="6.5" height="6.5" rx="1.5" />
+    </svg>
+  );
+}
+
+/** 1생 — 동그라미 1개 */
+export function LifeTabIcon({ className, active }: TabIconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={1.5}
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="7" />
+    </svg>
+  );
+}

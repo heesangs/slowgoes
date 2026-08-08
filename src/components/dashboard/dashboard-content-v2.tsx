@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { AiSuggestionsSheet } from "@/components/dashboard/ai-suggestions-sheet";
@@ -28,6 +28,11 @@ import {
   updateTodoAction,
 } from "@/app/(main)/dashboard/actions";
 import { useTrackLastViewedBucket } from "@/hooks/use-track-last-viewed-bucket";
+import {
+  CALENDAR_VIEW_PARAM,
+  parseCalendarView,
+  type CalendarView,
+} from "@/lib/dashboard/calendar-view";
 import { useBucketTodos } from "@/hooks/use-todos";
 import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { FEATURE_NAMES } from "@/lib/constants";
@@ -179,6 +184,24 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   // 일기 상세에서 뒤로가기로 돌아온 경우(?week=YYYY-MM-DD) 그 주 시트를 다시 연다.
   // 마운트 시점 값만 쓴다 — 시트를 닫으면 URL을 지우므로 여기서 계속 구독하면
   // 닫자마자 다시 열리는 싸움이 된다.
+  // 하단 탭이 요청한 캘린더 뷰 (?view=). 여기는 계속 구독한다 — 탭을 누를 때마다
+  // 새 값이 내려와야 하므로. 되돌림 싸움은 CalendarSection이 appliedViewRef로 막는다.
+  const requestedView = parseCalendarView(searchParams.get(CALENDAR_VIEW_PARAM));
+
+  // 제스처/탭으로 뷰가 바뀌면 URL을 맞춘다. replace라 뒤로가기 스택을 더럽히지 않고,
+  // 새로고침·공유 시 같은 화면으로 돌아온다. 버킷 쿼리는 보존한다.
+  const handleViewChange = useCallback(
+    (view: CalendarView) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (view === "week") params.delete(CALENDAR_VIEW_PARAM);
+      else params.set(CALENDAR_VIEW_PARAM, view);
+      params.delete("week"); // 주간 시트 복귀 표식은 뷰 전환과 무관
+      const qs = params.toString();
+      router.replace(qs ? `/dashboard?${qs}` : "/dashboard", { scroll: false });
+    },
+    [router, searchParams]
+  );
+
   const [initialWeekSheet] = useState(() => {
     const raw = searchParams.get("week");
     return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
@@ -501,6 +524,8 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           // 52주 셀 탭 → 주간 시트의 회고에 붙일 버킷
           bucketId={data.selectedBucket?.id ?? null}
           bucketTitle={data.selectedBucket?.title ?? null}
+          requestedView={requestedView}
+          onViewChange={handleViewChange}
           initialWeekSheet={initialWeekSheet}
           // 시트를 닫으면 ?week= 를 지운다 — 안 지우면 새로고침 때 다시 열린다
           onCloseWeekSheet={() => {
