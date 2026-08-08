@@ -270,6 +270,10 @@ export function WeekSheet({
                         <p className="mt-0.5 truncate text-xs text-foreground/55">{entry.preview}</p>
                       )}
                     </>
+                  ) : isLoading ? (
+                    // 콜드 오픈(캐시 없음) 중엔 7칸이 전부 "기록 없음"으로 먼저 떴다 —
+                    // 실제로 기록이 있어도 없는 것처럼 읽힌다. 중립 플레이스홀더로 대체.
+                    <span className="block h-3 w-16 animate-pulse rounded bg-foreground/10" />
                   ) : (
                     <p
                       className={cn(

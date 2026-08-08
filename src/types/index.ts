@@ -508,7 +508,9 @@ export interface DashboardV2Data {
   // PR 27: selectedBucket은 buckets에서 추출 가능 (별도 RTT 절약).
   // 컴포넌트가 id/title만 쓰므로 Pick으로 충분.
   selectedBucket: Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at"> | null;
-  // Phase C: todos는 날짜별 독립 쿼리(useTodos)로 분리됨
+  // todos는 ['todos', bucketId] 캐시가 소유한다. 여기 실리는 건 **첫 진입 시드**로,
+  // useBucketTodos의 initialData가 되어 첫 프레임부터 목록이 채워진다(워터폴 제거).
+  bucketTodos?: BucketTodosData;
   stridePlan: StridePlan | null;
   // legacy 필드 (점진 전환)
   dailyStep?: TaskWithSubtasks | null;
