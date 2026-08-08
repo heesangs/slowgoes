@@ -18,6 +18,20 @@ export const metadata: Metadata = {
   title: "slowgoes - 나의 속도로, 천천히",
   description:
     "내 속도에 맞게 삶의 목표를 실행가능한 리듬으로 바꾼다",
+  // 홈 화면 앱(iOS) — app/manifest.ts와 짝. 구 iOS는 매니페스트를 보지 않고
+  // 이 메타만 보므로 둘 다 둔다. capable:true → apple-mobile-web-app-capable
+  appleWebApp: {
+    capable: true,
+    title: "slowgoes",
+    // default: 상태바가 별도 영역으로 남는다(콘텐츠가 노치 밑으로 들어가지 않음)
+    statusBarStyle: "default",
+  },
+  other: {
+    // Next 16은 appleWebApp.capable에 대해 표준 키(mobile-web-app-capable)만 내보낸다.
+    // iOS 17 이하는 apple- 접두 키만 인식하므로 직접 넣어 둘 다 만족시킨다.
+    "apple-mobile-web-app-capable": "yes",
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 // maximumScale: 1 — iOS Safari의 인풋 포커스 자동 확대 억제.
@@ -29,6 +43,12 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
+  // 홈 화면 앱(크롬 없음)에서 상태바 주변 색이 배경과 어긋나지 않게.
+  // 앱 테마 토큰과 같은 값(라이트 #ffffff / 다크 #333333).
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#333333" },
+  ],
 };
 
 export default function RootLayout({
