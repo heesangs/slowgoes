@@ -6,6 +6,9 @@
   /* 바텀 네비 높이 — 네비 자신과 FAB·토스트·본문 하단 여백이 함께 참조한다.
      safe-area는 네비가 별도로 더하므로 여기엔 포함하지 않는다. */
   --bottom-nav-h: 56px;
+  /* 상단 헤더 높이 — 헤더 자신과 그 아래 sticky 요소(버킷 바)가 함께 참조한다.
+     safe-area는 헤더가 별도로 더하므로 여기엔 포함하지 않는다(--bottom-nav-h와 대칭). */
+  --top-header-h: 56px;
 }
 
 /* 강제 다크 (프로필에서 선택) */
@@ -27,6 +30,14 @@
     --background: #333333;
     --foreground: #e6e6e6;
   }
+}
+
+/* 배경은 html에도 준다.
+   오버레이가 열리면 useLockBodyScroll이 body를 position:fixed로 빼는데, 그때
+   body 배경이 캔버스로 전파되지 않아 상태바/safe-area 부근이 색을 잃는다
+   ("키보드를 닫아도 상태바만 어둡게 남는" 증상). html이 받쳐 주면 그 구간이 없다. */
+html {
+  background: var(--background);
 }
 
 body {

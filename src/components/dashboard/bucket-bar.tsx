@@ -13,6 +13,7 @@
 import { useState } from "react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { FEATURE_NAMES } from "@/lib/constants";
+import { SURFACE_SHADOW } from "@/lib/constants/ui";
 import { cn } from "@/lib/utils";
 import type { Bucket } from "@/types";
 
@@ -54,12 +55,18 @@ export function BucketBar({
 
   return (
     <>
-      {/* 슬림 바 — 헤더 바로 아래 flush. 전체가 시트 오픈 버튼 */}
+      {/* 슬림 바 — 헤더 바로 아래 flush. 전체가 시트 오픈 버튼.
+          sticky: 헤더(--top-header-h + safe-area) 바로 밑에 붙어 함께 상단에 남는다.
+          z-20 — 헤더(30)보다 아래라 스크롤 시 헤더 밑으로 들어가지 않고 나란히 쌓인다. */}
       <button
         type="button"
         onClick={() => setListOpen(true)}
         aria-label={`${FEATURE_NAMES.BUCKET} 목록 열기`}
-        className="flex w-full items-center gap-2 border-b border-foreground/10 px-4 py-2.5 text-left transition-colors hover:bg-foreground/[0.03]"
+        className={cn(
+          "sticky top-[calc(var(--top-header-h)+env(safe-area-inset-top))] z-20",
+          "flex w-full items-center gap-2 border-b border-foreground/10 bg-background px-4 py-2.5 text-left transition-colors hover:bg-foreground/[0.03]",
+          SURFACE_SHADOW
+        )}
       >
         <span className="shrink-0 text-xs text-foreground/50">{FEATURE_NAMES.BUCKET}</span>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">

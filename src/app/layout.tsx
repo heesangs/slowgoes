@@ -43,12 +43,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  // 홈 화면 앱(크롬 없음)에서 상태바 주변 색이 배경과 어긋나지 않게.
-  // 앱 테마 토큰과 같은 값(라이트 #ffffff / 다크 #333333).
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#333333" },
-  ],
+  // themeColor는 여기서 내보내지 않는다 — media(prefers-color-scheme) 기준이라
+  // data-theme으로 OS와 다르게 고른 테마를 따라가지 못한다(상단만 다른 색으로 남음).
+  // 대신 media 없는 meta 한 벌을 head에 두고 아래 스크립트/lib/theme.ts가 갱신한다.
 };
 
 export default function RootLayout({
@@ -61,11 +58,17 @@ export default function RootLayout({
   return (
     <html lang="ko" suppressHydrationWarning>
       <head>
-        {/* 페인트 전 테마 적용 — FOUC(테마 깜빡임) 방지 */}
+        {/* 상태바 주변 색 — 아래 스크립트가 실제 테마로 즉시 보정한다(기본값은 라이트) */}
+        <meta name="theme-color" content="#ffffff" />
+        {/* 페인트 전 테마 적용 — FOUC(테마 깜빡임) 방지 + theme-color 동기화 */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();",
+              "(function(){try{var t=localStorage.getItem('theme');" +
+              "if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);" +
+              "var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);" +
+              "var m=document.querySelector('meta[name=\"theme-color\"]');" +
+              "if(m)m.setAttribute('content',d?'#333333':'#ffffff');}catch(e){}})();",
           }}
         />
         {shouldLoadFigmaCapture && (

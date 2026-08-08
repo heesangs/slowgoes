@@ -11,15 +11,23 @@
 import Link from "next/link";
 import { ProfileIcon } from "@/components/ui/icons";
 import { APP, FEATURE_NAMES } from "@/lib/constants";
+import { SURFACE_SHADOW } from "@/lib/constants/ui";
+import { cn } from "@/lib/utils";
 
 export function MainHeader() {
   return (
     <header
-      // 홈 화면 앱(standalone)에는 브라우저 크롬이 없어 헤더가 상태바 밑으로 들어간다.
-      // 브라우저에서는 이 값이 0이라 변화 없음.
-      className="border-b border-foreground/10 px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))]"
+      // sticky + bg-background — 스크롤해도 상단에 남고, **상태바 영역까지 헤더 배경이
+      // 칠해진다**(safe-area 패딩이 헤더 안쪽에 있으므로). 배경이 없던 시절엔 상태바
+      // 아래를 칠할 주체가 없어, 오버레이가 지나간 뒤 그 자리가 어둡게 남았다.
+      // z-30: 바텀 네비와 같은 층. 시트/입력창(50)보다는 아래.
+      className={cn(
+        "sticky top-0 z-30 border-b border-foreground/10 bg-background px-4",
+        "pt-[env(safe-area-inset-top)]",
+        SURFACE_SHADOW
+      )}
     >
-      <div className="mx-auto flex max-w-2xl items-center justify-between">
+      <div className="mx-auto flex h-[var(--top-header-h)] max-w-2xl items-center justify-between">
         <Link href="/dashboard" className="text-lg font-bold">
           {APP.NAME}
         </Link>

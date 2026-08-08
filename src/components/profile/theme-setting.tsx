@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { SegmentControl } from "@/components/ui/segment-control";
+import { syncThemeColorMeta } from "@/lib/theme";
 
 type ThemePref = "light" | "dark" | "system";
 
@@ -29,6 +30,8 @@ function applyTheme(theme: ThemePref) {
   } catch {
     // localStorage 접근 불가 시 무시
   }
+  // 상태바 주변 색도 같이 — 안 맞추면 홈 화면 앱에서 상단만 이전 테마 색으로 남는다
+  syncThemeColorMeta();
 }
 
 export function ThemeSetting() {
