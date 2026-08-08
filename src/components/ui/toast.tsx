@@ -33,7 +33,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ toast: addToast }}>
       {children}
       {/* 토스트 렌더링 영역 */}
-      <div className="fixed bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom)+0.75rem)] left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-[90%] max-w-sm">
+      {/* z-[60] — 바텀시트(z-50, body 포털)보다 위. 같은 z-50이던 시절엔 DOM 순서상
+          나중인 시트가 항상 덮어, 시트가 열린 동안 토스트가 통째로 보이지 않았다. */}
+      <div className="fixed bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom)+0.75rem)] left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 w-[90%] max-w-sm">
         {toasts.map((t) => (
           <div
             key={t.id}

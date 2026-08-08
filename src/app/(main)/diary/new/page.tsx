@@ -8,6 +8,10 @@ import { getAuthUser } from "@/lib/supabase/auth";
 import { DiaryEditor } from "@/components/diary/diary-editor";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// AI organize는 이 페이지의 함수에서 실행된다(서버 액션은 호출한 라우트의 함수를 탄다).
+// 기본 실행 한도(수 초)로는 긴 응답이 잘려 클라이언트에서 "이유 없는 실패"가 된다.
+export const maxDuration = 60;
+
 
 interface NewDiaryPageProps {
   searchParams?: Promise<{
