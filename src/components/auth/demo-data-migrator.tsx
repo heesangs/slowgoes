@@ -71,7 +71,8 @@ export function DemoDataMigrator({ children }: DemoDataMigratorProps) {
         age: demoData.age,
         gender: demoData.gender,
         personalityType: demoData.personalityType,
-        paceType: demoData.paceType,
+        // 생활 속도는 더 이상 묻지 않는다 — 컬럼 호환을 위해 기본값만 넣는다
+        paceType: "balanced",
         displayName: demoData.displayName || "slowgoes 사용자",
         chapterTitle: demoData.chapterTitle,
         stridePlan: demoData.stridePlan,

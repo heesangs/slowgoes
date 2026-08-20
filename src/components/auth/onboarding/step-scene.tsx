@@ -22,7 +22,6 @@ interface StepSceneProps {
   sceneCategory: OnboardingSceneCategory["key"];
   selectedDemoScene: DemoSceneItem | null;
   customSceneInput: string;
-  showGoalChat: boolean;
   selectedSceneText: string;
   isProfileStep: boolean;
   error: string | null;
@@ -31,8 +30,6 @@ interface StepSceneProps {
   onLifeCategorySelect: (key: LifeCategory) => void;
   onDemoSceneSelect: (item: DemoSceneItem) => void;
   onCustomSceneChange: (value: string) => void;
-  onToggleGoalChat: () => void;
-  onCloseGoalChat: () => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -46,7 +43,6 @@ export function StepScene({
   sceneCategory,
   selectedDemoScene,
   customSceneInput,
-  showGoalChat,
   selectedSceneText,
   isProfileStep,
   error,
@@ -54,8 +50,6 @@ export function StepScene({
   onLifeCategorySelect,
   onDemoSceneSelect,
   onCustomSceneChange,
-  onToggleGoalChat,
-  onCloseGoalChat,
   onNext,
   onBack,
 }: StepSceneProps) {
@@ -197,32 +191,6 @@ export function StepScene({
           <p className="text-xs text-red-500">
             너무 길어요. 더 짧게 적어주세요 ({SCENE_MAX_LENGTH}자 이내).
           </p>
-        )}
-      </div>
-
-      {/* 목표를 이룬 나와 대화해보기 */}
-      <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={onToggleGoalChat}
-          className="flex w-full items-center justify-between rounded-xl border border-foreground/10 px-4 py-3 text-left text-sm transition-colors hover:bg-foreground/[0.04]"
-        >
-          <span>💬 목표를 이룬 나와 대화해보기</span>
-          <span className="text-foreground/60">→</span>
-        </button>
-        {showGoalChat && (
-          <div className="rounded-xl border border-foreground/15 bg-foreground/[0.03] px-4 py-4">
-            <p className="text-sm text-foreground/60">
-              이 기능은 곧 출시될 예정이에요. 목표를 이룬 미래의 나와 대화하며 방향을 찾아볼 수 있어요.
-            </p>
-            <button
-              type="button"
-              onClick={onCloseGoalChat}
-              className="mt-2 text-xs text-foreground/50 underline"
-            >
-              닫기
-            </button>
-          </div>
         )}
       </div>
 

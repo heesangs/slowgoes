@@ -1,4 +1,4 @@
-import type { Gender, LifeAreaName, OnboardingSceneCategory, PaceType } from "@/types";
+import type { Gender, LifeAreaName, OnboardingSceneCategory } from "@/types";
 
 export const DRAFT_VERSION = "v1";
 
@@ -49,12 +49,6 @@ export const MBTI_JUDGMENT_OPTIONS = [
 export const MBTI_LIFESTYLE_OPTIONS = [
   { value: "J" as const, label: "J" },
   { value: "P" as const, label: "P" },
-];
-
-export const PACE_OPTIONS = [
-  { value: "slow" as PaceType, label: "느긋" },
-  { value: "balanced" as PaceType, label: "보통" },
-  { value: "focused" as PaceType, label: "빠른편" },
 ];
 
 // 사용자가 정한 6개 카테고리 — 순서: 경험 / 성장 / 소유 / 관계 / 건강 / 내면

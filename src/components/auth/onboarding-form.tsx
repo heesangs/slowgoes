@@ -6,9 +6,7 @@ import type {
   DemoSceneItem,
   Gender,
   OnboardingSceneCategory,
-  PaceType,
   PersonalityType,
-  SelfLevel,
 } from "@/types";
 import { LIFE_CATEGORIES, type LifeCategory } from "./onboarding/constants";
 import { computeLifeClock } from "./onboarding/utils";
@@ -27,8 +25,6 @@ interface OnboardingFormProps {
     age: number;
     gender: Gender;
     personalityType: PersonalityType;
-    paceType?: PaceType;
-    selfLevel?: SelfLevel;
   } | null;
   // 바텀시트 모드 — 완료 시 호출되는 콜백 (없으면 페이지 redirect)
   onComplete?: () => void;
@@ -68,14 +64,12 @@ export function OnboardingForm({
   const [personalityType, setPersonalityType] = useState<PersonalityType | null>(
     prefillProfile?.personalityType ?? null
   );
-  const [paceType, setPaceType] = useState<PaceType | null>(prefillProfile?.paceType ?? null);
 
   // Step 2 상태
   const [selectedLifeCategory, setSelectedLifeCategory] = useState<LifeCategory | null>(null);
   const [sceneCategory, setSceneCategory] = useState<OnboardingSceneCategory["key"]>("must_do");
   const [selectedDemoScene, setSelectedDemoScene] = useState<DemoSceneItem | null>(null);
   const [customSceneInput, setCustomSceneInput] = useState("");
-  const [showGoalChat, setShowGoalChat] = useState(false);
 
   const isSceneFromCustomInput = customSceneInput.trim().length > 0;
   const selectedSceneText = isSceneFromCustomInput
@@ -100,7 +94,6 @@ export function OnboardingForm({
     setSenseType(prefillProfile.personalityType[1] as "S" | "N");
     setJudgmentType(prefillProfile.personalityType[2] as "T" | "F");
     setLifestyleType(prefillProfile.personalityType[3] as "J" | "P");
-    if (prefillProfile.paceType) setPaceType(prefillProfile.paceType);
   }, [prefillProfile]);
 
   // AI 분석 hook
@@ -183,7 +176,6 @@ export function OnboardingForm({
     age,
     gender,
     personalityType,
-    paceType,
     selectedSceneText,
     lifeSceneAnalysis,
     selectedDailyTodo,
@@ -251,7 +243,6 @@ export function OnboardingForm({
     setSceneCategory(cat.sceneCategoryKey);
     setSelectedDemoScene(null);
     setCustomSceneInput("");
-    setShowGoalChat(false);
   }
 
   function handleSelectDemoScene(item: DemoSceneItem) {
@@ -270,7 +261,6 @@ export function OnboardingForm({
       if (age === null || age < 0 || age > 100) { setError("나이를 입력해주세요."); return; }
       if (!gender) { setError("성별을 선택해주세요."); return; }
       if (!personalityType) { setError("MBTI 성향을 모두 선택해주세요."); return; }
-      if (!paceType) { setError("생활 속도를 선택해주세요."); return; }
       setStep(2);
       return;
     }
@@ -326,7 +316,6 @@ export function OnboardingForm({
           judgmentType={judgmentType}
           lifestyleType={lifestyleType}
           personalityType={personalityType}
-          paceType={paceType}
           lifeClock={lifeClock}
           error={error}
           onAgeChange={handleAgeChange}
@@ -335,7 +324,6 @@ export function OnboardingForm({
           onSenseSelect={handleSenseSelect}
           onJudgmentSelect={handleJudgmentSelect}
           onLifestyleSelect={handleLifestyleSelect}
-          onPaceSelect={(v) => { setError(null); setPaceType(v); }}
           onNext={handleNext}
         />
       )}
@@ -350,7 +338,6 @@ export function OnboardingForm({
           sceneCategory={sceneCategory}
           selectedDemoScene={selectedDemoScene}
           customSceneInput={customSceneInput}
-          showGoalChat={showGoalChat}
           selectedSceneText={selectedSceneText}
           isProfileStep={isProfileStep}
           error={error}
@@ -361,8 +348,6 @@ export function OnboardingForm({
             setCustomSceneInput(v);
             if (v.trim().length > 0) setSelectedDemoScene(null);
           }}
-          onToggleGoalChat={() => setShowGoalChat((prev) => !prev)}
-          onCloseGoalChat={() => setShowGoalChat(false)}
           onNext={handleNext}
           onBack={handleBack}
         />
