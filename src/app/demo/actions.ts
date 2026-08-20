@@ -58,7 +58,8 @@ export async function demoAnalyzeLifeSceneAction(data: {
     if (!["male", "female"].includes(data.gender)) {
       throw new Error(VALIDATION_ERRORS.GENDER_INVALID);
     }
-    if (!["ISTJ","ISFJ","INFJ","INTJ","ISTP","ISFP","INFP","INTP","ESTP","ESFP","ENFP","ENTP","ESTJ","ESFJ","ENFJ","ENTJ"].includes(data.personalityType)) {
+    // 2축(IT/IF/ET/EF)도 유효 — 체험판 Step 1은 I/E·T/F만 묻는다
+    if (!/^[EI]([SN][TF][JP]|[TF])$/.test(data.personalityType)) {
       throw new Error(VALIDATION_ERRORS.PERSONALITY_INVALID);
     }
 

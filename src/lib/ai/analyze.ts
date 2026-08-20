@@ -570,7 +570,7 @@ export async function analyzeLifeScene(
 사용자 정보:
 - 나이: ${input.age}
 - 성별: ${input.gender}
-- 성향: ${input.personalityType}
+- 성향(MBTI): ${input.personalityType} (2글자면 I/E·T/F 두 축만 응답한 것 — 아는 만큼만 반영하고 나머지는 추측하지 말 것)
 - 삶의 장면: "${sceneText}"
 ${scopeHintLine}
 ${lifeAreaHintLine}
@@ -852,7 +852,7 @@ export async function generateTodoSuggestions(
 - 삶의 영역: ${lifeArea}
 - 지향점 (투두는 가장 짧은 지평의 발걸음에 직결되어야 하고, 나머지는 방향의 배경):
 ${stridesSummary || "- 정보 없음"}
-- 유저 성향(MBTI): ${input.personalityType ?? "정보 없음"} (I형이면 혼자 시작 가능한 행동 우선, E형이면 사람과 연결되는 행동 허용, J형이면 계획·정리형, P형이면 즉흥·탐색형으로 조정)
+- 유저 성향(MBTI): ${input.personalityType ?? "정보 없음"} (2글자면 I/E·T/F 두 축만 응답한 것이니 아는 만큼만 반영. I형이면 혼자 시작 가능한 행동 우선, E형이면 사람과 연결되는 행동 허용, T형이면 근거·수치가 드러나는 행동, F형이면 의미·관계가 드러나는 행동. J/P가 있으면 J는 계획·정리형, P는 즉흥·탐색형으로 조정)
 - 나이: ${input.age != null ? `${input.age}세` : "정보 없음"}
 - 최근 일기 발췌 (관심사·막힘이 드러나면 1개는 이것과 연결):
 ${diaryNotes}
@@ -952,7 +952,7 @@ export async function generateWeeklyGoals(
 - 이번 주 범위: ${input.weekRange ?? "이번 주"}
 - 지향점 (목표는 가장 짧은 지평의 발걸음을 실제로 전진시켜야 한다):
 ${stridesSummary || "- 정보 없음"}
-- 유저 성향(MBTI): ${input.personalityType ?? "정보 없음"} (I형이면 혼자 진행 가능한 목표 우선, E형이면 사람과 연결되는 목표 허용, J형이면 계획·정리형, P형이면 즉흥·탐색형으로 조정)
+- 유저 성향(MBTI): ${input.personalityType ?? "정보 없음"} (2글자면 I/E·T/F 두 축만 응답한 것이니 아는 만큼만 반영. I형이면 혼자 진행 가능한 목표 우선, E형이면 사람과 연결되는 목표 허용, T형이면 근거·수치가 드러나는 목표, F형이면 의미·관계가 드러나는 목표. J/P가 있으면 J는 계획·정리형, P는 즉흥·탐색형으로 조정)
 - 나이: ${input.age != null ? `${input.age}세` : "정보 없음"}
 - 최근 일기 발췌 (관심사·막힘이 드러나면 1개는 이것과 연결):
 ${diaryNotes}

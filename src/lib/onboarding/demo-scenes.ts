@@ -10,10 +10,14 @@ interface DemoSeed {
   dont_miss: string[];
 }
 
-// MBTI 16가지 → 4그룹 (E/I + T/F 축) 매핑
+// MBTI → 4그룹 (E/I + T/F 축) 매핑.
+//
+// 값은 2글자(온보딩 Step 1만 응답: "IF")이거나 4글자("INFP")다. 이 함수가 쓰는 정보량은
+// 정확히 2축이라 2글자면 그대로 쓰면 된다 — 길이 분기를 빼먹으면 mbti[2]가 undefined가 되어
+// "Iundefined" 그룹으로 조회에 실패하고, 폴백 때문에 **에러 없이 페르소나 시드만 사라진다**.
 function toPersonalityGroup(mbti: PersonalityType): PersonalityGroup {
   const ei = mbti[0] as "E" | "I";
-  const tf = mbti[2] as "T" | "F";
+  const tf = (mbti.length === 2 ? mbti[1] : mbti[2]) as "T" | "F";
   return `${ei}${tf}` as PersonalityGroup;
 }
 
