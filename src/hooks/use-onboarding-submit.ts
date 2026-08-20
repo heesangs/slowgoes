@@ -12,8 +12,10 @@ import type {
   ExistingBucketContext,
   Gender,
   LifeSceneAnalysisResult,
+  OnboardingV2SavePayload,
   PersonalityType,
 } from "@/types";
+import { VALIDATION_ERRORS } from "@/lib/constants";
 
 // 생활 속도는 온보딩에서 더 이상 묻지 않는다 — 어떤 AI 프롬프트도 앱 로직도 읽지
 // 않는 값이라 질문만 하나 늘리고 있었다. 컬럼은 남겨 두고 기본값으로 저장한다.
@@ -27,7 +29,6 @@ interface UseOnboardingSubmitParams {
   selectedSceneText: string;
   lifeSceneAnalysis: LifeSceneAnalysisResult | null;
   selectedDailyTodo: string;
-  selectedRoutineTitles: string[];
   selectedSeasonAction: string;
   selectedExistingBucket: ExistingBucketContext | null;
   onComplete: (() => void) | undefined;
@@ -43,7 +44,6 @@ export function useOnboardingSubmit({
   selectedSceneText,
   lifeSceneAnalysis,
   selectedDailyTodo,
-  selectedRoutineTitles,
   selectedSeasonAction,
   selectedExistingBucket,
   onComplete,
@@ -66,17 +66,11 @@ export function useOnboardingSubmit({
     const selectedDailyTodos = selectedDailyTodo
       ? [{ title: selectedDailyTodo, source: "onboarding" as const }]
       : [];
-    const selectedRoutines = lifeSceneAnalysis.suggestedRoutines
-      .filter((item) => selectedRoutineTitles.includes(item.title))
-      .map((item) => ({
-        title: item.title,
-        repeatUnit: item.repeatUnit,
-        repeatValue: item.repeatValue,
-        source: "onboarding" as const,
-      }));
+    // 온보딩은 루틴을 제안하지 않는다 — 서버·RPC는 빈 배열을 그대로 받는다(방어선 유지)
+    const selectedRoutines: OnboardingV2SavePayload["selectedRoutines"] = [];
 
-    if (selectedDailyTodos.length === 0 && selectedRoutines.length === 0) {
-      setError("데일리투두 또는 루틴을 최소 1개 선택해주세요.");
+    if (selectedDailyTodos.length === 0) {
+      setError(VALIDATION_ERRORS.DAILY_TODO_REQUIRED);
       return;
     }
 

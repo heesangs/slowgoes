@@ -12,7 +12,6 @@ export interface OnboardingDraftData {
   customSceneInput: string;
   lifeSceneAnalysis: LifeSceneAnalysisResult | null;
   selectedDailyTodo: string;
-  selectedRoutineTitles: string[];
   step3AnalysisKey: string | null;
 }
 
@@ -45,7 +44,6 @@ export function useOnboardingDraft(
         customSceneInput: (saved.customSceneInput as string) ?? "",
         lifeSceneAnalysis: (saved.lifeSceneAnalysis as LifeSceneAnalysisResult | null) ?? null,
         selectedDailyTodo: (saved.selectedDailyTodo as string) ?? "",
-        selectedRoutineTitles: (saved.selectedRoutineTitles as string[]) ?? [],
         step3AnalysisKey: (saved.step3AnalysisKey as string | null) ?? null,
       };
       onRestoreRef.current(draft);
@@ -63,7 +61,6 @@ export function useOnboardingDraft(
     customSceneInput,
     lifeSceneAnalysis,
     selectedDailyTodo,
-    selectedRoutineTitles,
     step3AnalysisKey,
   } = draftData;
 
@@ -81,7 +78,6 @@ export function useOnboardingDraft(
         customSceneInput,
         lifeSceneAnalysis,
         selectedDailyTodo,
-        selectedRoutineTitles,
         step3AnalysisKey,
       })
     );
@@ -94,7 +90,6 @@ export function useOnboardingDraft(
     customSceneInput,
     lifeSceneAnalysis,
     selectedDailyTodo,
-    selectedRoutineTitles,
     step3AnalysisKey,
   ]);
 

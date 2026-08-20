@@ -77,7 +77,8 @@ export function DemoDataMigrator({ children }: DemoDataMigratorProps) {
         chapterTitle: demoData.chapterTitle,
         stridePlan: demoData.stridePlan,
         selectedDailyTodos: demoData.selectedDailyTodos,
-        selectedRoutines: demoData.selectedRoutines,
+        // 예전 체험 데이터에 루틴이 남아 있으면 그대로 살려 준다(사용자가 이미 고른 것)
+        selectedRoutines: demoData.selectedRoutines ?? [],
       });
 
       if (!result.success) {

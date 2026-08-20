@@ -364,7 +364,12 @@ export interface StrideItem {
 export interface LifeSceneAnalysisResult {
   lifeArea: string;
   strides: StrideItem[];
-  suggestedRoutines: SuggestedRoutine[];
+  /**
+   * 온보딩은 더 이상 루틴을 제안하지 않는다(투두 하나에 집중).
+   * optional인 이유는 **기존 데이터 호환** — 예전에 저장된 체험판 localStorage와
+   * stride_plans 행에는 이 필드가 들어 있다.
+   */
+  suggestedRoutines?: SuggestedRoutine[];
 }
 
 export interface OnboardingV2SavePayload {
