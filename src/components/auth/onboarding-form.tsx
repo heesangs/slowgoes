@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { SubPageHeader } from "@/components/layout/sub-page-header";
-import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { VALIDATION_ERRORS } from "@/lib/constants";
 import type {
@@ -39,6 +37,8 @@ interface OnboardingFormProps {
   // sessionStorage 보존 키 (대시보드 탐색 모드에서만 사용)
   sessionKey?: string;
 }
+
+const TOTAL_STEPS = 4;
 
 // MBTI 문자열에서 축을 안전하게 읽는다. 2글자("IF")면 S/N·J/P는 아직 없는 것.
 function readJudgment(mbti: string | undefined | null): "T" | "F" | null {
@@ -213,6 +213,8 @@ export function OnboardingForm({
 
   // 체험판은 전용 키로 진행 상황을 보관한다 — 확정 후 /signup에서 뒤로가기로
   // 돌아왔을 때 마지막 단계 그대로 이어서 볼 수 있어야 한다.
+  // 랜딩에서 새로 시작하는 경우는 DemoStartLink가 진입 전에 draft를 비우므로,
+  // 여기 복원이 걸리는 건 **뒤로가기로 돌아온 경우**뿐이다.
   const effectiveSessionKey = isDemo ? DEMO_DRAFT_SESSION_KEY : sessionKey;
   const { clearDraft } = useOnboardingDraft(
     effectiveSessionKey,
@@ -320,7 +322,8 @@ export function OnboardingForm({
     setStep((prev) => Math.max(1, prev - 1));
   }
 
-  const stepIndicator = (
+  // 체험판은 헤더 우측의 "n/4"가 같은 정보를 주므로 점을 그리지 않는다(세로 공간 확보).
+  const stepIndicator = isDemo ? null : (
     <div className="mb-6 flex items-center gap-1.5">
       {[1, 2, 3, 4].map((s) => (
         <div
@@ -426,19 +429,21 @@ export function OnboardingForm({
       {/* Step 1에서는 ‹가 랜딩으로 나가고, 이후에는 한 단계씩 뒤로.
           지금까지 Step 1에는 이탈 수단이 하나도 없어 들어오면 갇혔다. */}
       <SubPageHeader
-        title={FEATURE_NAMES.FIND_ME}
         backHref={step === initialStep ? "/" : undefined}
         onBack={step === initialStep ? undefined : handleBack}
         actions={
-          <Link
-            href="/"
-            className="inline-flex h-9 items-center rounded-lg px-2.5 text-sm text-foreground/60 transition-colors hover:bg-foreground/5 hover:text-foreground"
-          >
-            닫기
-          </Link>
+          <span className="px-1 text-sm tabular-nums text-foreground/45" aria-label={`${TOTAL_STEPS}단계 중 ${step}단계`}>
+            {step}/{TOTAL_STEPS}
+          </span>
         }
       />
-      <div className="mx-auto w-full max-w-sm px-4 pb-12 pt-6">{content}</div>
+      {/* 하단 여백에 safe-area를 더한다.
+          /demo는 (main) 그룹 밖이라 MainShell의 하단 패딩을 못 받는데, 홈 화면 앱
+          (standalone + viewport-fit=cover)에서는 콘텐츠가 화면 끝까지 확장되므로
+          홈 인디케이터가 마지막 요소를 덮어 "잘린" 것처럼 보인다. */}
+      <div className="mx-auto w-full max-w-sm px-4 pt-6 pb-[calc(3rem+env(safe-area-inset-bottom))]">
+        {content}
+      </div>
     </>
   );
 }

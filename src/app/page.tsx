@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DemoStartLink } from "@/components/auth/demo-start-link";
 
 export default function LandingPage() {
   return (
@@ -52,12 +53,7 @@ export default function LandingPage() {
           </Link>
         </div>
 
-        <Link
-          href="/demo"
-          className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground hover:underline"
-        >
-          로그인 없이 체험해보기 →
-        </Link>
+        <DemoStartLink className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground hover:underline" />
       </main>
     </div>
   );
