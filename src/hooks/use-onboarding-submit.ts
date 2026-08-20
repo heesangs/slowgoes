@@ -75,7 +75,10 @@ export function useOnboardingSubmit({
     }
 
     setIsLoading(true);
-    clearDraft();
+    // 체험판은 여기서 지우지 않는다. /signup으로 넘어간 뒤 뒤로가기로 돌아오면
+    // 마지막 단계를 그대로 보여줘야 하기 때문. 정리는 회원가입 후 DB 이관에
+    // 성공한 시점(DemoDataMigrator)에 한다.
+    if (!isDemo) clearDraft();
 
     try {
       if (isDemo) {

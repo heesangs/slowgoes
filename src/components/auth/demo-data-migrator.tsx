@@ -12,6 +12,7 @@ import {
   saveDemoOnboardingBackupData,
 } from "@/lib/demo/storage";
 import { saveOnboardingV2NoRedirectAction } from "@/app/(auth)/actions";
+import { DEMO_DRAFT_SESSION_KEY } from "@/components/auth/onboarding/constants";
 
 const DEMO_MIGRATION_LOCK_KEY = "slowgoes_demo_migration_lock_v1";
 const DEMO_MIGRATION_LOCK_STALE_MS = 30_000;
@@ -88,6 +89,13 @@ export function DemoDataMigrator({ children }: DemoDataMigratorProps) {
       }
 
       clearAllDemoOnboardingData();
+      // 진행 중 draft도 함께 정리 — 여기까지 왔으면 DB에 안전하게 들어갔다.
+      // 남겨 두면 다음에 체험판을 열었을 때 이미 끝난 흐름이 되살아난다.
+      try {
+        sessionStorage.removeItem(DEMO_DRAFT_SESSION_KEY);
+      } catch {
+        // sessionStorage 접근 불가 시 무시
+      }
       router.replace("/dashboard?onboarding_saved=1");
       return;
     } catch {
