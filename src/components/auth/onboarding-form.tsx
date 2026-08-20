@@ -12,7 +12,11 @@ import type {
   OnboardingSceneCategory,
   PersonalityType,
 } from "@/types";
-import { LIFE_CATEGORIES, type LifeCategory } from "./onboarding/constants";
+import {
+  DEMO_DRAFT_SESSION_KEY,
+  LIFE_CATEGORIES,
+  type LifeCategory,
+} from "./onboarding/constants";
 import { computeLifeClock } from "./onboarding/utils";
 import { useOnboardingDraft, type OnboardingDraftData } from "@/hooks/use-onboarding-draft";
 import { useOnboardingSubmit } from "@/hooks/use-onboarding-submit";
@@ -150,6 +154,13 @@ export function OnboardingForm({
   // draft 복원 콜백
   const onRestore = useCallback(
     (draft: OnboardingDraftData) => {
+      // 프로필 먼저 — 없으면 복원해도 제출에서 막힌다
+      if (draft.age !== null) setAge(draft.age);
+      if (draft.gender) setGender(draft.gender);
+      if (draft.energyType) setEnergyType(draft.energyType);
+      if (draft.judgmentType) setJudgmentType(draft.judgmentType);
+      if (draft.senseType) setSenseType(draft.senseType);
+      if (draft.lifestyleType) setLifestyleType(draft.lifestyleType);
       if (draft.selectedLifeCategory) setSelectedLifeCategory(draft.selectedLifeCategory);
       setSceneCategory(draft.sceneCategory);
       if (draft.selectedDemoScene) setSelectedDemoScene(draft.selectedDemoScene);
@@ -168,6 +179,12 @@ export function OnboardingForm({
   const draftData = useMemo<OnboardingDraftData>(
     () => ({
       step,
+      age,
+      gender,
+      energyType,
+      judgmentType,
+      senseType,
+      lifestyleType,
       selectedLifeCategory,
       sceneCategory,
       selectedDemoScene,
@@ -178,6 +195,12 @@ export function OnboardingForm({
     }),
     [
       step,
+      age,
+      gender,
+      energyType,
+      judgmentType,
+      senseType,
+      lifestyleType,
       selectedLifeCategory,
       sceneCategory,
       selectedDemoScene,
@@ -188,7 +211,15 @@ export function OnboardingForm({
     ]
   );
 
-  const { clearDraft } = useOnboardingDraft(sessionKey, initialStep, draftData, onRestore);
+  // 체험판은 전용 키로 진행 상황을 보관한다 — 확정 후 /signup에서 뒤로가기로
+  // 돌아왔을 때 마지막 단계 그대로 이어서 볼 수 있어야 한다.
+  const effectiveSessionKey = isDemo ? DEMO_DRAFT_SESSION_KEY : sessionKey;
+  const { clearDraft } = useOnboardingDraft(
+    effectiveSessionKey,
+    initialStep,
+    draftData,
+    onRestore
+  );
 
   // 제출 hook
   const { handleSubmit, isLoading } = useOnboardingSubmit({
