@@ -1,6 +1,17 @@
 import type { Gender, LifeAreaName, OnboardingSceneCategory } from "@/types";
 
-export const DRAFT_VERSION = "v1";
+// v2: 온보딩에서 루틴 제안이 사라지고 MBTI가 2축 체계로 바뀌었다.
+// 구 draft를 복원하면 스키마가 어긋나므로 버전을 올려 무효화한다.
+export const DRAFT_VERSION = "v2";
+
+/**
+ * 체험판 진행 상황 보관 키(sessionStorage).
+ *
+ * 예전엔 체험판이 sessionKey를 넘기지 않아 draft 훅이 통째로 no-op였다 —
+ * 저장·복원·삭제가 전부 첫 줄에서 return했다. 그래서 확정 후 /signup에서
+ * 뒤로가기를 누르면 입력이 전부 사라지고 첫 화면으로 떨어졌다.
+ */
+export const DEMO_DRAFT_SESSION_KEY = "slowgoes_demo_onboarding_draft_v1";
 
 export const GENDER_OPTIONS = [
   { value: "male" as Gender, label: "남성" },

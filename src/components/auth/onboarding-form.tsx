@@ -1,14 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { SubPageHeader } from "@/components/layout/sub-page-header";
+import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { VALIDATION_ERRORS } from "@/lib/constants";
 import type {
   DemoSceneItem,
   Gender,
   OnboardingSceneCategory,
   PersonalityType,
 } from "@/types";
-import { LIFE_CATEGORIES, type LifeCategory } from "./onboarding/constants";
+import {
+  DEMO_DRAFT_SESSION_KEY,
+  LIFE_CATEGORIES,
+  type LifeCategory,
+} from "./onboarding/constants";
 import { computeLifeClock } from "./onboarding/utils";
 import { useOnboardingDraft, type OnboardingDraftData } from "@/hooks/use-onboarding-draft";
 import { useOnboardingSubmit } from "@/hooks/use-onboarding-submit";
@@ -32,6 +40,20 @@ interface OnboardingFormProps {
   sessionKey?: string;
 }
 
+// MBTI 문자열에서 축을 안전하게 읽는다. 2글자("IF")면 S/N·J/P는 아직 없는 것.
+function readJudgment(mbti: string | undefined | null): "T" | "F" | null {
+  if (!mbti) return null;
+  return (mbti.length === 2 ? mbti[1] : mbti[2]) as "T" | "F";
+}
+function readSense(mbti: string | undefined | null): "S" | "N" | null {
+  if (!mbti || mbti.length < 4) return null;
+  return mbti[1] as "S" | "N";
+}
+function readLifestyle(mbti: string | undefined | null): "J" | "P" | null {
+  if (!mbti || mbti.length < 4) return null;
+  return mbti[3] as "J" | "P";
+}
+
 export function OnboardingForm({
   mode = "default",
   startStep,
@@ -49,20 +71,20 @@ export function OnboardingForm({
   // Step 1 상태
   const [age, setAge] = useState<number | null>(prefillProfile?.age ?? null);
   const [gender, setGender] = useState<Gender | null>(prefillProfile?.gender ?? null);
+  // MBTI는 2글자("IF" — Step 1의 I/E·T/F만) 또는 4글자("INFP")다.
+  // 4글자일 때만 S/N·J/P를 채운다 — 2글자에 인덱스로 접근하면 undefined가 섞인다.
   const [energyType, setEnergyType] = useState<"I" | "E" | null>(
-    (prefillProfile?.personalityType?.[0] as "I" | "E" | undefined) ?? null
-  );
-  const [senseType, setSenseType] = useState<"S" | "N" | null>(
-    (prefillProfile?.personalityType?.[1] as "S" | "N" | undefined) ?? null
+    () => (prefillProfile?.personalityType?.[0] as "I" | "E" | undefined) ?? null
   );
   const [judgmentType, setJudgmentType] = useState<"T" | "F" | null>(
-    (prefillProfile?.personalityType?.[2] as "T" | "F" | undefined) ?? null
+    () => readJudgment(prefillProfile?.personalityType)
+  );
+  // 아래 둘은 마지막 단계(StepConfirm)의 **선택** 입력 — 넣으면 4글자로 완성된다
+  const [senseType, setSenseType] = useState<"S" | "N" | null>(
+    () => readSense(prefillProfile?.personalityType)
   );
   const [lifestyleType, setLifestyleType] = useState<"J" | "P" | null>(
-    (prefillProfile?.personalityType?.[3] as "J" | "P" | undefined) ?? null
-  );
-  const [personalityType, setPersonalityType] = useState<PersonalityType | null>(
-    prefillProfile?.personalityType ?? null
+    () => readLifestyle(prefillProfile?.personalityType)
   );
 
   // Step 2 상태
@@ -75,6 +97,15 @@ export function OnboardingForm({
   const selectedSceneText = isSceneFromCustomInput
     ? customSceneInput.trim()
     : selectedDemoScene?.text ?? "";
+
+  // 두 축만 고르면 "IF", 마지막 단계에서 나머지를 채우면 "INFP"로 자란다.
+  // 안 고른 축을 기본값으로 메우지 않는다 — AI에 사실처럼 전달되면 안 되므로.
+  const personalityType = useMemo<PersonalityType | null>(() => {
+    if (!energyType || !judgmentType) return null;
+    return senseType && lifestyleType
+      ? (`${energyType}${senseType}${judgmentType}${lifestyleType}` as PersonalityType)
+      : (`${energyType}${judgmentType}` as PersonalityType);
+  }, [energyType, judgmentType, senseType, lifestyleType]);
 
   const lifeClock = useMemo(() => computeLifeClock(age), [age]);
 
@@ -89,11 +120,10 @@ export function OnboardingForm({
     if (!prefillProfile) return;
     setAge(prefillProfile.age);
     setGender(prefillProfile.gender);
-    setPersonalityType(prefillProfile.personalityType);
     setEnergyType(prefillProfile.personalityType[0] as "I" | "E");
-    setSenseType(prefillProfile.personalityType[1] as "S" | "N");
-    setJudgmentType(prefillProfile.personalityType[2] as "T" | "F");
-    setLifestyleType(prefillProfile.personalityType[3] as "J" | "P");
+    setJudgmentType(readJudgment(prefillProfile.personalityType));
+    setSenseType(readSense(prefillProfile.personalityType));
+    setLifestyleType(readLifestyle(prefillProfile.personalityType));
   }, [prefillProfile]);
 
   // AI 분석 hook
@@ -103,15 +133,12 @@ export function OnboardingForm({
     isAnalyzingLifeScene,
     selectedDailyTodo,
     setSelectedDailyTodo,
-    selectedRoutineTitles,
-    setSelectedRoutineTitles,
     step3AnalysisKey,
     setStep3AnalysisKey,
     displayStrides,
     bucketTodos,
     selectedSeasonAction,
     resetAnalysisState,
-    selectRoutineTitle,
     runLifeSceneAnalysis,
   } = useLifeSceneAnalysis({
     isDemo,
@@ -127,6 +154,13 @@ export function OnboardingForm({
   // draft 복원 콜백
   const onRestore = useCallback(
     (draft: OnboardingDraftData) => {
+      // 프로필 먼저 — 없으면 복원해도 제출에서 막힌다
+      if (draft.age !== null) setAge(draft.age);
+      if (draft.gender) setGender(draft.gender);
+      if (draft.energyType) setEnergyType(draft.energyType);
+      if (draft.judgmentType) setJudgmentType(draft.judgmentType);
+      if (draft.senseType) setSenseType(draft.senseType);
+      if (draft.lifestyleType) setLifestyleType(draft.lifestyleType);
       if (draft.selectedLifeCategory) setSelectedLifeCategory(draft.selectedLifeCategory);
       setSceneCategory(draft.sceneCategory);
       if (draft.selectedDemoScene) setSelectedDemoScene(draft.selectedDemoScene);
@@ -136,39 +170,56 @@ export function OnboardingForm({
         setStep3AnalysisKey(draft.step3AnalysisKey);
       }
       if (draft.selectedDailyTodo) setSelectedDailyTodo(draft.selectedDailyTodo);
-      setSelectedRoutineTitles(draft.selectedRoutineTitles);
       setStep(draft.step);
     },
-    [setLifeSceneAnalysis, setStep3AnalysisKey, setSelectedDailyTodo, setSelectedRoutineTitles]
+    [setLifeSceneAnalysis, setStep3AnalysisKey, setSelectedDailyTodo]
   );
 
   // sessionStorage draft 관리
   const draftData = useMemo<OnboardingDraftData>(
     () => ({
       step,
+      age,
+      gender,
+      energyType,
+      judgmentType,
+      senseType,
+      lifestyleType,
       selectedLifeCategory,
       sceneCategory,
       selectedDemoScene,
       customSceneInput,
       lifeSceneAnalysis,
       selectedDailyTodo,
-      selectedRoutineTitles,
       step3AnalysisKey,
     }),
     [
       step,
+      age,
+      gender,
+      energyType,
+      judgmentType,
+      senseType,
+      lifestyleType,
       selectedLifeCategory,
       sceneCategory,
       selectedDemoScene,
       customSceneInput,
       lifeSceneAnalysis,
       selectedDailyTodo,
-      selectedRoutineTitles,
       step3AnalysisKey,
     ]
   );
 
-  const { clearDraft } = useOnboardingDraft(sessionKey, initialStep, draftData, onRestore);
+  // 체험판은 전용 키로 진행 상황을 보관한다 — 확정 후 /signup에서 뒤로가기로
+  // 돌아왔을 때 마지막 단계 그대로 이어서 볼 수 있어야 한다.
+  const effectiveSessionKey = isDemo ? DEMO_DRAFT_SESSION_KEY : sessionKey;
+  const { clearDraft } = useOnboardingDraft(
+    effectiveSessionKey,
+    initialStep,
+    draftData,
+    onRestore
+  );
 
   // 제출 hook
   const { handleSubmit, isLoading } = useOnboardingSubmit({
@@ -179,7 +230,6 @@ export function OnboardingForm({
     selectedSceneText,
     lifeSceneAnalysis,
     selectedDailyTodo,
-    selectedRoutineTitles,
     selectedSeasonAction,
     // PR 3 이후 시트는 항상 새 버킷 생성. "기존 버킷에 추가" 흐름은 폐기됨.
     selectedExistingBucket: null,
@@ -199,41 +249,22 @@ export function OnboardingForm({
   function handleEnergySelect(value: "I" | "E") {
     setError(null);
     setEnergyType(value);
-    if (senseType && judgmentType && lifestyleType) {
-      setPersonalityType(`${value}${senseType}${judgmentType}${lifestyleType}` as PersonalityType);
-    } else {
-      setPersonalityType(null);
-    }
-  }
-
-  function handleSenseSelect(value: "S" | "N") {
-    setError(null);
-    setSenseType(value);
-    if (energyType && judgmentType && lifestyleType) {
-      setPersonalityType(`${energyType}${value}${judgmentType}${lifestyleType}` as PersonalityType);
-    } else {
-      setPersonalityType(null);
-    }
   }
 
   function handleJudgmentSelect(value: "T" | "F") {
     setError(null);
     setJudgmentType(value);
-    if (energyType && senseType && lifestyleType) {
-      setPersonalityType(`${energyType}${senseType}${value}${lifestyleType}` as PersonalityType);
-    } else {
-      setPersonalityType(null);
-    }
+  }
+
+  // Step 4의 선택 입력 — 넣으면 personalityType이 2글자에서 4글자로 자라난다
+  function handleSenseSelect(value: "S" | "N") {
+    setError(null);
+    setSenseType(value);
   }
 
   function handleLifestyleSelect(value: "J" | "P") {
     setError(null);
     setLifestyleType(value);
-    if (energyType && senseType && judgmentType) {
-      setPersonalityType(`${energyType}${senseType}${judgmentType}${value}` as PersonalityType);
-    } else {
-      setPersonalityType(null);
-    }
   }
 
   function handleLifeCategorySelect(key: LifeCategory) {
@@ -260,7 +291,7 @@ export function OnboardingForm({
     if (step === 1) {
       if (age === null || age < 0 || age > 100) { setError("나이를 입력해주세요."); return; }
       if (!gender) { setError("성별을 선택해주세요."); return; }
-      if (!personalityType) { setError("MBTI 성향을 모두 선택해주세요."); return; }
+      if (!energyType || !judgmentType) { setError("MBTI 성향을 선택해주세요."); return; }
       setStep(2);
       return;
     }
@@ -276,8 +307,8 @@ export function OnboardingForm({
 
     if (step === 3) {
       if (!lifeSceneAnalysis) { setError("아직 분석이 완료되지 않았어요. 잠시만 기다려주세요."); return; }
-      if (!selectedDailyTodo && selectedRoutineTitles.length === 0) {
-        setError("데일리투두 또는 루틴을 최소 1개 선택해주세요.");
+      if (!selectedDailyTodo) {
+        setError(VALIDATION_ERRORS.DAILY_TODO_REQUIRED);
         return;
       }
       setStep(4);
@@ -303,7 +334,7 @@ export function OnboardingForm({
     </div>
   );
 
-  return (
+  const content = (
     <div className="flex flex-col gap-6">
       {stepIndicator}
 
@@ -312,18 +343,14 @@ export function OnboardingForm({
           age={age}
           gender={gender}
           energyType={energyType}
-          senseType={senseType}
           judgmentType={judgmentType}
-          lifestyleType={lifestyleType}
           personalityType={personalityType}
           lifeClock={lifeClock}
           error={error}
           onAgeChange={handleAgeChange}
           onGenderSelect={(v) => { setError(null); setGender(v); }}
           onEnergySelect={handleEnergySelect}
-          onSenseSelect={handleSenseSelect}
           onJudgmentSelect={handleJudgmentSelect}
-          onLifestyleSelect={handleLifestyleSelect}
           onNext={handleNext}
         />
       )}
@@ -359,11 +386,10 @@ export function OnboardingForm({
           lifeSceneAnalysis={lifeSceneAnalysis}
           displayStrides={displayStrides}
           bucketTodos={bucketTodos}
+          selectedSceneText={selectedSceneText}
           selectedDailyTodo={selectedDailyTodo}
-          selectedRoutineTitles={selectedRoutineTitles}
           error={error}
           onSelectDailyTodo={(action) => { setSelectedDailyTodo(action); setError(null); }}
-          onSelectRoutineTitle={(title) => { selectRoutineTitle(title); setError(null); }}
           onRetryAnalysis={() => void runLifeSceneAnalysis(true)}
           onNext={handleNext}
           onBack={handleBack}
@@ -372,10 +398,15 @@ export function OnboardingForm({
 
       {step === 4 && (
         <StepConfirm
+          lifeClock={lifeClock}
+          personalityType={personalityType}
+          senseType={senseType}
+          lifestyleType={lifestyleType}
+          onSenseSelect={handleSenseSelect}
+          onLifestyleSelect={handleLifestyleSelect}
           selectedSceneText={selectedSceneText}
           lifeSceneAnalysis={lifeSceneAnalysis}
           selectedDailyTodo={selectedDailyTodo}
-          selectedRoutineTitles={selectedRoutineTitles}
           error={error}
           isLoading={isLoading}
           onBack={handleBack}
@@ -383,5 +414,31 @@ export function OnboardingForm({
         />
       )}
     </div>
+  );
+
+  // 체험판만 자체 상단 크롬을 갖는다.
+  // /onboarding은 가입 직후 한 번뿐이라 나갈 곳이 없고, 대시보드 시트는 BottomSheet가
+  // 이미 헤더를 갖고 있어 중복이 된다.
+  if (!isDemo) return content;
+
+  return (
+    <>
+      {/* Step 1에서는 ‹가 랜딩으로 나가고, 이후에는 한 단계씩 뒤로.
+          지금까지 Step 1에는 이탈 수단이 하나도 없어 들어오면 갇혔다. */}
+      <SubPageHeader
+        title={FEATURE_NAMES.FIND_ME}
+        backHref={step === initialStep ? "/" : undefined}
+        onBack={step === initialStep ? undefined : handleBack}
+        actions={
+          <Link
+            href="/"
+            className="inline-flex h-9 items-center rounded-lg px-2.5 text-sm text-foreground/60 transition-colors hover:bg-foreground/5 hover:text-foreground"
+          >
+            닫기
+          </Link>
+        }
+      />
+      <div className="mx-auto w-full max-w-sm px-4 pb-12 pt-6">{content}</div>
+    </>
   );
 }

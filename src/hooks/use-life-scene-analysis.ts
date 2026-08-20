@@ -31,7 +31,6 @@ export function useLifeSceneAnalysis({
   const [lifeSceneAnalysis, setLifeSceneAnalysis] = useState<LifeSceneAnalysisResult | null>(null);
   const [isAnalyzingLifeScene, setIsAnalyzingLifeScene] = useState(false);
   const [selectedDailyTodo, setSelectedDailyTodo] = useState("");
-  const [selectedRoutineTitles, setSelectedRoutineTitles] = useState<string[]>([]);
   const [step3AnalysisKey, setStep3AnalysisKey] = useState<string | null>(null);
 
   const step3RequestKey =
@@ -51,12 +50,7 @@ export function useLifeSceneAnalysis({
   function resetAnalysisState() {
     setLifeSceneAnalysis(null);
     setSelectedDailyTodo("");
-    setSelectedRoutineTitles([]);
     setStep3AnalysisKey(null);
-  }
-
-  function selectRoutineTitle(title: string) {
-    setSelectedRoutineTitles([title]);
   }
 
   const runLifeSceneAnalysis = useCallback(
@@ -69,7 +63,6 @@ export function useLifeSceneAnalysis({
       if (force) {
         setLifeSceneAnalysis(null);
         setSelectedDailyTodo("");
-        setSelectedRoutineTitles([]);
       }
 
       const payload = {
@@ -96,11 +89,6 @@ export function useLifeSceneAnalysis({
       setLifeSceneAnalysis(analysis);
       setStep3AnalysisKey(step3RequestKey);
       setSelectedDailyTodo((prev) => (prev && prev === firstTodoAction ? prev : firstTodoAction));
-      setSelectedRoutineTitles((prev) => {
-        const available = analysis.suggestedRoutines.map((item) => item.title);
-        const filteredPrev = prev.filter((item) => available.includes(item));
-        return filteredPrev.length > 0 ? filteredPrev : available.slice(0, 1);
-      });
       setIsAnalyzingLifeScene(false);
     },
     [
@@ -129,15 +117,12 @@ export function useLifeSceneAnalysis({
     isAnalyzingLifeScene,
     selectedDailyTodo,
     setSelectedDailyTodo,
-    selectedRoutineTitles,
-    setSelectedRoutineTitles,
     step3AnalysisKey,
     setStep3AnalysisKey,
     displayStrides,
     bucketTodos,
     selectedSeasonAction,
     resetAnalysisState,
-    selectRoutineTitle,
     runLifeSceneAnalysis,
   };
 }

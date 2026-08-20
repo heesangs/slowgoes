@@ -46,6 +46,8 @@ export const VALIDATION_ERRORS = {
   PACE_TYPE_INVALID: "페이스 값이 올바르지 않습니다.",
   PACE_OPTION_INVALID: "페이스 옵션 값이 올바르지 않습니다.",
   DAILY_TODO_OR_ROUTINE_REQUIRED: "데일리투두 또는 루틴을 최소 1개 선택해주세요.",
+  /** 온보딩은 투두 하나만 고르게 한다(루틴 제안 폐지) */
+  DAILY_TODO_REQUIRED: "데일리 투두를 선택해주세요.",
   WEEKLY_ACTION_REQUIRED: "이번 주 행동을 선택해주세요.",
   ONBOARDING_V2_DISABLED: "온보딩 v2가 비활성화되어 있습니다.",
   ONBOARDING_SAVE_FAILED: "온보딩 저장에 실패했습니다. 다시 시도해주세요.",

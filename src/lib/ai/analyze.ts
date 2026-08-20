@@ -358,6 +358,24 @@ function normalizeStrides(
     action: normalizeStrideAction(level, perLevel.get(level)![0]),
   }));
 
+  // today/this_week(= 버킷을 위한 투두)이 하나도 없으면 보충.
+  //
+  // 온보딩 Step 3은 이 짧은 발걸음 중 하나를 골라야 다음으로 갈 수 있다. AI가 긴 레벨만
+  // 돌려주면 고를 것이 없어 **"다음"이 영구 비활성**이 된다(예전엔 루틴 자동 선택이
+  // 우연히 안전망 역할을 했다). someday와 같은 급으로 보장한다.
+  if (!items.some((i) => STRIDE_ORDER.indexOf(i.level) < STRIDE_BOUNDARY_INDEX)) {
+    const shortFallback = fallback.find(
+      (f) => STRIDE_ORDER.indexOf(f.level) < STRIDE_BOUNDARY_INDEX
+    );
+    items.push(
+      shortFallback ?? {
+        level: "this_week",
+        label: STRIDE_LABELS.this_week,
+        action: buildStrideFallbackAction(sceneText, "this_week"),
+      }
+    );
+  }
+
   // someday가 없으면 fallback에서 보충
   if (!items.some((i) => i.level === "someday")) {
     const somedayFallback = fallback.find((f) => f.level === "someday");
@@ -562,22 +580,17 @@ export async function analyzeLifeScene(
    b) 중간 단계 1~3개 — this_month, this_season, this_year, five_years, decade 중 버킷 성격에 맞춰 선택. 추상→구체 스펙트럼.
    c) 짧은 단계 정확히 2개 — today 또는 this_week에서 선택. "버킷을 위한 투두"로 즉시 실행 가능한 구체 행동. 사용자가 둘 중 하나를 선택한다.
    - 배열은 짧은 → 긴 순으로 정렬
-3) 루틴 제안 정확히 2개
-   - 각 루틴은 반복 단위(repeatUnit)와 반복 값(repeatValue)을 포함
-   - repeatUnit: daily 또는 weekly
-   - 사용자가 둘 중 하나를 선택한다
 
 사용자 정보:
 - 나이: ${input.age}
 - 성별: ${input.gender}
-- 성향: ${input.personalityType}
+- 성향(MBTI): ${input.personalityType} (2글자면 I/E·T/F 두 축만 응답한 것 — 아는 만큼만 반영하고 나머지는 추측하지 말 것)
 - 삶의 장면: "${sceneText}"
 ${scopeHintLine}
 ${lifeAreaHintLine}
 
 규칙:
 - 문장은 한국어로 작성
-- suggestedRoutines는 정확히 2개, 서로 다른 성격의 루틴
 
 어조 가이드 (PR 17):
 - "언젠가"(someday): 비전 문장. 어미는 "~한 사람이 되어 있다", "~을 즐기는 사람", "~의 길을 걸어가고 있다" 등 정체성 진술 형식.
@@ -595,10 +608,6 @@ ${lifeAreaHintLine}
     { "level": "this_month", "label": "이번 달", "action": "..." },
     { "level": "this_year", "label": "올해안", "action": "..." },
     { "level": "someday", "label": "언젠가", "action": "..." }
-  ],
-  "suggestedRoutines": [
-    { "title": "루틴 제목", "repeatUnit": "daily|weekly", "repeatValue": 숫자 },
-    { "title": "루틴 제목", "repeatUnit": "daily|weekly", "repeatValue": 숫자 }
   ]
 }`;
 
@@ -618,7 +627,6 @@ ${lifeAreaHintLine}
     lifeArea?: unknown;
     strides?: unknown;
     horizons?: unknown;
-    suggestedRoutines?: unknown;
   };
 
   const lifeArea = normalizeLifeArea(object.lifeArea, sceneText);
@@ -628,15 +636,12 @@ ${lifeAreaHintLine}
     sceneText,
     strideScope
   );
-  const suggestedRoutines = normalizeSuggestedRoutines(
-    object.suggestedRoutines,
-    sceneText
-  );
-
+  // 루틴은 더 이상 요구하지도 파싱하지도 않는다.
+  // normalizeSuggestedRoutines를 계속 부르면 응답에 필드가 없을 때 폴백 2개를
+  // **자동 생성**해(throw가 아니다) 아무도 본 적 없는 더미가 stride_plans에 저장된다.
   return {
     lifeArea,
     strides,
-    suggestedRoutines,
   };
 }
 
@@ -852,7 +857,7 @@ export async function generateTodoSuggestions(
 - 삶의 영역: ${lifeArea}
 - 지향점 (투두는 가장 짧은 지평의 발걸음에 직결되어야 하고, 나머지는 방향의 배경):
 ${stridesSummary || "- 정보 없음"}
-- 유저 성향(MBTI): ${input.personalityType ?? "정보 없음"} (I형이면 혼자 시작 가능한 행동 우선, E형이면 사람과 연결되는 행동 허용, J형이면 계획·정리형, P형이면 즉흥·탐색형으로 조정)
+- 유저 성향(MBTI): ${input.personalityType ?? "정보 없음"} (2글자면 I/E·T/F 두 축만 응답한 것이니 아는 만큼만 반영. I형이면 혼자 시작 가능한 행동 우선, E형이면 사람과 연결되는 행동 허용, T형이면 근거·수치가 드러나는 행동, F형이면 의미·관계가 드러나는 행동. J/P가 있으면 J는 계획·정리형, P는 즉흥·탐색형으로 조정)
 - 나이: ${input.age != null ? `${input.age}세` : "정보 없음"}
 - 최근 일기 발췌 (관심사·막힘이 드러나면 1개는 이것과 연결):
 ${diaryNotes}
@@ -952,7 +957,7 @@ export async function generateWeeklyGoals(
 - 이번 주 범위: ${input.weekRange ?? "이번 주"}
 - 지향점 (목표는 가장 짧은 지평의 발걸음을 실제로 전진시켜야 한다):
 ${stridesSummary || "- 정보 없음"}
-- 유저 성향(MBTI): ${input.personalityType ?? "정보 없음"} (I형이면 혼자 진행 가능한 목표 우선, E형이면 사람과 연결되는 목표 허용, J형이면 계획·정리형, P형이면 즉흥·탐색형으로 조정)
+- 유저 성향(MBTI): ${input.personalityType ?? "정보 없음"} (2글자면 I/E·T/F 두 축만 응답한 것이니 아는 만큼만 반영. I형이면 혼자 진행 가능한 목표 우선, E형이면 사람과 연결되는 목표 허용, T형이면 근거·수치가 드러나는 목표, F형이면 의미·관계가 드러나는 목표. J/P가 있으면 J는 계획·정리형, P는 즉흥·탐색형으로 조정)
 - 나이: ${input.age != null ? `${input.age}세` : "정보 없음"}
 - 최근 일기 발췌 (관심사·막힘이 드러나면 1개는 이것과 연결):
 ${diaryNotes}

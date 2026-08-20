@@ -45,7 +45,8 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
     startStep2 &&
     profile?.life_clock_age != null &&
     (profile.gender === "male" || profile.gender === "female") &&
-    /^[EI][SN][TF][JP]$/.test(profile.personality_type ?? "")
+    // 2축(IT/IF/ET/EF)도 prefill 대상 — 4축 완성은 마지막 단계의 선택 입력이다
+    /^[EI]([SN][TF][JP]|[TF])$/.test(profile.personality_type ?? "")
       ? {
           age: profile.life_clock_age,
           gender: profile.gender as Gender,

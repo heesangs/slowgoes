@@ -4,20 +4,22 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FEATURE_NAMES } from "@/lib/constants";
 import type { LifeSceneAnalysisResult, StrideItem } from "@/types";
-import { formatRoutineRepeat, getStrideTone } from "./utils";
+import { getStrideTone } from "./utils";
 
-const ANALYSIS_HEADER_TITLE = "장면을 시간 위에 펼치고 있어요";
+// 진행 중과 완료의 문구를 갈라 이 화면이 "로딩"이 아니라 **결과**로 읽히게 한다.
+const HEADER_ANALYZING = "장면을 시간 위에 펼치고 있어요";
+const HEADER_DONE = "이렇게 펼쳐봤어요";
 
 interface StepAnalysisProps {
   isAnalyzingLifeScene: boolean;
   lifeSceneAnalysis: LifeSceneAnalysisResult | null;
   displayStrides: StrideItem[];
   bucketTodos: StrideItem[];
+  /** 결과 화면에서 무엇을 펼친 것인지 되짚어 준다 */
+  selectedSceneText: string;
   selectedDailyTodo: string;
-  selectedRoutineTitles: string[];
   error: string | null;
   onSelectDailyTodo: (action: string) => void;
-  onSelectRoutineTitle: (title: string) => void;
   onRetryAnalysis: () => void;
   onNext: () => void;
   onBack: () => void;
@@ -28,11 +30,10 @@ export function StepAnalysis({
   lifeSceneAnalysis,
   displayStrides,
   bucketTodos,
+  selectedSceneText,
   selectedDailyTodo,
-  selectedRoutineTitles,
   error,
   onSelectDailyTodo,
-  onSelectRoutineTitle,
   onRetryAnalysis,
   onNext,
   onBack,
@@ -40,10 +41,20 @@ export function StepAnalysis({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="mb-1 text-lg font-semibold">{ANALYSIS_HEADER_TITLE}</h2>
-        <p className="text-sm text-foreground/60">
-          {FEATURE_NAMES.MY_STRIDES}과 {FEATURE_NAMES.DAILY_TODO}, {FEATURE_NAMES.ROUTINE}을 확인해보세요
-        </p>
+        <h2 className="mb-1 text-lg font-semibold">
+          {isAnalyzingLifeScene ? HEADER_ANALYZING : HEADER_DONE}
+        </h2>
+        {isAnalyzingLifeScene ? (
+          <p className="text-sm text-foreground/60">
+            {FEATURE_NAMES.MY_STRIDES}과 {FEATURE_NAMES.DAILY_TODO}를 확인해보세요
+          </p>
+        ) : (
+          selectedSceneText && (
+            <p className="text-sm text-foreground/60">
+              &ldquo;{selectedSceneText}&rdquo;를 시간 위에 펼친 결과예요
+            </p>
+          )
+        )}
       </div>
 
       {isAnalyzingLifeScene && (
@@ -86,15 +97,17 @@ export function StepAnalysis({
             </div>
           </section>
 
-          {/* 버킷을 위한 투두 (today/this_week — 라디오 선택) */}
-          {bucketTodos.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <div>
-                <h3 className="text-sm font-semibold">{FEATURE_NAMES.BUCKET}을 위한 {FEATURE_NAMES.DAILY_TODO}</h3>
-                <p className="text-xs text-foreground/60">
-                  하나를 선택하면 이번 주 {FEATURE_NAMES.DAILY_TODO}가 됩니다.
-                </p>
-              </div>
+          {/* 버킷을 위한 투두 (today/this_week — 라디오 선택).
+              하나는 반드시 골라야 다음으로 갈 수 있으므로 비어 있어도 섹션을 감추지 않는다 —
+              감추면 왜 진행이 안 되는지 알 수 없는 화면이 된다. */}
+          <section className="flex flex-col gap-3">
+            <div>
+              <h3 className="text-sm font-semibold">{FEATURE_NAMES.BUCKET}을 위한 {FEATURE_NAMES.DAILY_TODO}</h3>
+              <p className="text-xs text-foreground/60">
+                하나를 선택하면 이번 주 {FEATURE_NAMES.DAILY_TODO}가 됩니다.
+              </p>
+            </div>
+            {bucketTodos.length > 0 ? (
               <div className="flex flex-col gap-2">
                 {bucketTodos.map((item, index) => {
                   const isSelected = selectedDailyTodo === item.action;
@@ -128,51 +141,24 @@ export function StepAnalysis({
                   );
                 })}
               </div>
-            </section>
-          )}
-
-          {/* 버킷을 위한 루틴 (라디오 선택) */}
-          <section className="flex flex-col gap-3">
-            <div>
-              <h3 className="text-sm font-semibold">{FEATURE_NAMES.BUCKET}을 위한 {FEATURE_NAMES.ROUTINE}</h3>
-              <p className="text-xs text-foreground/60">
-                하나를 선택하면 반복 {FEATURE_NAMES.ROUTINE}으로 등록됩니다.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2">
-              {lifeSceneAnalysis.suggestedRoutines.map((routine) => {
-                const selected = selectedRoutineTitles.includes(routine.title);
-                return (
-                  <button
-                    key={routine.title}
-                    type="button"
-                    onClick={() => onSelectRoutineTitle(routine.title)}
-                    className={cn(
-                      "flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left transition-colors",
-                      selected
-                        ? "border-foreground bg-foreground text-background"
-                        : "border-foreground/15 hover:bg-foreground/[0.04]"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
-                        selected ? "border-background bg-background" : "border-foreground/30"
-                      )}
-                    >
-                      {selected && <span className="h-2 w-2 rounded-full bg-foreground" />}
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{routine.title}</p>
-                      <p className={cn("mt-1 text-xs", selected ? "text-background/80" : "text-foreground/60")}>
-                        반복: {formatRoutineRepeat(routine)}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            ) : (
+              <div className="rounded-lg bg-foreground/[0.04] px-3 py-3">
+                <p className="text-xs leading-relaxed text-foreground/70">
+                  고를 만한 짧은 걸음이 나오지 않았어요.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={onRetryAnalysis}
+                  className="mt-2 w-full"
+                >
+                  다시 분석하기
+                </Button>
+              </div>
+            )}
           </section>
+
         </>
       )}
 
@@ -208,7 +194,7 @@ export function StepAnalysis({
           type="button"
           onClick={onNext}
           className="flex-1"
-          disabled={isAnalyzingLifeScene || (!selectedDailyTodo && selectedRoutineTitles.length === 0)}
+          disabled={isAnalyzingLifeScene || !selectedDailyTodo}
         >
           {isAnalyzingLifeScene ? "분석 중..." : "다음"}
         </Button>

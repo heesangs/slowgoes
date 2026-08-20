@@ -1,13 +1,6 @@
 import { STRIDE_ORDER } from "@/lib/ai/analyze";
-import type { SuggestedRoutine, StrideLevel } from "@/types";
+import type { StrideLevel } from "@/types";
 import { CLOCK_HAND_ROTATION_CLASSES } from "./constants";
-
-export function formatRoutineRepeat(routine: SuggestedRoutine) {
-  if (routine.repeatUnit === "daily") {
-    return routine.repeatValue <= 1 ? "매일" : `${routine.repeatValue}일마다`;
-  }
-  return routine.repeatValue <= 1 ? "매주" : `${routine.repeatValue}주마다`;
-}
 
 // 길수록 진하게 — someday가 가장 진한 톤
 export function getStrideTone(level: StrideLevel) {

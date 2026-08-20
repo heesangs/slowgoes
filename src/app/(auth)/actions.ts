@@ -29,7 +29,9 @@ import type {
 } from "@/types";
 
 const VALID_GENDERS = ["male", "female"] as const;
+// 2축(Step 1만 응답) + 4축(마지막 단계에서 보완) 둘 다 유효한 상태다.
 const VALID_PERSONALITY_TYPES = [
+  "IT", "IF", "ET", "EF",
   "ISTJ", "ISFJ", "INFJ", "INTJ",
   "ISTP", "ISFP", "INFP", "INTP",
   "ESTP", "ESFP", "ENFP", "ENTP",
