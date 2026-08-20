@@ -4,14 +4,13 @@ import { Button } from "@/components/ui/button";
 import { SegmentControl } from "@/components/ui/segment-control";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import type { Gender, PaceType, PersonalityType } from "@/types";
+import type { Gender, PersonalityType } from "@/types";
 import {
   GENDER_OPTIONS,
   MBTI_ENERGY_OPTIONS,
   MBTI_JUDGMENT_OPTIONS,
   MBTI_LIFESTYLE_OPTIONS,
   MBTI_SENSE_OPTIONS,
-  PACE_OPTIONS,
 } from "./constants";
 import type { LifeClockInfo } from "./utils";
 
@@ -23,7 +22,6 @@ interface StepProfileProps {
   judgmentType: "T" | "F" | null;
   lifestyleType: "J" | "P" | null;
   personalityType: PersonalityType | null;
-  paceType: PaceType | null;
   lifeClock: LifeClockInfo | null;
   error: string | null;
   onAgeChange: (value: string) => void;
@@ -32,7 +30,6 @@ interface StepProfileProps {
   onSenseSelect: (value: "S" | "N") => void;
   onJudgmentSelect: (value: "T" | "F") => void;
   onLifestyleSelect: (value: "J" | "P") => void;
-  onPaceSelect: (value: PaceType) => void;
   onNext: () => void;
 }
 
@@ -44,7 +41,6 @@ export function StepProfile({
   judgmentType,
   lifestyleType,
   personalityType,
-  paceType,
   lifeClock,
   error,
   onAgeChange,
@@ -53,7 +49,6 @@ export function StepProfile({
   onSenseSelect,
   onJudgmentSelect,
   onLifestyleSelect,
-  onPaceSelect,
   onNext,
 }: StepProfileProps) {
   return (
@@ -152,12 +147,6 @@ export function StepProfile({
               <SegmentControl options={MBTI_LIFESTYLE_OPTIONS} value={lifestyleType} onChange={onLifestyleSelect} />
             </div>
           </div>
-        </div>
-
-        {/* 생활 속도 */}
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-foreground/70">생활 속도</p>
-          <SegmentControl options={PACE_OPTIONS} value={paceType} onChange={onPaceSelect} />
         </div>
       </div>
 

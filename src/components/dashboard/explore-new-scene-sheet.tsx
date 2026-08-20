@@ -12,7 +12,7 @@
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { OnboardingForm } from "@/components/auth/onboarding-form";
 import { FEATURE_NAMES } from "@/lib/constants";
-import type { Gender, PaceType, PersonalityType } from "@/types";
+import type { Gender, PersonalityType } from "@/types";
 
 interface ExploreNewSceneSheetProps {
   open: boolean;
@@ -22,7 +22,6 @@ interface ExploreNewSceneSheetProps {
     age: number;
     gender: Gender;
     personalityType: PersonalityType;
-    paceType?: PaceType;
   } | null;
   /** 새 장면 탐색 흐름이 끝난 뒤 토스트/refresh — onComplete 트리거 */
   onComplete: () => void;

@@ -47,7 +47,6 @@ import type {
   BucketTodosData,
   DashboardV2Data,
   Gender,
-  PaceType,
   PersonalityType,
   StrideItem,
   TodoRepeatInput,
@@ -271,7 +270,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         age: p.life_clock_age,
         gender: p.gender as Gender,
         personalityType: p.personality_type as PersonalityType,
-        paceType: (p.pace_type ?? undefined) as PaceType | undefined,
       };
     }
     return null;

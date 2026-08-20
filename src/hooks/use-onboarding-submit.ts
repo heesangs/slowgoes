@@ -12,16 +12,18 @@ import type {
   ExistingBucketContext,
   Gender,
   LifeSceneAnalysisResult,
-  PaceType,
   PersonalityType,
 } from "@/types";
+
+// 생활 속도는 온보딩에서 더 이상 묻지 않는다 — 어떤 AI 프롬프트도 앱 로직도 읽지
+// 않는 값이라 질문만 하나 늘리고 있었다. 컬럼은 남겨 두고 기본값으로 저장한다.
+const DEFAULT_PACE_TYPE = "balanced" as const;
 
 interface UseOnboardingSubmitParams {
   isDemo: boolean;
   age: number | null;
   gender: Gender | null;
   personalityType: PersonalityType | null;
-  paceType: PaceType | null;
   selectedSceneText: string;
   lifeSceneAnalysis: LifeSceneAnalysisResult | null;
   selectedDailyTodo: string;
@@ -38,7 +40,6 @@ export function useOnboardingSubmit({
   age,
   gender,
   personalityType,
-  paceType,
   selectedSceneText,
   lifeSceneAnalysis,
   selectedDailyTodo,
@@ -91,8 +92,6 @@ export function useOnboardingSubmit({
           age,
           gender,
           personalityType,
-          paceType: paceType ?? "balanced",
-          selfLevel: "medium",
           chapterTitle: selectedSeasonAction || `${selectedSceneText} 이번 시즌 실행`,
           stridePlan: lifeSceneAnalysis,
           selectedDailyTodos,
@@ -139,7 +138,7 @@ export function useOnboardingSubmit({
         age,
         gender,
         personalityType,
-        paceType: paceType ?? ("balanced" as const),
+        paceType: DEFAULT_PACE_TYPE,
         chapterTitle: selectedSeasonAction || `${selectedSceneText} 이번 시즌 실행`,
         stridePlan: lifeSceneAnalysis,
         selectedDailyTodos,

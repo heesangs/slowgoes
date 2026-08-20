@@ -4,8 +4,6 @@ export type TaskStatus = "pending" | "in_progress" | "completed";
 
 export type Difficulty = "easy" | "medium" | "hard";
 
-export type SelfLevel = "low" | "medium" | "high";
-
 export type UserContext = "student" | "university" | "work" | "personal";
 
 // v2 온보딩/개편 도메인 타입
