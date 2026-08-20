@@ -6,13 +6,17 @@ import { FEATURE_NAMES } from "@/lib/constants";
 import type { LifeSceneAnalysisResult, StrideItem } from "@/types";
 import { getStrideTone } from "./utils";
 
-const ANALYSIS_HEADER_TITLE = "장면을 시간 위에 펼치고 있어요";
+// 진행 중과 완료의 문구를 갈라 이 화면이 "로딩"이 아니라 **결과**로 읽히게 한다.
+const HEADER_ANALYZING = "장면을 시간 위에 펼치고 있어요";
+const HEADER_DONE = "이렇게 펼쳐봤어요";
 
 interface StepAnalysisProps {
   isAnalyzingLifeScene: boolean;
   lifeSceneAnalysis: LifeSceneAnalysisResult | null;
   displayStrides: StrideItem[];
   bucketTodos: StrideItem[];
+  /** 결과 화면에서 무엇을 펼친 것인지 되짚어 준다 */
+  selectedSceneText: string;
   selectedDailyTodo: string;
   error: string | null;
   onSelectDailyTodo: (action: string) => void;
@@ -26,6 +30,7 @@ export function StepAnalysis({
   lifeSceneAnalysis,
   displayStrides,
   bucketTodos,
+  selectedSceneText,
   selectedDailyTodo,
   error,
   onSelectDailyTodo,
@@ -36,10 +41,20 @@ export function StepAnalysis({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="mb-1 text-lg font-semibold">{ANALYSIS_HEADER_TITLE}</h2>
-        <p className="text-sm text-foreground/60">
-          {FEATURE_NAMES.MY_STRIDES}과 {FEATURE_NAMES.DAILY_TODO}를 확인해보세요
-        </p>
+        <h2 className="mb-1 text-lg font-semibold">
+          {isAnalyzingLifeScene ? HEADER_ANALYZING : HEADER_DONE}
+        </h2>
+        {isAnalyzingLifeScene ? (
+          <p className="text-sm text-foreground/60">
+            {FEATURE_NAMES.MY_STRIDES}과 {FEATURE_NAMES.DAILY_TODO}를 확인해보세요
+          </p>
+        ) : (
+          selectedSceneText && (
+            <p className="text-sm text-foreground/60">
+              &ldquo;{selectedSceneText}&rdquo;를 시간 위에 펼친 결과예요
+            </p>
+          )
+        )}
       </div>
 
       {isAnalyzingLifeScene && (
