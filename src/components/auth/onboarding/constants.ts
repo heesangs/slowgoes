@@ -1,6 +1,8 @@
 import type { Gender, LifeAreaName, OnboardingSceneCategory } from "@/types";
 
-export const DRAFT_VERSION = "v1";
+// v2: 온보딩에서 루틴 제안이 사라지고 MBTI가 2축 체계로 바뀌었다.
+// 구 draft를 복원하면 스키마가 어긋나므로 버전을 올려 무효화한다.
+export const DRAFT_VERSION = "v2";
 
 export const GENDER_OPTIONS = [
   { value: "male" as Gender, label: "남성" },

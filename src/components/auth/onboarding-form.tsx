@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { VALIDATION_ERRORS } from "@/lib/constants";
 import type {
   DemoSceneItem,
   Gender,
@@ -125,15 +126,12 @@ export function OnboardingForm({
     isAnalyzingLifeScene,
     selectedDailyTodo,
     setSelectedDailyTodo,
-    selectedRoutineTitles,
-    setSelectedRoutineTitles,
     step3AnalysisKey,
     setStep3AnalysisKey,
     displayStrides,
     bucketTodos,
     selectedSeasonAction,
     resetAnalysisState,
-    selectRoutineTitle,
     runLifeSceneAnalysis,
   } = useLifeSceneAnalysis({
     isDemo,
@@ -158,10 +156,9 @@ export function OnboardingForm({
         setStep3AnalysisKey(draft.step3AnalysisKey);
       }
       if (draft.selectedDailyTodo) setSelectedDailyTodo(draft.selectedDailyTodo);
-      setSelectedRoutineTitles(draft.selectedRoutineTitles);
       setStep(draft.step);
     },
-    [setLifeSceneAnalysis, setStep3AnalysisKey, setSelectedDailyTodo, setSelectedRoutineTitles]
+    [setLifeSceneAnalysis, setStep3AnalysisKey, setSelectedDailyTodo]
   );
 
   // sessionStorage draft 관리
@@ -174,7 +171,6 @@ export function OnboardingForm({
       customSceneInput,
       lifeSceneAnalysis,
       selectedDailyTodo,
-      selectedRoutineTitles,
       step3AnalysisKey,
     }),
     [
@@ -185,7 +181,6 @@ export function OnboardingForm({
       customSceneInput,
       lifeSceneAnalysis,
       selectedDailyTodo,
-      selectedRoutineTitles,
       step3AnalysisKey,
     ]
   );
@@ -201,7 +196,6 @@ export function OnboardingForm({
     selectedSceneText,
     lifeSceneAnalysis,
     selectedDailyTodo,
-    selectedRoutineTitles,
     selectedSeasonAction,
     // PR 3 이후 시트는 항상 새 버킷 생성. "기존 버킷에 추가" 흐름은 폐기됨.
     selectedExistingBucket: null,
@@ -279,8 +273,8 @@ export function OnboardingForm({
 
     if (step === 3) {
       if (!lifeSceneAnalysis) { setError("아직 분석이 완료되지 않았어요. 잠시만 기다려주세요."); return; }
-      if (!selectedDailyTodo && selectedRoutineTitles.length === 0) {
-        setError("데일리투두 또는 루틴을 최소 1개 선택해주세요.");
+      if (!selectedDailyTodo) {
+        setError(VALIDATION_ERRORS.DAILY_TODO_REQUIRED);
         return;
       }
       setStep(4);
@@ -359,10 +353,8 @@ export function OnboardingForm({
           displayStrides={displayStrides}
           bucketTodos={bucketTodos}
           selectedDailyTodo={selectedDailyTodo}
-          selectedRoutineTitles={selectedRoutineTitles}
           error={error}
           onSelectDailyTodo={(action) => { setSelectedDailyTodo(action); setError(null); }}
-          onSelectRoutineTitle={(title) => { selectRoutineTitle(title); setError(null); }}
           onRetryAnalysis={() => void runLifeSceneAnalysis(true)}
           onNext={handleNext}
           onBack={handleBack}
@@ -380,7 +372,6 @@ export function OnboardingForm({
           selectedSceneText={selectedSceneText}
           lifeSceneAnalysis={lifeSceneAnalysis}
           selectedDailyTodo={selectedDailyTodo}
-          selectedRoutineTitles={selectedRoutineTitles}
           error={error}
           isLoading={isLoading}
           onBack={handleBack}

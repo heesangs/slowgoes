@@ -19,8 +19,7 @@ export function DemoDataBanner() {
 
   if (!data) return null;
 
-  const todoCount = data.selectedDailyTodos.length;
-  const routineCount = data.selectedRoutines.length;
+  const todoCount = data.selectedDailyTodos?.length ?? 0;
 
   return (
     <div className="mb-4 rounded-xl border border-foreground/15 bg-foreground/[0.03] p-4 text-sm">
@@ -28,9 +27,9 @@ export function DemoDataBanner() {
       <p className="mt-1 line-clamp-2 text-foreground/60">
         &ldquo;{data.sceneText}&rdquo;
       </p>
-      {(todoCount > 0 || routineCount > 0) && (
+      {todoCount > 0 && (
         <p className="mt-1 text-foreground/60">
-          {FEATURE_NAMES.DAILY_TODO} {todoCount}개, {FEATURE_NAMES.ROUTINE} {routineCount}개가 보관 중이에요.
+          {FEATURE_NAMES.DAILY_TODO} {todoCount}개가 보관 중이에요.
         </p>
       )}
       <p className="mt-1 text-foreground/60">

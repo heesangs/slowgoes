@@ -20,7 +20,8 @@ export interface DemoOnboardingData {
   chapterTitle: string;
   stridePlan: LifeSceneAnalysisResult;
   selectedDailyTodos: Array<{ title: string; source?: ItemSource }>;
-  selectedRoutines: Array<{
+  /** 온보딩에서 루틴 제안이 폐지됨. 예전에 저장된 체험 데이터에는 남아 있어 optional */
+  selectedRoutines?: Array<{
     title: string;
     repeatUnit: RoutineRepeatUnit;
     repeatValue: number;

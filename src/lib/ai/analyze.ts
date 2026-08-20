@@ -358,6 +358,24 @@ function normalizeStrides(
     action: normalizeStrideAction(level, perLevel.get(level)![0]),
   }));
 
+  // today/this_week(= 버킷을 위한 투두)이 하나도 없으면 보충.
+  //
+  // 온보딩 Step 3은 이 짧은 발걸음 중 하나를 골라야 다음으로 갈 수 있다. AI가 긴 레벨만
+  // 돌려주면 고를 것이 없어 **"다음"이 영구 비활성**이 된다(예전엔 루틴 자동 선택이
+  // 우연히 안전망 역할을 했다). someday와 같은 급으로 보장한다.
+  if (!items.some((i) => STRIDE_ORDER.indexOf(i.level) < STRIDE_BOUNDARY_INDEX)) {
+    const shortFallback = fallback.find(
+      (f) => STRIDE_ORDER.indexOf(f.level) < STRIDE_BOUNDARY_INDEX
+    );
+    items.push(
+      shortFallback ?? {
+        level: "this_week",
+        label: STRIDE_LABELS.this_week,
+        action: buildStrideFallbackAction(sceneText, "this_week"),
+      }
+    );
+  }
+
   // someday가 없으면 fallback에서 보충
   if (!items.some((i) => i.level === "someday")) {
     const somedayFallback = fallback.find((f) => f.level === "someday");
@@ -562,10 +580,6 @@ export async function analyzeLifeScene(
    b) 중간 단계 1~3개 — this_month, this_season, this_year, five_years, decade 중 버킷 성격에 맞춰 선택. 추상→구체 스펙트럼.
    c) 짧은 단계 정확히 2개 — today 또는 this_week에서 선택. "버킷을 위한 투두"로 즉시 실행 가능한 구체 행동. 사용자가 둘 중 하나를 선택한다.
    - 배열은 짧은 → 긴 순으로 정렬
-3) 루틴 제안 정확히 2개
-   - 각 루틴은 반복 단위(repeatUnit)와 반복 값(repeatValue)을 포함
-   - repeatUnit: daily 또는 weekly
-   - 사용자가 둘 중 하나를 선택한다
 
 사용자 정보:
 - 나이: ${input.age}
@@ -577,7 +591,6 @@ ${lifeAreaHintLine}
 
 규칙:
 - 문장은 한국어로 작성
-- suggestedRoutines는 정확히 2개, 서로 다른 성격의 루틴
 
 어조 가이드 (PR 17):
 - "언젠가"(someday): 비전 문장. 어미는 "~한 사람이 되어 있다", "~을 즐기는 사람", "~의 길을 걸어가고 있다" 등 정체성 진술 형식.
@@ -595,10 +608,6 @@ ${lifeAreaHintLine}
     { "level": "this_month", "label": "이번 달", "action": "..." },
     { "level": "this_year", "label": "올해안", "action": "..." },
     { "level": "someday", "label": "언젠가", "action": "..." }
-  ],
-  "suggestedRoutines": [
-    { "title": "루틴 제목", "repeatUnit": "daily|weekly", "repeatValue": 숫자 },
-    { "title": "루틴 제목", "repeatUnit": "daily|weekly", "repeatValue": 숫자 }
   ]
 }`;
 
@@ -618,7 +627,6 @@ ${lifeAreaHintLine}
     lifeArea?: unknown;
     strides?: unknown;
     horizons?: unknown;
-    suggestedRoutines?: unknown;
   };
 
   const lifeArea = normalizeLifeArea(object.lifeArea, sceneText);
@@ -628,15 +636,12 @@ ${lifeAreaHintLine}
     sceneText,
     strideScope
   );
-  const suggestedRoutines = normalizeSuggestedRoutines(
-    object.suggestedRoutines,
-    sceneText
-  );
-
+  // 루틴은 더 이상 요구하지도 파싱하지도 않는다.
+  // normalizeSuggestedRoutines를 계속 부르면 응답에 필드가 없을 때 폴백 2개를
+  // **자동 생성**해(throw가 아니다) 아무도 본 적 없는 더미가 stride_plans에 저장된다.
   return {
     lifeArea,
     strides,
-    suggestedRoutines,
   };
 }
 

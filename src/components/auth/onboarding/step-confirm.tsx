@@ -5,7 +5,7 @@ import { SegmentControl } from "@/components/ui/segment-control";
 import { FEATURE_NAMES } from "@/lib/constants";
 import type { LifeSceneAnalysisResult, PersonalityType } from "@/types";
 import { MBTI_LIFESTYLE_OPTIONS, MBTI_SENSE_OPTIONS } from "./constants";
-import { formatRoutineRepeat, type LifeClockInfo } from "./utils";
+import type { LifeClockInfo } from "./utils";
 
 interface StepConfirmProps {
   /** 확정 화면에서 다시 보여주는 나의 시간 */
@@ -19,7 +19,6 @@ interface StepConfirmProps {
   selectedSceneText: string;
   lifeSceneAnalysis: LifeSceneAnalysisResult | null;
   selectedDailyTodo: string;
-  selectedRoutineTitles: string[];
   error: string | null;
   isLoading: boolean;
   onBack: () => void;
@@ -36,7 +35,6 @@ export function StepConfirm({
   selectedSceneText,
   lifeSceneAnalysis,
   selectedDailyTodo,
-  selectedRoutineTitles,
   error,
   isLoading,
   onBack,
@@ -90,27 +88,6 @@ export function StepConfirm({
         <p className="text-xs text-foreground/50">{FEATURE_NAMES.DAILY_TODO}</p>
         {selectedDailyTodo ? (
           <p className="mt-1 text-sm font-medium">{selectedDailyTodo}</p>
-        ) : (
-          <p className="mt-1 text-sm text-foreground/60">선택하지 않았어요.</p>
-        )}
-      </div>
-
-      <div className="rounded-xl border border-foreground/10 px-4 py-4">
-        <p className="text-xs text-foreground/50">{FEATURE_NAMES.ROUTINE}</p>
-        {selectedRoutineTitles.length > 0 ? (
-          <div className="mt-2 flex flex-col gap-2">
-            {lifeSceneAnalysis?.suggestedRoutines
-              .filter((item) => selectedRoutineTitles.includes(item.title))
-              .map((routine) => (
-                <div
-                  key={routine.title}
-                  className="rounded-lg border border-foreground/10 bg-foreground/[0.02] px-3 py-3"
-                >
-                  <p className="text-sm font-medium">{routine.title}</p>
-                  <p className="mt-1 text-xs text-foreground/60">반복: {formatRoutineRepeat(routine)}</p>
-                </div>
-              ))}
-          </div>
         ) : (
           <p className="mt-1 text-sm text-foreground/60">선택하지 않았어요.</p>
         )}
