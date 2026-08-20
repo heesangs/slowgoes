@@ -8,7 +8,16 @@ export type UserContext = "student" | "university" | "work" | "personal";
 
 // v2 온보딩/개편 도메인 타입
 export type Gender = "male" | "female";
+/**
+ * MBTI. **2글자 또는 4글자**다.
+ *
+ * 온보딩 Step 1은 I/E·T/F 두 축만 묻고(부담 축소), 나머지 두 축은 마지막 단계에서
+ * 선택 입력이다. 안 고른 축을 임의 기본값으로 채워 AI에 사실처럼 넘기지 않으려고
+ * 미완성 상태를 그대로 표현한다. DB CHECK도 20값을 허용한다(20260821).
+ */
+export type PersonalityAxes2 = "IT" | "IF" | "ET" | "EF";
 export type PersonalityType =
+  | PersonalityAxes2
   | "ISTJ" | "ISFJ" | "INFJ" | "INTJ"
   | "ISTP" | "ISFP" | "INFP" | "INTP"
   | "ESTP" | "ESFP" | "ENFP" | "ENTP"

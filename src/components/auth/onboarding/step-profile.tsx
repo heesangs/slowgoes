@@ -5,31 +5,21 @@ import { SegmentControl } from "@/components/ui/segment-control";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Gender, PersonalityType } from "@/types";
-import {
-  GENDER_OPTIONS,
-  MBTI_ENERGY_OPTIONS,
-  MBTI_JUDGMENT_OPTIONS,
-  MBTI_LIFESTYLE_OPTIONS,
-  MBTI_SENSE_OPTIONS,
-} from "./constants";
+import { GENDER_OPTIONS, MBTI_ENERGY_OPTIONS, MBTI_JUDGMENT_OPTIONS } from "./constants";
 import type { LifeClockInfo } from "./utils";
 
 interface StepProfileProps {
   age: number | null;
   gender: Gender | null;
   energyType: "I" | "E" | null;
-  senseType: "S" | "N" | null;
   judgmentType: "T" | "F" | null;
-  lifestyleType: "J" | "P" | null;
   personalityType: PersonalityType | null;
   lifeClock: LifeClockInfo | null;
   error: string | null;
   onAgeChange: (value: string) => void;
   onGenderSelect: (value: Gender) => void;
   onEnergySelect: (value: "I" | "E") => void;
-  onSenseSelect: (value: "S" | "N") => void;
   onJudgmentSelect: (value: "T" | "F") => void;
-  onLifestyleSelect: (value: "J" | "P") => void;
   onNext: () => void;
 }
 
@@ -37,18 +27,14 @@ export function StepProfile({
   age,
   gender,
   energyType,
-  senseType,
   judgmentType,
-  lifestyleType,
   personalityType,
   lifeClock,
   error,
   onAgeChange,
   onGenderSelect,
   onEnergySelect,
-  onSenseSelect,
   onJudgmentSelect,
-  onLifestyleSelect,
   onNext,
 }: StepProfileProps) {
   return (
@@ -122,7 +108,8 @@ export function StepProfile({
           </div>
         </div>
 
-        {/* MBTI — 4축 세그먼트 컨트롤 */}
+        {/* MBTI — 두 축만 묻는다. 나머지 두 축(S/N·J/P)은 마지막 단계의 선택 입력.
+            추천 장면 시드가 실제로 쓰는 정보량이 정확히 이 두 축이다. */}
         <div className="flex flex-col gap-3">
           <p className="text-sm font-medium text-foreground/70">MBTI 성향</p>
 
@@ -133,18 +120,8 @@ export function StepProfile({
             </div>
 
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-foreground/50">정보 수집 방식</p>
-              <SegmentControl options={MBTI_SENSE_OPTIONS} value={senseType} onChange={onSenseSelect} />
-            </div>
-
-            <div className="flex flex-col gap-1">
               <p className="text-xs text-foreground/50">판단 방식</p>
               <SegmentControl options={MBTI_JUDGMENT_OPTIONS} value={judgmentType} onChange={onJudgmentSelect} />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <p className="text-xs text-foreground/50">생활 방식</p>
-              <SegmentControl options={MBTI_LIFESTYLE_OPTIONS} value={lifestyleType} onChange={onLifestyleSelect} />
             </div>
           </div>
         </div>

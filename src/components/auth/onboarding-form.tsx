@@ -32,6 +32,20 @@ interface OnboardingFormProps {
   sessionKey?: string;
 }
 
+// MBTI 문자열에서 축을 안전하게 읽는다. 2글자("IF")면 S/N·J/P는 아직 없는 것.
+function readJudgment(mbti: string | undefined | null): "T" | "F" | null {
+  if (!mbti) return null;
+  return (mbti.length === 2 ? mbti[1] : mbti[2]) as "T" | "F";
+}
+function readSense(mbti: string | undefined | null): "S" | "N" | null {
+  if (!mbti || mbti.length < 4) return null;
+  return mbti[1] as "S" | "N";
+}
+function readLifestyle(mbti: string | undefined | null): "J" | "P" | null {
+  if (!mbti || mbti.length < 4) return null;
+  return mbti[3] as "J" | "P";
+}
+
 export function OnboardingForm({
   mode = "default",
   startStep,
@@ -49,20 +63,20 @@ export function OnboardingForm({
   // Step 1 상태
   const [age, setAge] = useState<number | null>(prefillProfile?.age ?? null);
   const [gender, setGender] = useState<Gender | null>(prefillProfile?.gender ?? null);
+  // MBTI는 2글자("IF" — Step 1의 I/E·T/F만) 또는 4글자("INFP")다.
+  // 4글자일 때만 S/N·J/P를 채운다 — 2글자에 인덱스로 접근하면 undefined가 섞인다.
   const [energyType, setEnergyType] = useState<"I" | "E" | null>(
-    (prefillProfile?.personalityType?.[0] as "I" | "E" | undefined) ?? null
-  );
-  const [senseType, setSenseType] = useState<"S" | "N" | null>(
-    (prefillProfile?.personalityType?.[1] as "S" | "N" | undefined) ?? null
+    () => (prefillProfile?.personalityType?.[0] as "I" | "E" | undefined) ?? null
   );
   const [judgmentType, setJudgmentType] = useState<"T" | "F" | null>(
-    (prefillProfile?.personalityType?.[2] as "T" | "F" | undefined) ?? null
+    () => readJudgment(prefillProfile?.personalityType)
+  );
+  // 아래 둘은 마지막 단계(StepConfirm)의 **선택** 입력 — 넣으면 4글자로 완성된다
+  const [senseType, setSenseType] = useState<"S" | "N" | null>(
+    () => readSense(prefillProfile?.personalityType)
   );
   const [lifestyleType, setLifestyleType] = useState<"J" | "P" | null>(
-    (prefillProfile?.personalityType?.[3] as "J" | "P" | undefined) ?? null
-  );
-  const [personalityType, setPersonalityType] = useState<PersonalityType | null>(
-    prefillProfile?.personalityType ?? null
+    () => readLifestyle(prefillProfile?.personalityType)
   );
 
   // Step 2 상태
@@ -75,6 +89,15 @@ export function OnboardingForm({
   const selectedSceneText = isSceneFromCustomInput
     ? customSceneInput.trim()
     : selectedDemoScene?.text ?? "";
+
+  // 두 축만 고르면 "IF", 마지막 단계에서 나머지를 채우면 "INFP"로 자란다.
+  // 안 고른 축을 기본값으로 메우지 않는다 — AI에 사실처럼 전달되면 안 되므로.
+  const personalityType = useMemo<PersonalityType | null>(() => {
+    if (!energyType || !judgmentType) return null;
+    return senseType && lifestyleType
+      ? (`${energyType}${senseType}${judgmentType}${lifestyleType}` as PersonalityType)
+      : (`${energyType}${judgmentType}` as PersonalityType);
+  }, [energyType, judgmentType, senseType, lifestyleType]);
 
   const lifeClock = useMemo(() => computeLifeClock(age), [age]);
 
@@ -89,11 +112,10 @@ export function OnboardingForm({
     if (!prefillProfile) return;
     setAge(prefillProfile.age);
     setGender(prefillProfile.gender);
-    setPersonalityType(prefillProfile.personalityType);
     setEnergyType(prefillProfile.personalityType[0] as "I" | "E");
-    setSenseType(prefillProfile.personalityType[1] as "S" | "N");
-    setJudgmentType(prefillProfile.personalityType[2] as "T" | "F");
-    setLifestyleType(prefillProfile.personalityType[3] as "J" | "P");
+    setJudgmentType(readJudgment(prefillProfile.personalityType));
+    setSenseType(readSense(prefillProfile.personalityType));
+    setLifestyleType(readLifestyle(prefillProfile.personalityType));
   }, [prefillProfile]);
 
   // AI 분석 hook
@@ -199,41 +221,22 @@ export function OnboardingForm({
   function handleEnergySelect(value: "I" | "E") {
     setError(null);
     setEnergyType(value);
-    if (senseType && judgmentType && lifestyleType) {
-      setPersonalityType(`${value}${senseType}${judgmentType}${lifestyleType}` as PersonalityType);
-    } else {
-      setPersonalityType(null);
-    }
-  }
-
-  function handleSenseSelect(value: "S" | "N") {
-    setError(null);
-    setSenseType(value);
-    if (energyType && judgmentType && lifestyleType) {
-      setPersonalityType(`${energyType}${value}${judgmentType}${lifestyleType}` as PersonalityType);
-    } else {
-      setPersonalityType(null);
-    }
   }
 
   function handleJudgmentSelect(value: "T" | "F") {
     setError(null);
     setJudgmentType(value);
-    if (energyType && senseType && lifestyleType) {
-      setPersonalityType(`${energyType}${senseType}${value}${lifestyleType}` as PersonalityType);
-    } else {
-      setPersonalityType(null);
-    }
+  }
+
+  // Step 4의 선택 입력 — 넣으면 personalityType이 2글자에서 4글자로 자라난다
+  function handleSenseSelect(value: "S" | "N") {
+    setError(null);
+    setSenseType(value);
   }
 
   function handleLifestyleSelect(value: "J" | "P") {
     setError(null);
     setLifestyleType(value);
-    if (energyType && senseType && judgmentType) {
-      setPersonalityType(`${energyType}${senseType}${judgmentType}${value}` as PersonalityType);
-    } else {
-      setPersonalityType(null);
-    }
   }
 
   function handleLifeCategorySelect(key: LifeCategory) {
@@ -260,7 +263,7 @@ export function OnboardingForm({
     if (step === 1) {
       if (age === null || age < 0 || age > 100) { setError("나이를 입력해주세요."); return; }
       if (!gender) { setError("성별을 선택해주세요."); return; }
-      if (!personalityType) { setError("MBTI 성향을 모두 선택해주세요."); return; }
+      if (!energyType || !judgmentType) { setError("MBTI 성향을 선택해주세요."); return; }
       setStep(2);
       return;
     }
@@ -312,18 +315,14 @@ export function OnboardingForm({
           age={age}
           gender={gender}
           energyType={energyType}
-          senseType={senseType}
           judgmentType={judgmentType}
-          lifestyleType={lifestyleType}
           personalityType={personalityType}
           lifeClock={lifeClock}
           error={error}
           onAgeChange={handleAgeChange}
           onGenderSelect={(v) => { setError(null); setGender(v); }}
           onEnergySelect={handleEnergySelect}
-          onSenseSelect={handleSenseSelect}
           onJudgmentSelect={handleJudgmentSelect}
-          onLifestyleSelect={handleLifestyleSelect}
           onNext={handleNext}
         />
       )}
@@ -372,6 +371,12 @@ export function OnboardingForm({
 
       {step === 4 && (
         <StepConfirm
+          lifeClock={lifeClock}
+          personalityType={personalityType}
+          senseType={senseType}
+          lifestyleType={lifestyleType}
+          onSenseSelect={handleSenseSelect}
+          onLifestyleSelect={handleLifestyleSelect}
           selectedSceneText={selectedSceneText}
           lifeSceneAnalysis={lifeSceneAnalysis}
           selectedDailyTodo={selectedDailyTodo}
