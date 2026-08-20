@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { SubPageHeader } from "@/components/layout/sub-page-header";
+import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { VALIDATION_ERRORS } from "@/lib/constants";
 import type {
@@ -300,7 +303,7 @@ export function OnboardingForm({
     </div>
   );
 
-  return (
+  const content = (
     <div className="flex flex-col gap-6">
       {stepIndicator}
 
@@ -352,6 +355,7 @@ export function OnboardingForm({
           lifeSceneAnalysis={lifeSceneAnalysis}
           displayStrides={displayStrides}
           bucketTodos={bucketTodos}
+          selectedSceneText={selectedSceneText}
           selectedDailyTodo={selectedDailyTodo}
           error={error}
           onSelectDailyTodo={(action) => { setSelectedDailyTodo(action); setError(null); }}
@@ -379,5 +383,31 @@ export function OnboardingForm({
         />
       )}
     </div>
+  );
+
+  // 체험판만 자체 상단 크롬을 갖는다.
+  // /onboarding은 가입 직후 한 번뿐이라 나갈 곳이 없고, 대시보드 시트는 BottomSheet가
+  // 이미 헤더를 갖고 있어 중복이 된다.
+  if (!isDemo) return content;
+
+  return (
+    <>
+      {/* Step 1에서는 ‹가 랜딩으로 나가고, 이후에는 한 단계씩 뒤로.
+          지금까지 Step 1에는 이탈 수단이 하나도 없어 들어오면 갇혔다. */}
+      <SubPageHeader
+        title={FEATURE_NAMES.FIND_ME}
+        backHref={step === initialStep ? "/" : undefined}
+        onBack={step === initialStep ? undefined : handleBack}
+        actions={
+          <Link
+            href="/"
+            className="inline-flex h-9 items-center rounded-lg px-2.5 text-sm text-foreground/60 transition-colors hover:bg-foreground/5 hover:text-foreground"
+          >
+            닫기
+          </Link>
+        }
+      />
+      <div className="mx-auto w-full max-w-sm px-4 pb-12 pt-6">{content}</div>
+    </>
   );
 }
