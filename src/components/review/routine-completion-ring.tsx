@@ -5,6 +5,7 @@
 
 import { FEATURE_NAMES } from "@/lib/constants";
 import type { WeeklyRoutineRate } from "@/types";
+import { Card } from "@/components/ui/card";
 
 interface RoutineCompletionRingProps {
   rate: WeeklyRoutineRate;
@@ -20,7 +21,7 @@ export function RoutineCompletionRing({ rate }: RoutineCompletionRingProps) {
   const dashOffset = CIRCUMFERENCE * (1 - ratio);
 
   return (
-    <section className="rounded-xl border border-foreground/10 px-4 py-4">
+    <Card as="section" padded>
       <p className="mb-3 text-sm text-foreground/60">이번 주 {FEATURE_NAMES.ROUTINE} 달성률</p>
 
       <div className="flex items-center gap-5">
@@ -76,6 +77,6 @@ export function RoutineCompletionRing({ rate }: RoutineCompletionRingProps) {
           </p>
         </div>
       </div>
-    </section>
+    </Card>
   );
 }

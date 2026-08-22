@@ -6,6 +6,7 @@ import { FEATURE_NAMES } from "@/lib/constants";
 import type { LifeSceneAnalysisResult, PersonalityType } from "@/types";
 import { MBTI_LIFESTYLE_OPTIONS, MBTI_SENSE_OPTIONS } from "./constants";
 import type { LifeClockInfo } from "./utils";
+import { Card } from "@/components/ui/card";
 
 interface StepConfirmProps {
   /** 확정 화면에서 다시 보여주는 나의 시간 */
@@ -84,14 +85,14 @@ export function StepConfirm({
         )}
       </div>
 
-      <div className="rounded-xl border border-foreground/10 px-4 py-4">
+      <Card padded>
         <p className="text-xs text-foreground/50">{FEATURE_NAMES.DAILY_TODO}</p>
         {selectedDailyTodo ? (
           <p className="mt-1 text-sm font-medium">{selectedDailyTodo}</p>
         ) : (
           <p className="mt-1 text-sm text-foreground/60">선택하지 않았어요.</p>
         )}
-      </div>
+      </Card>
 
       {error && <p className="text-center text-sm text-red-500">{error}</p>}
 

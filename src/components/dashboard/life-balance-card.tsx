@@ -1,6 +1,7 @@
 "use client";
 
 import type { LifeBalanceInsight } from "@/types";
+import { Card } from "@/components/ui/card";
 
 interface LifeBalanceCardProps {
   balance: LifeBalanceInsight | null;
@@ -8,7 +9,7 @@ interface LifeBalanceCardProps {
 
 export function LifeBalanceCard({ balance }: LifeBalanceCardProps) {
   return (
-    <section className="rounded-xl border border-foreground/10 px-4 py-4">
+    <Card as="section" padded>
       <p className="text-sm text-foreground/60 mb-2">인생균형 흐름</p>
       {balance?.focusArea && (
         <p className="text-sm text-foreground/80">
@@ -29,6 +30,6 @@ export function LifeBalanceCard({ balance }: LifeBalanceCardProps) {
         {balance?.message ??
           "아직 데이터가 모이고 있어요. 조금만 더 사용하면 패턴이 보일 거예요."}
       </p>
-    </section>
+    </Card>
   );
 }

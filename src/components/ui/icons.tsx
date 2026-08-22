@@ -59,15 +59,24 @@ export function SendIcon({ className }: IconProps) {
 // ── 네비게이션 아이콘 (Heroicons 24 outline) ──
 // 바텀 네비와 헤더가 공유한다. currentColor라 활성/비활성은 부모 색으로 표현.
 
-/** 버킷(홈·대시보드) */
-export function BucketIcon({ className }: IconProps) {
+/**
+ * 체크 마크 — 완료·선택 표시. strokeWidth는 호출부가 정한다(작을수록 두껍게 보여야 해서).
+ * 예전엔 같은 path가 calendar-section·ai-suggestions-sheet·bucket-bar·repeat-options-sheet에
+ * 각각 인라인돼 있었다.
+ */
+export function CheckIcon({ className, strokeWidth = 3 }: IconProps & { strokeWidth?: number }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"
-      />
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
+/** 아래 꺽쇠 — 펼침/선택 어포던스. 같은 path가 4곳에 인라인돼 있었다. */
+export function ChevronDownIcon({ className, strokeWidth = 2 }: IconProps & { strokeWidth?: number }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
     </svg>
   );
 }

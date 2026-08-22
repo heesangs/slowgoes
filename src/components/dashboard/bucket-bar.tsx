@@ -16,6 +16,7 @@ import { FEATURE_NAMES } from "@/lib/constants";
 import { SURFACE_SHADOW } from "@/lib/constants/ui";
 import { cn } from "@/lib/utils";
 import type { Bucket } from "@/types";
+import { CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
 
 type BucketItem = Pick<Bucket, "id" | "title">;
 
@@ -72,15 +73,7 @@ export function BucketBar({
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">
           {selectedBucket?.title ?? `선택된 ${FEATURE_NAMES.BUCKET}이 없어요`}
         </span>
-        <svg
-          className="h-3.5 w-3.5 shrink-0 text-foreground/50"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
+        <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 text-foreground/50" strokeWidth={2} />
       </button>
 
       {/* 버킷 리스트 시트 — 전환 + 추가 + 편집(수정/삭제) */}
@@ -158,9 +151,7 @@ export function BucketBar({
                 >
                   <span className="min-w-0 flex-1 break-words">{bucket.title}</span>
                   {isCurrent && (
-                    <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
+                    <CheckIcon className="h-4 w-4 shrink-0" strokeWidth={2.5} />
                   )}
                 </button>
               </li>

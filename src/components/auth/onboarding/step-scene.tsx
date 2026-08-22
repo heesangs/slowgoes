@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { getDemoScenes } from "@/lib/onboarding/demo-scenes";
@@ -171,7 +172,7 @@ export function StepScene({
             {trimmedCustom.length}/{SCENE_MAX_LENGTH}
           </span>
         </div>
-        <textarea
+        <Textarea
           id="custom_scene"
           ref={customInputRef}
           value={customSceneInput}
@@ -180,7 +181,7 @@ export function StepScene({
           rows={3}
           maxLength={SCENE_MAX_LENGTH + 20} // 살짝 여유를 두고 카운터로만 안내(즉시 잘리지 않음)
           aria-invalid={customTooShort || customTooLong}
-          className="min-h-[88px] w-full rounded-lg border border-foreground/20 bg-transparent px-4 py-3 text-base placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-foreground/20"
+          className="min-h-[88px]"
         />
         {customTooShort && (
           <p className="text-xs text-red-500">

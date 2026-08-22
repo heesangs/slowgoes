@@ -19,6 +19,7 @@ import { ThemeSetting } from "@/components/profile/theme-setting";
 import { ACCOUNT_DELETE_CONFIRM_TEXT } from "@/lib/constants";
 import { useProfileView } from "@/hooks/use-profile-view";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
+import { ChevronDownIcon } from "@/components/ui/icons";
 
 const SKELETON = "rounded bg-foreground/10";
 
@@ -171,10 +172,10 @@ export function ProfileContent() {
           </div>
         </div>
         {[0, 1].map((i) => (
-          <div key={i} className="rounded-xl border border-foreground/10 px-4 py-4">
+          <Card padded key={i}>
             <div className={`${SKELETON} h-5 w-24`} />
             <div className={`${SKELETON} mt-4 h-10 w-full`} />
-          </div>
+          </Card>
         ))}
       </div>
     ) : null;
@@ -261,15 +262,9 @@ export function ProfileContent() {
               className="flex items-center justify-between rounded-lg border border-foreground/20 px-4 py-3 text-sm font-medium transition-colors hover:bg-foreground/5 cursor-pointer"
             >
               <span>비밀번호 변경</span>
-              <svg
+              <ChevronDownIcon
                 className={`h-4 w-4 transition-transform ${showPasswordForm ? "rotate-180" : ""}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+              />
             </button>
 
             {showPasswordForm && (

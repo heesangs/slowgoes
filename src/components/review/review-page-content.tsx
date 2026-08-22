@@ -4,6 +4,7 @@ import { WeekdayPatternChart } from "@/components/review/weekday-pattern-chart";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { LifeBalanceInsight, ReviewPageData, ReviewTimeBand } from "@/types";
+import { Card } from "@/components/ui/card";
 
 interface ReviewPageContentProps {
   displayName: string | null;
@@ -100,7 +101,7 @@ export function ReviewPageContent({
       )}
 
       {lifeBalance && (
-        <section className="rounded-xl border border-foreground/10 px-4 py-4">
+        <Card as="section" padded>
           <p className="text-sm text-foreground/60">인생균형흐름</p>
           <p className="mt-2 text-sm text-foreground/85">{lifeBalance.message}</p>
           <p className="mt-2 text-xs text-foreground/55">
@@ -108,19 +109,19 @@ export function ReviewPageContent({
             {" · "}
             비어있는 영역: {lifeBalance.neglectedArea ?? "-"}
           </p>
-        </section>
+        </Card>
       )}
 
       {/* PR 23: 평균 예상/실제 시간 위젯 제거 (DB에 측정 데이터 없음 → 항상 '-') */}
       <section className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-foreground/10 px-4 py-4">
+        <Card padded>
           <p className="text-xs text-foreground/60">누적 완료 행동</p>
           <p className="mt-1 text-xl font-semibold">{data.completedCount}개</p>
-        </div>
-        <div className="rounded-xl border border-foreground/10 px-4 py-4">
+        </Card>
+        <Card padded>
           <p className="text-xs text-foreground/60">최근 14일 완료</p>
           <p className="mt-1 text-xl font-semibold">{data.completedInLast14Days}개</p>
-        </div>
+        </Card>
       </section>
 
       {/* PR 24: 루틴 달성률 링 (Apple Watch 스타일) */}
@@ -129,7 +130,7 @@ export function ReviewPageContent({
       {/* PR 24: 요일별 수행 패턴 (최근 4주) */}
       <WeekdayPatternChart data={data.weekdayCompletions} />
 
-      <section className="rounded-xl border border-foreground/10 px-4 py-4">
+      <Card as="section" padded>
         <p className="mb-2 text-sm text-foreground/60">이번 회고 인사이트</p>
         <p className={cn("text-sm", data.insight ? "text-foreground/85" : "text-foreground/60")}>
           {data.insight ?? "완료 데이터가 쌓이면 개인화 인사이트가 생성됩니다."}
@@ -137,9 +138,9 @@ export function ReviewPageContent({
         <p className="mt-3 text-xs text-foreground/50">
           대표 시간대: {data.strongestBand ? STRONGEST_BAND_LABEL[data.strongestBand] : "데이터 수집 중"}
         </p>
-      </section>
+      </Card>
 
-      <section className="rounded-xl border border-foreground/10 px-4 py-4">
+      <Card as="section" padded>
         <p className="mb-3 text-sm text-foreground/60">시간대 리듬</p>
         <div className="flex flex-col gap-3">
           {data.timeBandStats.map((item) => (
@@ -155,11 +156,11 @@ export function ReviewPageContent({
             </div>
           ))}
         </div>
-      </section>
+      </Card>
 
       {/* PR 23: 난이도 학습 섹션 제거 (DB에 난이도 측정 데이터 없음 → 항상 neutral) */}
 
-      <section className="rounded-xl border border-foreground/10 px-4 py-4">
+      <Card as="section" padded>
         <p className="mb-3 text-sm text-foreground/60">최근회고 기록</p>
         <div className="flex flex-col gap-3">
           {data.recent.map((item) => (
@@ -183,7 +184,7 @@ export function ReviewPageContent({
             </article>
           ))}
         </div>
-      </section>
+      </Card>
     </div>
   );
 }

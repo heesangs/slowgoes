@@ -14,6 +14,7 @@ import {
   WEEKDAY_SHORT_LABELS,
 } from "@/lib/todos/repeat";
 import type { TodoRepeatInput } from "@/types";
+import { CheckIcon } from "@/components/ui/icons";
 
 interface RepeatOptionsSheetProps {
   open: boolean;
@@ -151,9 +152,7 @@ function OptionRow({
     >
       {label}
       {active && (
-        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
+        <CheckIcon className="h-4 w-4" strokeWidth={2.5} />
       )}
     </button>
   );

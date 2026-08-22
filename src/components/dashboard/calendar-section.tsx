@@ -24,7 +24,8 @@ import { FEATURE_NAMES } from "@/lib/constants";
 import { getWeekStart } from "@/lib/date/week";
 import type { CalendarView } from "@/lib/dashboard/calendar-view";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
-import { RepeatIcon } from "@/components/ui/icons";
+import { ChevronDownIcon, RepeatIcon } from "@/components/ui/icons";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
   formatDateString,
@@ -575,9 +576,7 @@ export function CalendarSection({
           aria-label={`${FEATURE_NAMES.DIRECTION} 열기`}
           className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
         >
-          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
+          <ChevronDownIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
         </button>
       </div>
 
@@ -710,15 +709,9 @@ export function CalendarSection({
           aria-expanded={expanded}
           className="mt-1 flex w-full items-center justify-center rounded-md py-1 text-foreground/30 transition-colors hover:bg-foreground/5 hover:text-foreground/60"
         >
-          <svg
+          <ChevronDownIcon
             className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
+          />
         </button>
       </div>
 
@@ -949,21 +942,7 @@ function TodoRow({
             // 오른쪽으로는 넓히지 않아 타이틀 탭(수정)을 가로채지 않는다.
             className="relative flex h-5 w-5 shrink-0 items-center justify-center after:absolute after:-inset-y-2 after:-left-2 after:right-0 after:content-['']"
           >
-            <span
-              className={cn(
-                "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors",
-                isCompleted
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-foreground/30 bg-transparent"
-              )}
-              aria-hidden
-            >
-              {isCompleted && (
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </span>
+            <Checkbox checked={isCompleted} />
           </button>
 
           {/* 타이틀 — 탭하면 키보드 입력창으로 수정. leading-5로 한 줄 = 20px */}
