@@ -83,7 +83,7 @@ export function StepScene({
       </div>
 
       <div>
-        <h2 className="mb-1 text-lg font-semibold">내가 원하는게 뭘까요?</h2>
+        <h2 className="mb-1 text-base font-semibold">내가 원하는게 뭘까요?</h2>
       </div>
 
       {/* 카테고리 6개 카드 — 모바일 2열, sm↑ 3열 */}

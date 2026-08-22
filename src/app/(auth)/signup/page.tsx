@@ -8,6 +8,8 @@ import { signUpAction } from "@/app/(auth)/actions";
 import Link from "next/link";
 import { useState } from "react";
 import { DemoDataBanner } from "@/components/auth/demo-data-banner";
+import { FORM_WIDTH } from "@/lib/constants/layout";
+import { cn } from "@/lib/utils";
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
@@ -49,8 +51,8 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className={cn("mx-auto w-full", FORM_WIDTH)}>
+      <div>
         <div className="text-center mb-8">
           <Link href="/" className="text-2xl font-bold mb-2 inline-block hover:opacity-70 transition-opacity">slowgoes</Link>
           <h2 className="text-lg font-semibold mb-2">회원가입</h2>

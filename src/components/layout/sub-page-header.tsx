@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { CONTENT_WIDTH } from "@/lib/constants/layout";
 
 interface SubPageHeaderProps {
   /** 좌측 제목 (예: 날짜) */
@@ -22,11 +23,6 @@ interface SubPageHeaderProps {
   onBack?: () => void;
   /** 뒤로가기 버튼 숨김 */
   hideBack?: boolean;
-  /**
-   * 헤더 내용의 최대 폭. **본문과 같은 값을 줘야** ‹ 버튼과 본문 좌측선이 맞는다.
-   * 기본값은 앱 표준(max-w-2xl) — 본문이 더 좁은 화면(체험판)만 따로 넘긴다.
-   */
-  contentWidthClassName?: string;
 }
 
 const BACK_BUTTON_CLASS =
@@ -46,14 +42,7 @@ function BackIcon() {
   );
 }
 
-export function SubPageHeader({
-  title,
-  actions,
-  backHref,
-  onBack,
-  hideBack,
-  contentWidthClassName = "max-w-2xl",
-}: SubPageHeaderProps) {
+export function SubPageHeader({ title, actions, backHref, onBack, hideBack }: SubPageHeaderProps) {
   const router = useRouter();
 
   return (
@@ -63,10 +52,7 @@ export function SubPageHeader({
     >
       {/* min-h로 우측 actions(완료/저장 표시 등)의 등장·교체에도 헤더 높이가 흔들리지 않게 고정 */}
       <div
-        className={cn(
-          "mx-auto flex min-h-[44px] items-center justify-between gap-2",
-          contentWidthClassName
-        )}
+        className={cn("mx-auto flex min-h-[44px] items-center justify-between gap-2", CONTENT_WIDTH)}
       >
         <div className="flex min-w-0 items-center gap-1">
           {!hideBack &&

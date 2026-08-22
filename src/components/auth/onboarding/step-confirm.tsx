@@ -43,7 +43,7 @@ export function StepConfirm({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="mb-1 text-lg font-semibold">선택한 한 걸음</h2>
+        <h2 className="mb-1 text-base font-semibold">선택한 한 걸음</h2>
         <p className="text-sm text-foreground/60">확정하면 대시보드에 오늘의 한 걸음으로 연결돼요</p>
       </div>
 

@@ -7,6 +7,8 @@ import { OnboardingForm } from "@/components/auth/onboarding-form";
 import { DemoDataMigrator } from "@/components/auth/demo-data-migrator";
 import { FEATURE_NAMES } from "@/lib/constants";
 import type { Gender, PersonalityType } from "@/types";
+import { CONTENT_WIDTH } from "@/lib/constants/layout";
+import { cn } from "@/lib/utils";
 
 interface OnboardingPageProps {
   searchParams?: Promise<{ step?: string }>;
@@ -59,8 +61,8 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
   const effectiveStartStep = startStep2 && prefillProfile ? 2 : 1;
 
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4 py-8">
-      <div className="w-full max-w-sm">
+    <div className={cn("mx-auto w-full", CONTENT_WIDTH)}>
+      <div>
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold mb-2">{FEATURE_NAMES.FIND_ME}</h1>
           <p className="text-sm text-foreground/60">
