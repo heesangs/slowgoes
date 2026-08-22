@@ -6,17 +6,20 @@ export default function LandingPage() {
     <div className="flex min-h-screen flex-col items-center justify-center px-6">
       <main className="flex max-w-2xl flex-col items-center gap-8 text-center">
         {/* 로고 및 타이틀 */}
-        <h1 className="text-5xl font-bold tracking-tight">
-          slow<span className="text-white">goes</span>
-        </h1>
+        {/* 로고는 한 덩어리로. 예전엔 "goes"에 text-white를 줬는데 라이트 배경이
+            #ffffff라 밝기차가 0이 되어 "slow"까지만 보였다(다크 배경 전제의 잔재). */}
+        <h1 className="text-5xl font-bold tracking-tight">slowgoes</h1>
 
         {/* 슬로건 */}
-        <p className="text-xl text-zinc-600 dark:text-zinc-400">
+        {/* 앱 테마는 :root[data-theme] 속성 기반이라 Tailwind의 dark:(prefers-color-scheme)는
+            프로필에서 고른 다크를 따라가지 못한다 → foreground 토큰으로 통일.
+            투명도는 대비를 재서 정했다 — /60은 3.69:1로 본문 기준(4.5:1)에 미달한다. */}
+        <p className="text-xl text-foreground/85">
           나의 속도로, 천천히
         </p>
 
         {/* 설명 */}
-        <p className="max-w-md text-base leading-relaxed text-zinc-500 dark:text-zinc-500">
+        <p className="max-w-md text-base leading-relaxed text-foreground/70">
           우린 멀리보고 소중하게 한걸음을 내딛자고요.
           <br />
           내 속도에 맞게, 내 리듬에 맞게, 
