@@ -8,6 +8,8 @@ import { signInAction } from "@/app/(auth)/actions";
 import Link from "next/link";
 import { Suspense, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { FORM_WIDTH } from "@/lib/constants/layout";
+import { cn } from "@/lib/utils";
 
 const SAVED_EMAIL_KEY = "slowgoes_saved_email";
 
@@ -138,8 +140,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className={cn("mx-auto w-full", FORM_WIDTH)}>
+      <div>
         <div className="text-center mb-8">
           <Link href="/" className="text-2xl font-bold mb-2 inline-block hover:opacity-70 transition-opacity">slowgoes</Link>
           <p className="text-sm text-foreground/60">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SubPageHeader } from "@/components/layout/sub-page-header";
 import { cn } from "@/lib/utils";
+import { CONTENT_WIDTH } from "@/lib/constants/layout";
 import { VALIDATION_ERRORS } from "@/lib/constants";
 import type {
   DemoSceneItem,
@@ -429,8 +430,6 @@ export function OnboardingForm({
       {/* Step 1에서는 ‹가 랜딩으로 나가고, 이후에는 한 단계씩 뒤로.
           지금까지 Step 1에는 이탈 수단이 하나도 없어 들어오면 갇혔다. */}
       <SubPageHeader
-        // 본문이 max-w-sm이라 헤더도 같은 폭이어야 ‹ 버튼과 본문 좌측선이 맞는다
-        contentWidthClassName="max-w-sm"
         backHref={step === initialStep ? "/" : undefined}
         onBack={step === initialStep ? undefined : handleBack}
         actions={
@@ -443,7 +442,12 @@ export function OnboardingForm({
           /demo는 (main) 그룹 밖이라 MainShell의 하단 패딩을 못 받는데, 홈 화면 앱
           (standalone + viewport-fit=cover)에서는 콘텐츠가 화면 끝까지 확장되므로
           홈 인디케이터가 마지막 요소를 덮어 "잘린" 것처럼 보인다. */}
-      <div className="mx-auto w-full max-w-sm px-4 pt-6 pb-[calc(3rem+env(safe-area-inset-bottom))]">
+      <div
+        className={cn(
+          "mx-auto w-full px-4 pt-6 pb-[calc(3rem+env(safe-area-inset-bottom))]",
+          CONTENT_WIDTH
+        )}
+      >
         {content}
       </div>
     </>

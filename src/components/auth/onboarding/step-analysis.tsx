@@ -41,7 +41,7 @@ export function StepAnalysis({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="mb-1 text-lg font-semibold">
+        <h2 className="mb-1 text-base font-semibold">
           {isAnalyzingLifeScene ? HEADER_ANALYZING : HEADER_DONE}
         </h2>
         {isAnalyzingLifeScene ? (
