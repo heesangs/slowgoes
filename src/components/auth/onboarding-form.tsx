@@ -429,6 +429,8 @@ export function OnboardingForm({
       {/* Step 1에서는 ‹가 랜딩으로 나가고, 이후에는 한 단계씩 뒤로.
           지금까지 Step 1에는 이탈 수단이 하나도 없어 들어오면 갇혔다. */}
       <SubPageHeader
+        // 본문이 max-w-sm이라 헤더도 같은 폭이어야 ‹ 버튼과 본문 좌측선이 맞는다
+        contentWidthClassName="max-w-sm"
         backHref={step === initialStep ? "/" : undefined}
         onBack={step === initialStep ? undefined : handleBack}
         actions={
