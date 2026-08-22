@@ -7,6 +7,7 @@ import { useReview } from "@/hooks/use-review";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { ReviewPageContent } from "./review-page-content";
 import { Card } from "@/components/ui/card";
+import { ErrorBox } from "@/components/ui/error-box";
 
 const SKELETON = "rounded bg-foreground/10";
 
@@ -30,9 +31,9 @@ export function ReviewLoader() {
 
   if (isError) {
     return (
-      <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-600">
+      <ErrorBox className="py-4">
         회고를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
-      </p>
+      </ErrorBox>
     );
   }
 

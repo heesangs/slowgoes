@@ -70,10 +70,10 @@ function VerifyBanner() {
     <div
       className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
         banner.tone === "error"
-          ? "border-red-500/30 bg-red-500/5 text-red-600"
+          ? "border-danger/30 bg-danger/5 text-danger"
           : banner.tone === "warn"
-            ? "border-amber-500/30 bg-amber-500/5 text-amber-700"
-            : "border-green-500/30 bg-green-500/5 text-green-700"
+            ? "border-warning/30 bg-warning/10 text-warning"
+            : "border-success/30 bg-success/10 text-success"
       }`}
     >
       {banner.message}
@@ -144,7 +144,7 @@ export default function LoginPage() {
       <div>
         <div className="text-center mb-8">
           <Link href="/" className="text-2xl font-bold mb-2 inline-block hover:opacity-70 transition-opacity">slowgoes</Link>
-          <p className="text-sm text-foreground/60">
+          <p className="text-sm text-foreground/70">
             나의 속도로, 천천히 확실하게
           </p>
         </div>
@@ -197,7 +197,7 @@ export default function LoginPage() {
           />
 
           {error && (
-            <p className="text-sm text-red-500 text-center">{error}</p>
+            <p className="text-sm text-danger text-center">{error}</p>
           )}
 
           <Button type="submit" isLoading={isLoading} className="w-full mt-2">
@@ -205,7 +205,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="text-sm text-foreground/60 text-center mt-6">
+        <p className="text-sm text-foreground/70 text-center mt-6">
           아직 계정이 없으신가요?{" "}
           <Link href="/signup" className="text-foreground font-medium hover:underline">
             회원가입

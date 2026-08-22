@@ -33,7 +33,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               "placeholder:text-foreground/40",
               "focus:outline-none focus:ring-2 focus:ring-foreground/20",
               error
-                ? "border-red-500 focus:ring-red-500/20"
+                ? "border-danger focus:ring-danger/20"
                 : "border-foreground/20",
               showClear && "pr-10",
               className
@@ -67,7 +67,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {error && (
-          <p className="text-sm text-red-500">{error}</p>
+          <p className="text-sm text-danger">{error}</p>
         )}
       </div>
     );

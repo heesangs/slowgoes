@@ -8,6 +8,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { FEATURE_NAMES } from "@/lib/constants";
+import { ErrorBox } from "@/components/ui/error-box";
 import { groupDiariesByMonth } from "@/lib/diary/format";
 import { getDiaryDrafts, clearDiaryDraft } from "@/lib/diary/draft";
 import { saveDiaryAction } from "@/app/(main)/diary/actions";
@@ -65,9 +66,9 @@ export function DiaryListContent() {
       <h1 className="mb-4 text-2xl font-bold text-foreground">{FEATURE_NAMES.DIARY}</h1>
 
       {isError && (
-        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+        <ErrorBox className="mb-4">
           일기를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
-        </p>
+        </ErrorBox>
       )}
 
       {isLoading ? (
@@ -107,7 +108,7 @@ export function DiaryListContent() {
               <div className="flex flex-col gap-3">
                 {group.weeks.map((week) => (
                   <div key={week.key}>
-                    <h3 className="mb-1 text-xs font-medium text-foreground/35">{week.label}</h3>
+                    <h3 className="mb-1 text-xs font-medium text-foreground/40">{week.label}</h3>
                     <ul className="flex flex-col divide-y divide-foreground/10 border-y border-foreground/10">
                       {week.items.map((item) => (
                         <li key={item.id}>
@@ -117,7 +118,7 @@ export function DiaryListContent() {
                           >
                             {/* 날짜 컬럼 */}
                             <div className="w-9 shrink-0 pt-0.5 text-center">
-                              <div className="text-xs text-foreground/45">{item.weekday}</div>
+                              <div className="text-xs text-foreground/50">{item.weekday}</div>
                               <div className="text-lg font-semibold leading-tight text-foreground">
                                 {String(item.day).padStart(2, "0")}
                               </div>
@@ -126,7 +127,7 @@ export function DiaryListContent() {
                             <div className="min-w-0 flex-1">
                               {/* 주간 기록 표식 — 목표/회고 + #버킷명 (버킷이 지워졌으면 라벨만) */}
                               {item.isWeekly && (
-                                <p className="mb-0.5 truncate text-[11px] font-medium text-foreground/45">
+                                <p className="mb-0.5 truncate text-[11px] font-medium text-foreground/50">
                                   {item.week_kind === "goal" ? "주간 목표" : "주간 회고"}
                                   {item.bucket_title ? ` · #${item.bucket_title}` : ""}
                                 </p>
@@ -135,11 +136,11 @@ export function DiaryListContent() {
                                 {item.title}
                               </p>
                               {item.preview && (
-                                <p className="mt-0.5 line-clamp-2 text-[14px] text-foreground/60">
+                                <p className="mt-0.5 line-clamp-2 text-[14px] text-foreground/70">
                                   {item.preview}
                                 </p>
                               )}
-                              <p className="mt-1 text-[12px] text-foreground/45">{item.time}</p>
+                              <p className="mt-1 text-[12px] text-foreground/50">{item.time}</p>
                             </div>
                           </Link>
                         </li>

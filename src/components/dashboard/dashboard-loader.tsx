@@ -11,6 +11,7 @@ import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { DashboardContentV2 } from "./dashboard-content-v2";
 import { readLastViewedBucketCookie } from "@/hooks/use-track-last-viewed-bucket";
 import { Card } from "@/components/ui/card";
+import { ErrorBox } from "@/components/ui/error-box";
 
 const SKELETON = "rounded bg-foreground/10";
 
@@ -48,9 +49,9 @@ export function DashboardLoader() {
 
   if (isError) {
     return (
-      <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-600">
+      <ErrorBox className="py-4">
         대시보드를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
-      </p>
+      </ErrorBox>
     );
   }
 

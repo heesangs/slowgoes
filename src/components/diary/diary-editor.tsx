@@ -448,7 +448,7 @@ export function DiaryEditor({
             {/* 자동저장 상태 — 저장 버튼 대신 표시만. 나가기는 뒤로가기가 담당.
                 (메모된 에디터 밖 형제라 여기 리렌더가 본문 캐럿에 영향 없음) */}
             {saveStatus !== "idle" && (
-              <span className="min-w-[3.5rem] text-right text-xs text-foreground/45" aria-live="polite">
+              <span className="min-w-[3.5rem] text-right text-xs text-foreground/50" aria-live="polite">
                 {saveStatus === "saving" ? "저장 중…" : "저장됨"}
               </span>
             )}
@@ -460,7 +460,7 @@ export function DiaryEditor({
       <div className="mx-auto max-w-2xl px-3 py-4">
         {/* 주간 기록 컨텍스트 — 어느 주/버킷의 무엇인지 본문 위에 밝힌다 */}
         {weekStart && (
-          <p className="mb-2 text-xs text-foreground/45">
+          <p className="mb-2 text-xs text-foreground/50">
             {formatWeekLabel(weekStart)} {weekKind === "goal" ? "목표" : "회고"}
             {bucketTitle ? ` · #${bucketTitle}` : ""}
           </p>
@@ -474,7 +474,7 @@ export function DiaryEditor({
         {/* organize 코멘트 — 일기 아래. 제목=버튼명/질문, 본문=AI 응답. (본문과 분리 저장) */}
         {comments.length > 0 && (
           <div className="mt-6 border-t border-foreground/10 pt-4">
-            <p className="mb-2 text-xs font-medium text-foreground/45">코멘트</p>
+            <p className="mb-2 text-xs font-medium text-foreground/50">코멘트</p>
             <ul className="flex flex-col gap-3">
               {comments.map((c) => (
                 <li
@@ -487,7 +487,7 @@ export function DiaryEditor({
                       type="button"
                       aria-label="코멘트 삭제"
                       onClick={() => handleDeleteComment(c.id)}
-                      className="-mr-1 -mt-0.5 shrink-0 rounded p-1 text-foreground/35 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
+                      className="-mr-1 -mt-0.5 shrink-0 rounded p-1 text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
                     >
                       <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />

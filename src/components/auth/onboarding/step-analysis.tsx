@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { ErrorBox } from "@/components/ui/error-box";
 import { cn } from "@/lib/utils";
 import { FEATURE_NAMES } from "@/lib/constants";
 import type { LifeSceneAnalysisResult, StrideItem } from "@/types";
@@ -45,12 +46,12 @@ export function StepAnalysis({
           {isAnalyzingLifeScene ? HEADER_ANALYZING : HEADER_DONE}
         </h2>
         {isAnalyzingLifeScene ? (
-          <p className="text-sm text-foreground/60">
+          <p className="text-sm text-foreground/70">
             {FEATURE_NAMES.MY_STRIDES}과 {FEATURE_NAMES.DAILY_TODO}를 확인해보세요
           </p>
         ) : (
           selectedSceneText && (
-            <p className="text-sm text-foreground/60">
+            <p className="text-sm text-foreground/70">
               &ldquo;{selectedSceneText}&rdquo;를 시간 위에 펼친 결과예요
             </p>
           )
@@ -90,7 +91,7 @@ export function StepAnalysis({
                   key={`stride-${item.level}-${index}`}
                   className={cn("w-full rounded-xl border px-4 py-4 text-left", getStrideTone(item.level))}
                 >
-                  <p className="mb-1 text-xs font-medium text-foreground/60">{item.label}</p>
+                  <p className="mb-1 text-xs font-medium text-foreground/70">{item.label}</p>
                   <p className="text-sm font-medium">{item.action}</p>
                 </div>
               ))}
@@ -103,7 +104,7 @@ export function StepAnalysis({
           <section className="flex flex-col gap-3">
             <div>
               <h3 className="text-sm font-semibold">{FEATURE_NAMES.BUCKET}을 위한 {FEATURE_NAMES.DAILY_TODO}</h3>
-              <p className="text-xs text-foreground/60">
+              <p className="text-xs text-foreground/70">
                 하나를 선택하면 이번 주 {FEATURE_NAMES.DAILY_TODO}가 됩니다.
               </p>
             </div>
@@ -163,8 +164,8 @@ export function StepAnalysis({
       )}
 
       {!isAnalyzingLifeScene && !lifeSceneAnalysis && error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3">
-          <p className="text-sm text-red-500">{error}</p>
+        <ErrorBox as="div">
+          <p>{error}</p>
           <div className="mt-3 flex justify-end">
             <Button
               type="button"
@@ -175,10 +176,10 @@ export function StepAnalysis({
               다시 분석하기
             </Button>
           </div>
-        </div>
+        </ErrorBox>
       )}
 
-      {error && lifeSceneAnalysis && <p className="text-sm text-red-500">{error}</p>}
+      {error && lifeSceneAnalysis && <p className="text-sm text-danger">{error}</p>}
 
       <div className="flex gap-2">
         <Button

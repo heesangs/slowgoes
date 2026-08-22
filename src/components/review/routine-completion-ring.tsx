@@ -22,7 +22,7 @@ export function RoutineCompletionRing({ rate }: RoutineCompletionRingProps) {
 
   return (
     <Card as="section" padded>
-      <p className="mb-3 text-sm text-foreground/60">이번 주 {FEATURE_NAMES.ROUTINE} 달성률</p>
+      <p className="mb-3 text-sm text-foreground/70">이번 주 {FEATURE_NAMES.ROUTINE} 달성률</p>
 
       <div className="flex items-center gap-5">
         {/* SVG 링 */}
@@ -63,7 +63,7 @@ export function RoutineCompletionRing({ rate }: RoutineCompletionRingProps) {
         {/* 수치 + 메타 */}
         <div className="flex-1 min-w-0">
           <p className="text-3xl font-bold leading-tight">{rate.percentage}%</p>
-          <p className="mt-1 text-sm text-foreground/65">
+          <p className="mt-1 text-sm text-foreground/70">
             {rate.completed} / {rate.total}회 달성
           </p>
           <p className="mt-2 text-xs text-foreground/50">

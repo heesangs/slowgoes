@@ -563,7 +563,7 @@ export function CalendarSection({
         <p className="shrink-0 text-sm font-semibold">{headerLabel}</p>
         <p
           className={cn(
-            "min-w-0 flex-1 text-xs leading-relaxed text-foreground/55",
+            "min-w-0 flex-1 text-xs leading-relaxed text-foreground/70",
             !expanded && "truncate"
           )}
         >
@@ -585,7 +585,7 @@ export function CalendarSection({
         {/* 요일 행 (일~토) */}
         <div className="mt-2 grid grid-cols-7 text-center">
           {WEEKDAY_SHORT_LABELS.map((label) => (
-            <span key={label} className="py-1 text-xs text-foreground/45">
+            <span key={label} className="py-1 text-xs text-foreground/50">
               {label}
             </span>
           ))}
@@ -654,7 +654,7 @@ export function CalendarSection({
                           "hover:bg-foreground/5",
                           // 오늘 날짜는 테두리로 강조(선택 날짜는 fill 우선)
                           isTodayCell && "border border-foreground font-semibold",
-                          expanded && !inMonth ? "text-foreground/30" : "text-foreground"
+                          expanded && !inMonth ? "text-foreground/40" : "text-foreground"
                         )
                   )}
                 >
@@ -707,7 +707,7 @@ export function CalendarSection({
           onClick={() => setExpanded((prev) => !prev)}
           aria-label={expanded ? "주 달력으로 접기" : "월 달력으로 펼치기"}
           aria-expanded={expanded}
-          className="mt-1 flex w-full items-center justify-center rounded-md py-1 text-foreground/30 transition-colors hover:bg-foreground/5 hover:text-foreground/60"
+          className="mt-1 flex w-full items-center justify-center rounded-md py-1 text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
         >
           <ChevronDownIcon
             className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")}
@@ -726,7 +726,7 @@ export function CalendarSection({
           </div>
         ) : null
       ) : isTodosError ? (
-        <p className="mt-4 text-center text-xs text-foreground/45">
+        <p className="mt-4 text-center text-xs text-foreground/50">
           할 일을 불러오지 못했어요.
         </p>
       ) : (
@@ -734,14 +734,14 @@ export function CalendarSection({
           {/* 빈 상태도 지연 표시 — 데이터가 곧 도착하는 상황에서 "없어요"가 스치면
               실제로 없는 것처럼 읽힌다. isLoading이 잠깐 false인 순간에 대한 방어. */}
           {activeTodos.length === 0 && completedTodos.length === 0 && showEmptyTodos && (
-            <p className="mt-4 text-center text-xs text-foreground/45">
+            <p className="mt-4 text-center text-xs text-foreground/50">
               {dateLabel}의 할 일이 없어요.
             </p>
           )}
 
           {activeTodos.length > 0 && (
             <div className="mt-3">
-              <p className="text-xs font-medium text-foreground/55">{dateLabel}</p>
+              <p className="text-xs font-medium text-foreground/70">{dateLabel}</p>
               <ul className="mt-1.5 flex flex-col gap-2">
                 {activeTodos.map((todo) => (
                   <TodoRow
@@ -758,7 +758,7 @@ export function CalendarSection({
 
           {completedTodos.length > 0 && (
             <div className="mt-3">
-              <p className="text-xs font-medium text-foreground/55">완료</p>
+              <p className="text-xs font-medium text-foreground/70">완료</p>
               <ul className="mt-1.5 flex flex-col gap-2">
                 {completedTodos.map((todo) => (
                   <TodoRow
@@ -907,7 +907,7 @@ function TodoRow({
         aria-label={`${todo.title} 삭제`}
         tabIndex={offsetX === 0 ? -1 : 0}
         // 닫혀 있을 땐 완전히 숨겨 라운드 코너 틈으로 빨간색이 비치지 않게 한다
-        className="absolute inset-y-0 right-0 flex items-center justify-center bg-red-500 text-xs font-medium text-white"
+        className="absolute inset-y-0 right-0 flex items-center justify-center bg-red-600 text-xs font-medium text-white"
         style={{ width: DELETE_REVEAL_PX, opacity: offsetX < 0 ? 1 : 0 }}
       >
         삭제
@@ -952,7 +952,7 @@ function TodoRow({
             aria-label={`${todo.title} 수정`}
             className={cn(
               "min-w-0 flex-1 break-words text-left text-sm leading-5",
-              isCompleted && "text-foreground/45 line-through"
+              isCompleted && "text-foreground/50 line-through"
             )}
           >
             {todo.title}
@@ -973,7 +973,7 @@ function TodoRow({
 
         {/* 2행 — 세부정보 한 줄. pl-6(24px)로 타이틀과 좌측을 맞춘다(체크박스 20 + gap 4) */}
         {todo.detail && (
-          <p className="mt-1 line-clamp-1 pl-6 text-xs leading-4 text-foreground/45">
+          <p className="mt-1 line-clamp-1 pl-6 text-xs leading-4 text-foreground/50">
             {todo.detail}
           </p>
         )}

@@ -77,7 +77,7 @@ export function StepScene({
   return (
     <div className="flex flex-col gap-6">
       <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
-        <p className="text-sm text-foreground/60">{FEATURE_NAMES.MY_CLOCK}</p>
+        <p className="text-sm text-foreground/70">{FEATURE_NAMES.MY_CLOCK}</p>
         <p className="text-base font-semibold">
           {lifeClock ? `${FEATURE_NAMES.MY_CLOCK}은 ${lifeClock.label}이에요.` : `${FEATURE_NAMES.MY_CLOCK}을 알려주세요`}
         </p>
@@ -89,7 +89,7 @@ export function StepScene({
 
       {/* 카테고리 6개 카드 — 모바일 2열, sm↑ 3열 */}
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-foreground/60">
+        <p className="text-sm text-foreground/70">
           하나만 선택할 수 있어요. 마음이 1%라도 더 기우는 쪽으로!
         </p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -112,7 +112,7 @@ export function StepScene({
                 <p
                   className={cn(
                     "mt-0.5 text-xs",
-                    isSelected ? "text-background/80" : "text-foreground/60"
+                    isSelected ? "text-background/80" : "text-foreground/70"
                   )}
                 >
                   {cat.desc}
@@ -166,7 +166,7 @@ export function StepScene({
           <span
             className={cn(
               "text-xs",
-              customTooLong ? "text-red-500" : "text-foreground/40"
+              customTooLong ? "text-danger" : "text-foreground/40"
             )}
           >
             {trimmedCustom.length}/{SCENE_MAX_LENGTH}
@@ -184,12 +184,12 @@ export function StepScene({
           className="min-h-[88px]"
         />
         {customTooShort && (
-          <p className="text-xs text-red-500">
+          <p className="text-xs text-danger">
             최소 {SCENE_MIN_LENGTH}자 이상 적어주세요.
           </p>
         )}
         {customTooLong && (
-          <p className="text-xs text-red-500">
+          <p className="text-xs text-danger">
             너무 길어요. 더 짧게 적어주세요 ({SCENE_MAX_LENGTH}자 이내).
           </p>
         )}
@@ -202,7 +202,7 @@ export function StepScene({
         </div>
       )}
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
       <div className="flex gap-2">
         {isProfileStep && (
           <Button

@@ -139,7 +139,7 @@ export function WeekSheet({
             type="button"
             onClick={() => setWeekStart(shiftWeek(weekStart, -1))}
             aria-label="이전 주"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-foreground/60 transition-colors hover:bg-foreground/5"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-foreground/70 transition-colors hover:bg-foreground/5"
           >
             <ChevronIcon className="h-4 w-4" />
           </button>
@@ -151,7 +151,7 @@ export function WeekSheet({
             className="inline-flex min-w-0 items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-foreground/5"
           >
             <span className="truncate text-base font-semibold">{formatWeekLabel(weekStart)}</span>
-            <ChevronIcon className={cn("h-3.5 w-3.5 shrink-0 -rotate-90 text-foreground/45", listOpen && "rotate-90")} />
+            <ChevronIcon className={cn("h-3.5 w-3.5 shrink-0 -rotate-90 text-foreground/50", listOpen && "rotate-90")} />
           </button>
 
           <button
@@ -159,7 +159,7 @@ export function WeekSheet({
             onClick={() => canGoNext && setWeekStart(shiftWeek(weekStart, 1))}
             disabled={!canGoNext}
             aria-label="다음 주"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-foreground/60 transition-colors hover:bg-foreground/5 disabled:opacity-25 disabled:hover:bg-transparent"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-foreground/70 transition-colors hover:bg-foreground/5 disabled:opacity-25 disabled:hover:bg-transparent"
           >
             <ChevronIcon className="h-4 w-4 rotate-180" />
           </button>
@@ -167,7 +167,7 @@ export function WeekSheet({
         {/* 갱신 중은 날짜 범위를 살짝 흐리게만 — 카드를 비우지 않는다 */}
         <p
           className={cn(
-            "mt-0.5 text-center text-xs text-foreground/45 transition-opacity",
+            "mt-0.5 text-center text-xs text-foreground/50 transition-opacity",
             isFetching && "opacity-40"
           )}
         >
@@ -191,7 +191,7 @@ export function WeekSheet({
                   w === weekStart && "bg-foreground/[0.06]"
                 )}
               >
-                <span className={cn("text-sm", w === weekStart ? "font-semibold" : "text-foreground/75")}>
+                <span className={cn("text-sm", w === weekStart ? "font-semibold" : "text-foreground/70")}>
                   {formatWeekLabel(w)}
                 </span>
                 <span className="shrink-0 text-[11px] text-foreground/40">{formatWeekRange(w)}</span>
@@ -209,11 +209,11 @@ export function WeekSheet({
             className="flex flex-col gap-1 rounded-lg border border-foreground/25 bg-foreground/[0.03] px-3 py-3"
           >
             <span className="flex items-baseline justify-between gap-2">
-              <span className="text-[11px] font-medium text-foreground/45">
+              <span className="text-[11px] font-medium text-foreground/50">
                 주간 목표{bucketTitle ? ` · #${bucketTitle}` : ""}
               </span>
               {goal && goal.total > 0 && (
-                <span className="shrink-0 text-[11px] font-medium text-foreground/60">
+                <span className="shrink-0 text-[11px] font-medium text-foreground/70">
                   {goal.done}/{goal.total} 완료
                 </span>
               )}
@@ -222,7 +222,7 @@ export function WeekSheet({
               <>
                 <span className="truncate text-sm font-semibold text-foreground">{goal.title}</span>
                 {goal.preview && (
-                  <span className="truncate text-xs text-foreground/55">{goal.preview}</span>
+                  <span className="truncate text-xs text-foreground/70">{goal.preview}</span>
                 )}
               </>
             ) : (
@@ -251,7 +251,7 @@ export function WeekSheet({
               )}
             >
               <div className="w-8 shrink-0 text-center">
-                <div className="text-[11px] text-foreground/45">{WEEKDAY_SHORT_LABELS[i]}</div>
+                <div className="text-[11px] text-foreground/50">{WEEKDAY_SHORT_LABELS[i]}</div>
                 <div
                   className={cn(
                     "text-base font-semibold leading-tight",
@@ -267,7 +267,7 @@ export function WeekSheet({
                     <>
                       <p className="truncate text-sm font-medium text-foreground">{entry.title}</p>
                       {entry.preview && (
-                        <p className="mt-0.5 truncate text-xs text-foreground/55">{entry.preview}</p>
+                        <p className="mt-0.5 truncate text-xs text-foreground/70">{entry.preview}</p>
                       )}
                     </>
                   ) : isLoading ? (
@@ -278,7 +278,7 @@ export function WeekSheet({
                     <p
                       className={cn(
                         "text-xs",
-                        isWritable ? "font-medium text-foreground/70" : "text-foreground/35"
+                        isWritable ? "font-medium text-foreground/70" : "text-foreground/40"
                       )}
                     >
                       {isWritable ? "오늘 일기 쓰기" : "기록 없음"}
@@ -289,7 +289,7 @@ export function WeekSheet({
                 {isWritable && (
                   <span
                     aria-hidden
-                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-foreground/20 text-foreground/60"
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-foreground/20 text-foreground/70"
                   >
                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" d="M12 5v14M5 12h14" />
@@ -324,7 +324,7 @@ export function WeekSheet({
             href={reviewHref}
             className="flex flex-col gap-1 rounded-lg border border-foreground/25 bg-foreground/[0.03] px-3 py-3"
           >
-            <span className="text-[11px] font-medium text-foreground/45">
+            <span className="text-[11px] font-medium text-foreground/50">
               주간 회고{bucketTitle ? ` · #${bucketTitle}` : ""}
             </span>
             {weekly ? (
@@ -333,7 +333,7 @@ export function WeekSheet({
                   {weekly.title}
                 </span>
                 {weekly.preview && (
-                  <span className="truncate text-xs text-foreground/55">{weekly.preview}</span>
+                  <span className="truncate text-xs text-foreground/70">{weekly.preview}</span>
                 )}
               </>
             ) : (

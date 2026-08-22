@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
+import { ErrorBox } from "@/components/ui/error-box";
 import { useToast } from "@/components/ui/toast";
 import { analyzeDiaryAction } from "@/app/(main)/diary/actions";
 import { AI_ERRORS, DIARY_ERRORS } from "@/lib/constants";
@@ -109,7 +110,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
     <BottomSheet open={open} onClose={onClose} size="large" hideHeader>
       {selectionPreview && (
         <div className="mb-3 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-2">
-          <p className="text-[11px] font-medium text-foreground/45">선택한 부분</p>
+          <p className="text-[11px] font-medium text-foreground/50">선택한 부분</p>
           <p className="mt-0.5 line-clamp-2 text-xs text-foreground/70">“{selectionPreview}”</p>
         </div>
       )}
@@ -143,7 +144,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="직접 물어보기 (예: 이 글에서 가장 인상적인 문장은?)"
           rows={2}
-          className="w-full resize-none rounded-lg border border-foreground/15 bg-transparent px-3 py-2 text-sm text-foreground outline-none placeholder:text-foreground/35 focus:border-foreground/40"
+          className="w-full resize-none rounded-lg border border-foreground/15 bg-transparent px-3 py-2 text-sm text-foreground outline-none placeholder:text-foreground/40 focus:border-foreground/40"
         />
         <Button
           variant="secondary"
@@ -162,20 +163,20 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
         </p>
       )}
       {error && !loading && (
-        <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/[0.06] px-4 py-3">
-          <p className="text-[11px] font-medium text-red-600">생성하지 못했어요</p>
+        <ErrorBox as="div" className="mt-4">
+          <p className="text-[11px] font-medium">생성하지 못했어요</p>
           <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">{error}</p>
           {lastRun && (
             <Button variant="secondary" onClick={() => run(lastRun)} className="mt-3 w-full">
               다시 시도
             </Button>
           )}
-        </div>
+        </ErrorBox>
       )}
       {result && !loading && (
         <div className="mt-4 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
-          <p className="text-[11px] font-medium text-foreground/45">{resultTitle}</p>
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{result}</p>
+          <p className="text-[11px] font-medium text-foreground/50">{resultTitle}</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">{result}</p>
           <Button
             onClick={handleComment}
             disabled={committing}
