@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ErrorBox } from "@/components/ui/error-box";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -157,9 +158,9 @@ export function ProfileContent() {
   if (!data) {
     if (isError) {
       return (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+        <ErrorBox>
           프로필을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
-        </p>
+        </ErrorBox>
       );
     }
     return showSkeleton ? (
@@ -198,7 +199,7 @@ export function ProfileContent() {
         </div>
         <div className="flex flex-col gap-1 min-w-0">
           <h1 className="text-xl font-bold truncate">{displayName || "이름 없음"}</h1>
-          <p className="text-sm text-foreground/60">slowgoes과 함께한 지 {daysSinceJoined}일째</p>
+          <p className="text-sm text-foreground/70">slowgoes과 함께한 지 {daysSinceJoined}일째</p>
         </div>
       </div>
 
@@ -249,7 +250,7 @@ export function ProfileContent() {
           {/* 이메일 (읽기 전용) */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-foreground/70">이메일</label>
-            <p className="rounded-lg border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-foreground/60">
+            <p className="rounded-lg border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-foreground/70">
               {email}
             </p>
           </div>
@@ -309,10 +310,10 @@ export function ProfileContent() {
           </Button>
 
           {/* 회원탈퇴 */}
-          <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4">
+          <div className="rounded-lg border border-danger/30 bg-danger/5 p-4">
             <div className="flex flex-col gap-1.5">
-              <p className="text-sm font-semibold text-red-600">회원탈퇴</p>
-              <p className="text-xs text-red-700/90">
+              <p className="text-sm font-semibold text-danger">회원탈퇴</p>
+              <p className="text-xs text-danger/90">
                 회원탈퇴 시 프로필, 할 일, 세부 단계 등 계정 데이터가 즉시 영구 삭제되며 복구할 수
                 없습니다.
               </p>
@@ -321,13 +322,13 @@ export function ProfileContent() {
             <button
               type="button"
               onClick={() => setShowDeleteForm((prev) => !prev)}
-              className="mt-3 w-full rounded-lg border border-red-500/40 bg-background px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/10 cursor-pointer"
+              className="mt-3 w-full rounded-lg border border-danger/40 bg-background px-4 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/10 cursor-pointer"
             >
               {showDeleteForm ? "탈퇴 폼 닫기" : "회원탈퇴 진행"}
             </button>
 
             {showDeleteForm && (
-              <div className="mt-3 flex flex-col gap-3 rounded-lg border border-red-500/20 bg-background p-3">
+              <div className="mt-3 flex flex-col gap-3 rounded-lg border border-danger/20 bg-background p-3">
                 <Input
                   id="delete_password"
                   label="비밀번호 재입력"

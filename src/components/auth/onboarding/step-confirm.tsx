@@ -45,7 +45,7 @@ export function StepConfirm({
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="mb-1 text-base font-semibold">선택한 한 걸음</h2>
-        <p className="text-sm text-foreground/60">확정하면 대시보드에 오늘의 한 걸음으로 연결돼요</p>
+        <p className="text-sm text-foreground/70">확정하면 대시보드에 오늘의 한 걸음으로 연결돼요</p>
       </div>
 
       {/* 나의 시간 + 성향 — 확정 직전에 "지금 내가 어디쯤인지"를 한 번 더 보여준다 */}
@@ -63,7 +63,7 @@ export function StepConfirm({
         {/* MBTI 보완 입력 — 두 축만 답한 상태면 여기서 마저 채울 수 있다.
             필수가 아니고, 넣어도 이미 나온 분석을 다시 돌리지 않는다(저장만). */}
         <div className="mt-4 flex flex-col gap-2 border-t border-foreground/10 pt-3">
-          <p className="text-xs text-foreground/60">
+          <p className="text-xs text-foreground/70">
             성향을 더 알려주시면 다음 추천이 정확해져요 <span className="text-foreground/40">(선택)</span>
           </p>
           <div className="flex flex-col gap-1">
@@ -90,11 +90,11 @@ export function StepConfirm({
         {selectedDailyTodo ? (
           <p className="mt-1 text-sm font-medium">{selectedDailyTodo}</p>
         ) : (
-          <p className="mt-1 text-sm text-foreground/60">선택하지 않았어요.</p>
+          <p className="mt-1 text-sm text-foreground/70">선택하지 않았어요.</p>
         )}
       </Card>
 
-      {error && <p className="text-center text-sm text-red-500">{error}</p>}
+      {error && <p className="text-center text-sm text-danger">{error}</p>}
 
       <div className="flex gap-2">
         <Button type="button" variant="secondary" onClick={onBack} className="flex-1">

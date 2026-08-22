@@ -3,6 +3,16 @@
 :root {
   --background: #ffffff;
   --foreground: #333333;
+  /* 상태 색(에러·경고·성공). 단일 값으로는 두 테마를 못 덮는다 —
+     red-500은 흰 배경 3.76:1 / 다크 3.36:1로 **양쪽 다 WCAG 4.5:1 미달**이고,
+     red-700·amber-700·green-700은 라이트 5:1이지만 다크에서 2.5:1까지 떨어진다.
+     그래서 --foreground와 같이 테마별 값을 둔다(라이트=진한 쪽 / 다크=밝은 쪽).
+       danger  red-600 4.83:1  / red-400 4.57:1
+       warning amber-700 5.02:1 / amber-500 5.88:1
+       success green-700 5.02:1 / green-400 7.25:1 */
+  --danger: #dc2626;
+  --warning: #b45309;
+  --success: #15803d;
   /* 바텀 네비 높이 — 네비 자신과 FAB·토스트·본문 하단 여백이 함께 참조한다.
      safe-area는 네비가 별도로 더하므로 여기엔 포함하지 않는다. */
   --bottom-nav-h: 56px;
@@ -15,11 +25,26 @@
 :root[data-theme="dark"] {
   --background: #333333;
   --foreground: #e6e6e6;
+  --danger: #f87171;
+  --warning: #f59e0b;
+  --success: #4ade80;
 }
+
+/* 보조 텍스트 스케일 — text-foreground/N 은 4단계만 쓴다.
+   전에는 13단계(/30~/85)가 섞여 있었고, 그중 /45·/50·/55·/60 은 흰 배경에서
+   2.5~3.7:1로 WCAG 4.5:1에 못 미쳤다. 실측(라이트 #333/#fff, 다크 #e6e6e6/#333):
+     /80  강조 보조 — 본문에 가까운 긴 텍스트        6.5:1  / 6.5:1  ✅
+     /70  보조 텍스트 — 설명·라벨                    4.94:1 / 5.85:1 ✅
+     /50  메타·캡션 — 카운터처럼 못 읽어도 되는 것   2.85:1 / 3.78:1 △
+     /40  비활성·플레이스홀더                        장식
+   읽어야 하는 글은 /70 이상. /50 이하는 본문이 따로 있는 부가 표시에만 쓴다. */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -29,6 +54,9 @@
   :root:not([data-theme="light"]):not([data-theme="dark"]) {
     --background: #333333;
     --foreground: #e6e6e6;
+    --danger: #f87171;
+    --warning: #f59e0b;
+    --success: #4ade80;
   }
 }
 

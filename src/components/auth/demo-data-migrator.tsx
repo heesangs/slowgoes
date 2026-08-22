@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ErrorBox } from "@/components/ui/error-box";
 import {
   clearAllDemoOnboardingData,
   getDemoOnboardingBackupData,
@@ -120,7 +121,7 @@ export function DemoDataMigrator({ children }: DemoDataMigratorProps) {
   if (migrating) {
     return (
       <div className="flex min-h-dvh items-center justify-center px-4">
-        <p className="text-sm text-foreground/60">
+        <p className="text-sm text-foreground/70">
           체험판 데이터를 불러오는 중...
         </p>
       </div>
@@ -130,15 +131,15 @@ export function DemoDataMigrator({ children }: DemoDataMigratorProps) {
   if (error) {
     return (
       <div className="space-y-4">
-        <div className="rounded-xl border border-red-500/20 bg-red-500/[0.03] p-4">
-          <p className="text-sm font-medium text-red-600">
+        <ErrorBox as="div">
+          <p className="font-medium">
             체험 데이터를 자동으로 옮기지 못했어요.
           </p>
-          <p className="mt-1 text-xs text-red-600/90">{error}</p>
+          <p className="mt-1 text-xs text-danger/90">{error}</p>
           <Button type="button" variant="secondary" className="mt-3 w-full" onClick={handleRetry}>
             다시 시도
           </Button>
-        </div>
+        </ErrorBox>
         {children}
       </div>
     );

@@ -125,7 +125,7 @@ export function BucketBar({
                     type="button"
                     onClick={() => onDelete(bucket)}
                     disabled={isDeleting}
-                    className="shrink-0 rounded-md border border-red-300/60 px-2 py-1 text-xs text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+                    className="shrink-0 rounded-md border border-danger/40 px-2 py-1 text-xs text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
                   >
                     삭제
                   </button>
@@ -167,7 +167,7 @@ export function BucketBar({
                   closeSheet();
                   onAddBucket();
                 }}
-                className="flex w-full items-center gap-2 rounded-lg border border-dashed border-foreground/25 px-3 py-3 text-left text-sm text-foreground/60 transition-colors hover:bg-foreground/5 hover:text-foreground"
+                className="flex w-full items-center gap-2 rounded-lg border border-dashed border-foreground/25 px-3 py-3 text-left text-sm text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
               >
                 <span aria-hidden>+</span> {FEATURE_NAMES.BUCKET} 추가
               </button>

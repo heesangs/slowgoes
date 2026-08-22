@@ -25,12 +25,12 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             "w-full rounded-lg border bg-transparent px-4 py-3 text-base transition-colors",
             "placeholder:text-foreground/40",
             "focus:outline-none focus:ring-2 focus:ring-foreground/20",
-            error ? "border-red-500 focus:ring-red-500/20" : "border-foreground/20",
+            error ? "border-danger focus:ring-danger/20" : "border-foreground/20",
             className
           )}
           {...props}
         />
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
       </div>
     );
   }

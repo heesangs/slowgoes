@@ -973,7 +973,7 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
             className="pointer-events-none absolute inset-x-0 flex flex-col items-center gap-3 px-4 text-center"
             style={{ top: messageTop }}
           >
-            <p className="text-lg font-medium leading-snug text-foreground/85">
+            <p className="text-lg font-medium leading-snug text-foreground/80">
               {messageLines.map((line, lineIdx) => {
                 // 줄이 바뀌어도 stagger 지연은 이어진다
                 const offset = messageLines

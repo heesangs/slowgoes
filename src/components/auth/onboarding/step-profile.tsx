@@ -40,7 +40,7 @@ export function StepProfile({
   return (
     <div className="flex flex-col gap-6">
       <div className="rounded-2xl border border-foreground/15 bg-foreground/[0.03] p-5">
-        <p className="mb-4 text-sm text-foreground/60">{FEATURE_NAMES.MY_CLOCK}을 알려주세요</p>
+        <p className="mb-4 text-sm text-foreground/70">{FEATURE_NAMES.MY_CLOCK}을 알려주세요</p>
 
         <div className="flex items-center gap-4">
           <div className="relative h-20 w-20 rounded-full border-2 border-foreground/20 bg-background">
@@ -127,7 +127,7 @@ export function StepProfile({
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
       <Button type="button" onClick={onNext} className="w-full">
         시작하기
       </Button>

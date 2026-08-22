@@ -65,7 +65,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
       <div>
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold mb-2">{FEATURE_NAMES.FIND_ME}</h1>
-          <p className="text-sm text-foreground/60">
+          <p className="text-sm text-foreground/70">
             내 시간과 리듬을 먼저 살펴볼게요
           </p>
         </div>
