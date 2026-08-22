@@ -6,6 +6,7 @@
 import { useReview } from "@/hooks/use-review";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { ReviewPageContent } from "./review-page-content";
+import { Card } from "@/components/ui/card";
 
 const SKELETON = "rounded bg-foreground/10";
 
@@ -14,10 +15,10 @@ function ReviewSkeleton() {
     <div className="flex flex-col gap-4 animate-pulse" aria-label="회고 로딩 중">
       <div className={`${SKELETON} h-6 w-40`} />
       {[0, 1, 2].map((i) => (
-        <section key={i} className="rounded-xl border border-foreground/10 px-4 py-4">
+        <Card as="section" padded key={i}>
           <div className={`${SKELETON} h-4 w-24`} />
           <div className={`${SKELETON} mt-3 h-16 w-full`} />
-        </section>
+        </Card>
       ))}
     </div>
   );

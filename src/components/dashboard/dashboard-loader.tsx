@@ -10,6 +10,7 @@ import { useDashboard } from "@/hooks/use-dashboard";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { DashboardContentV2 } from "./dashboard-content-v2";
 import { readLastViewedBucketCookie } from "@/hooks/use-track-last-viewed-bucket";
+import { Card } from "@/components/ui/card";
 
 const SKELETON = "rounded bg-foreground/10";
 
@@ -17,11 +18,11 @@ function DashboardSkeleton() {
   return (
     <div className="flex flex-col gap-4 pb-24 animate-pulse" aria-label="대시보드 로딩 중">
       {[0, 1, 2, 3].map((i) => (
-        <section key={i} className="rounded-xl border border-foreground/10 px-4 py-4">
+        <Card as="section" padded key={i}>
           <div className={`${SKELETON} h-3 w-20`} />
           <div className={`${SKELETON} mt-3 h-5 w-40`} />
           <div className={`${SKELETON} mt-3 h-4 w-full`} />
-        </section>
+        </Card>
       ))}
     </div>
   );

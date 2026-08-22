@@ -5,6 +5,7 @@
 
 import { cn } from "@/lib/utils";
 import type { WeekdayCompletion } from "@/types";
+import { Card } from "@/components/ui/card";
 
 interface WeekdayPatternChartProps {
   data: WeekdayCompletion[];
@@ -16,7 +17,7 @@ export function WeekdayPatternChart({ data }: WeekdayPatternChartProps) {
   const top = [...data].sort((a, b) => b.count - a.count)[0];
 
   return (
-    <section className="rounded-xl border border-foreground/10 px-4 py-4">
+    <Card as="section" padded>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm text-foreground/60">요일별 수행 패턴</p>
         <span className="text-[10px] text-foreground/45">최근 4주</span>
@@ -62,6 +63,6 @@ export function WeekdayPatternChart({ data }: WeekdayPatternChartProps) {
             ? `${top.label}요일에 가장 많이 실행했어요 (${top.count}회)`
             : ""}
       </p>
-    </section>
+    </Card>
   );
 }

@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface AiSuggestionsSheetProps {
   open: boolean;
@@ -81,21 +82,7 @@ export function AiSuggestionsSheet({
                     : "border-foreground/10 hover:bg-foreground/[0.03]"
                 )}
               >
-                <span
-                  className={cn(
-                    "mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                    isChecked
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/30 bg-transparent"
-                  )}
-                  aria-hidden
-                >
-                  {isChecked && (
-                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </span>
+                <Checkbox checked={isChecked} size="sm" className="mt-0.5" />
                 <span className="min-w-0 flex-1 break-words leading-snug">{suggestion}</span>
               </button>
             </li>
