@@ -22,6 +22,11 @@
   --label-alt: #00000094;
   --label-assistive: #00000061;
   --label-disable: #37383c29;
+  /* 글자·아이콘용 Primary. 면(--primary-normal)과 달리 **두 모드 모두 Green/40 고정**.
+     ⚠️ 라이트에서 2.76:1 — 글자(4.5) 는 물론 아이콘(3.0) 기준도 못 넘는다.
+        Green 램프에 양쪽을 다 만족하는 단계가 없어(Green/30 은 다크가 2.99),
+        고치려면 danger·warning 처럼 테마별로 나눠야 한다. */
+  --label-primary: #05b273;
 
   /* ── Background — Normal(바탕)과 Elevated(카드·시트) 두 층.
         라이트에서는 두 층이 같은 흰색이고, 다크에서만 갈린다. */
@@ -52,14 +57,14 @@
   --primary-heavy: #05b273;
 
   /* ── Status */
-  --status-positive: #06cd77;
+  --status-positive: #1a75ff;
   --status-cautionary: #ff9200;
   --status-negative: #ff4242;
 
   /* ── Inverse — 바탕과 글자를 뒤집은 짝(선택 상태·기본 버튼) */
   --inverse-background: #1b1c1e;
   --inverse-label: #f7f7f8;
-  --inverse-primary: #3385ff;
+  --inverse-primary: #14f387;
 
   /* ── Interaction — 비활성 */
   --interaction-inactive: #989ba2;
@@ -105,6 +110,7 @@
   --label-alt: #ffffff94;
   --label-assistive: #ffffff61;
   --label-disable: #989ba229;
+  --label-primary: #05b273;
 
   --background: #1b1c1e;
   --background-alt: #0f0f10;
@@ -123,13 +129,13 @@
   --primary-strong: #06e182;
   --primary-heavy: #05b273;
 
-  --status-positive: #14f387;
+  --status-positive: #69a5ff;
   --status-cautionary: #ffa938;
   --status-negative: #ff6363;
 
   --inverse-background: #ffffff;
   --inverse-label: #171719;
-  --inverse-primary: #0066ff;
+  --inverse-primary: #06e182;
 
   --interaction-inactive: #5a5c63;
   --interaction-disable: #2e2f33;
@@ -172,6 +178,7 @@
   --color-label-alt: var(--label-alt);
   --color-label-assistive: var(--label-assistive);
   --color-label-disable: var(--label-disable);
+  --color-label-primary: var(--label-primary);
 
   --color-background: var(--background);
   --color-background-alt: var(--background-alt);
@@ -238,6 +245,7 @@
     --label-alt: #ffffff94;
     --label-assistive: #ffffff61;
     --label-disable: #989ba229;
+    --label-primary: #05b273;
 
     --background: #1b1c1e;
     --background-alt: #0f0f10;
@@ -256,13 +264,13 @@
     --primary-strong: #06e182;
     --primary-heavy: #05b273;
 
-    --status-positive: #14f387;
+    --status-positive: #69a5ff;
     --status-cautionary: #ffa938;
     --status-negative: #ff6363;
 
     --inverse-background: #ffffff;
     --inverse-label: #171719;
-    --inverse-primary: #0066ff;
+    --inverse-primary: #06e182;
 
     --interaction-inactive: #5a5c63;
     --interaction-disable: #2e2f33;
