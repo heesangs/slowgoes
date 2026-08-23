@@ -66,7 +66,7 @@ export function RoutineCompletionRing({ rate }: RoutineCompletionRingProps) {
           <p className="mt-1 text-sm text-label-alt">
             {rate.completed} / {rate.total}회 달성
           </p>
-          <p className="mt-2 text-xs text-label-assistive">
+          <p className="mt-2 text-xs text-label-alt">
             {rate.total === 0
               ? `활성 ${FEATURE_NAMES.ROUTINE}이 없어요. 새 ${FEATURE_NAMES.ROUTINE}을 추가해보세요.`
               : rate.percentage >= 80

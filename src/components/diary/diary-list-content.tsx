@@ -95,7 +95,7 @@ export function DiaryListContent() {
       ) : !isError && (entries?.length ?? 0) === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-24 text-center">
           <p className="text-base font-medium text-label-alt">아직 작성한 일기가 없어요</p>
-          <p className="text-sm text-label-assistive">
+          <p className="text-sm text-label-alt">
             우측 하단의 + 버튼으로 첫 일기를 남겨보세요.
           </p>
         </div>
@@ -103,12 +103,12 @@ export function DiaryListContent() {
         <div className="flex flex-col gap-6">
           {groups.map((group) => (
             <section key={group.key}>
-              <h2 className="mb-2 text-sm font-semibold text-label-assistive">{group.label}</h2>
+              <h2 className="mb-2 text-sm font-semibold text-label-alt">{group.label}</h2>
               {/* 월 안에서 다시 주 단위로 묶는다 — 주간 회고는 대상 주에 붙는다 */}
               <div className="flex flex-col gap-3">
                 {group.weeks.map((week) => (
                   <div key={week.key}>
-                    <h3 className="mb-1 text-xs font-medium text-label-disable">{week.label}</h3>
+                    <h3 className="mb-1 text-xs font-medium text-label-alt">{week.label}</h3>
                     <ul className="flex flex-col divide-y divide-foreground/10 border-y border-foreground/10">
                       {week.items.map((item) => (
                         <li key={item.id}>
@@ -118,7 +118,7 @@ export function DiaryListContent() {
                           >
                             {/* 날짜 컬럼 */}
                             <div className="w-9 shrink-0 pt-0.5 text-center">
-                              <div className="text-xs text-label-assistive">{item.weekday}</div>
+                              <div className="text-xs text-label-alt">{item.weekday}</div>
                               <div className="text-lg font-semibold leading-tight text-label-normal">
                                 {String(item.day).padStart(2, "0")}
                               </div>
@@ -127,7 +127,7 @@ export function DiaryListContent() {
                             <div className="min-w-0 flex-1">
                               {/* 주간 기록 표식 — 목표/회고 + #버킷명 (버킷이 지워졌으면 라벨만) */}
                               {item.isWeekly && (
-                                <p className="mb-0.5 truncate text-[11px] font-medium text-label-assistive">
+                                <p className="mb-0.5 truncate text-[11px] font-medium text-label-alt">
                                   {item.week_kind === "goal" ? "주간 목표" : "주간 회고"}
                                   {item.bucket_title ? ` · #${item.bucket_title}` : ""}
                                 </p>
@@ -140,7 +140,7 @@ export function DiaryListContent() {
                                   {item.preview}
                                 </p>
                               )}
-                              <p className="mt-1 text-[12px] text-label-assistive">{item.time}</p>
+                              <p className="mt-1 text-[12px] text-label-alt">{item.time}</p>
                             </div>
                           </Link>
                         </li>

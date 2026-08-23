@@ -54,7 +54,7 @@ export function BottomNavBar() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex h-full flex-col items-center justify-center gap-0.5 transition-colors",
-                  active ? "text-label-normal" : "text-label-disable hover:text-label-alt"
+                  active ? "text-label-normal" : "text-label-alt hover:text-label-neutral"
                 )}
               >
                 {/* 활성은 면(fill), 비활성은 라인(stroke) */}

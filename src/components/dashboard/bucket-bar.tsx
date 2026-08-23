@@ -69,11 +69,11 @@ export function BucketBar({
           SURFACE_SHADOW
         )}
       >
-        <span className="shrink-0 text-xs text-label-assistive">{FEATURE_NAMES.BUCKET}</span>
+        <span className="shrink-0 text-xs text-label-alt">{FEATURE_NAMES.BUCKET}</span>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">
           {selectedBucket?.title ?? `선택된 ${FEATURE_NAMES.BUCKET}이 없어요`}
         </span>
-        <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 text-label-assistive" strokeWidth={2} />
+        <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 text-label-alt" strokeWidth={2} />
       </button>
 
       {/* 버킷 리스트 시트 — 전환 + 추가 + 편집(수정/삭제) */}

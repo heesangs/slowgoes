@@ -19,9 +19,9 @@
         Normal 이외는 alpha라 배경 위에 얹힌다(8자리 hex). */
   --label-normal: #171719;
   --label-strong: #000000;
-  --label-neutral: #2e2f33e0;
-  --label-alt: #37383c9c;
-  --label-assistive: #37383c47;
+  --label-neutral: #000000c7;
+  --label-alt: #00000094;
+  --label-assistive: #00000061;
   --label-disable: #37383c29;
 
   /* ── Background — Normal(바탕)과 Elevated(카드·시트) 두 층.
@@ -105,9 +105,9 @@
 :root[data-theme="dark"] {
   --label-normal: #f7f7f8;
   --label-strong: #ffffff;
-  --label-neutral: #c2c4c8e0;
-  --label-alt: #aeb0b69c;
-  --label-assistive: #aeb0b647;
+  --label-neutral: #ffffffc7;
+  --label-alt: #ffffff94;
+  --label-assistive: #ffffff61;
   --label-disable: #989ba229;
 
   --background: #1b1c1e;
@@ -159,15 +159,21 @@
   --success: #4ade80;
 }
 
-/* 글자 계층 — Figma Label/*. 아래 두 단계는 **읽으라고 있는 게 아니다.**
-   실측(라이트 #fff / 다크 #1b1c1e):
-     label-normal      17.90 ✅ / 15.93 ✅   본문
-     label-neutral     9.09  ✅ / 7.81  ✅   보조 본문
-     label-alt         3.67  △ / 3.78  △   설명·라벨
-     label-assistive   1.68  ❌ / 1.78  ❌   부가 표시 (본문이 따로 있을 때만)
-     label-disable     1.33  ❌ / 1.30  ❌   비활성
-   Figma 값을 정본으로 삼기로 한 결정에 따른 것이라 값은 그대로 두되,
-   읽혀야 하는 글에는 label-alt 위쪽을 쓴다. */
+/* 글자 계층 — 가운데 3단계는 **Figma 실제 화면이 쓰는 값**이다.
+   Semantic 컬렉션의 Label 램프를 그대로 내렸더니 neutral(9.09) 다음이 alt(3.67)로
+   뚝 떨어져, 디자이너가 실제로 쓰는 보조 텍스트(5.33:1) 자리가 램프에 없었다.
+   실측해 보니 "작업" 페이지 텍스트 825개 중 변수 바인딩은 41개(5%)뿐이고
+   나머지는 검정/흰색 알파 3단계로 그려져 있다 — 그쪽이 이 앱의 진짜 스케일이다.
+
+   실측 (라이트 #fff / 다크 #1b1c1e):
+     label-normal      17.90 ✅ / 15.93 ✅   제목
+     label-neutral     11.73 ✅ / 10.74 ✅   본문            (화면 400회)
+     label-alt          5.33 ✅ /  6.50 ✅   보조 — 날짜·시간·라벨·네비 비활성 (170회)
+     label-assistive    2.68 ❌ /  3.56 △   부가 표시 — 카운터처럼 본문이 따로 있을 때 (125회)
+     label-disable      1.33 ❌ /  1.30 ❌   비활성·플레이스홀더
+
+   **읽어야 하는 글은 assistive·disable에 두지 않는다.** 아이콘도 3:1이 필요하므로
+   비활성 아이콘은 alt를 쓴다. */
 
 @theme inline {
   --color-label-normal: var(--label-normal);
@@ -237,9 +243,9 @@
   :root:not([data-theme="light"]):not([data-theme="dark"]) {
     --label-normal: #f7f7f8;
     --label-strong: #ffffff;
-    --label-neutral: #c2c4c8e0;
-    --label-alt: #aeb0b69c;
-    --label-assistive: #aeb0b647;
+    --label-neutral: #ffffffc7;
+    --label-alt: #ffffff94;
+    --label-assistive: #ffffff61;
     --label-disable: #989ba229;
 
     --background: #1b1c1e;

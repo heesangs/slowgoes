@@ -166,7 +166,7 @@ export function StepScene({
           <span
             className={cn(
               "text-xs",
-              customTooLong ? "text-danger" : "text-label-disable"
+              customTooLong ? "text-danger" : "text-label-assistive"
             )}
           >
             {trimmedCustom.length}/{SCENE_MAX_LENGTH}
@@ -197,7 +197,7 @@ export function StepScene({
 
       {selectedSceneText && (
         <div className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
-          <p className="mb-1 text-xs text-label-assistive">선택한 장면</p>
+          <p className="mb-1 text-xs text-label-alt">선택한 장면</p>
           <p className="text-sm font-medium">{selectedSceneText}</p>
         </div>
       )}

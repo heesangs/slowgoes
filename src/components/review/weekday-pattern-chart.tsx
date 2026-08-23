@@ -20,7 +20,7 @@ export function WeekdayPatternChart({ data }: WeekdayPatternChartProps) {
     <Card as="section" padded>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm text-label-alt">요일별 수행 패턴</p>
-        <span className="text-[10px] text-label-assistive">최근 4주</span>
+        <span className="text-[10px] text-label-alt">최근 4주</span>
       </div>
 
       {/* 막대 차트 — 7개 세로 막대 */}

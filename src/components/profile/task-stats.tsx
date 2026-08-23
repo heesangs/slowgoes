@@ -77,7 +77,7 @@ export function TaskStatsSection({ stats }: TaskStatsSectionProps) {
               }}
             />
           </div>
-          <p className="text-right text-xs text-label-assistive">
+          <p className="text-right text-xs text-label-alt">
             {stats.totalRoutines > 0
               ? `${Math.round((stats.completedRoutinesThisWeek / stats.totalRoutines) * 100)}%`
               : "0%"}

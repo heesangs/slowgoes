@@ -574,7 +574,7 @@ export function CalendarSection({
           type="button"
           onClick={onOpenDirection}
           aria-label={`${FEATURE_NAMES.DIRECTION} 열기`}
-          className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-label-disable transition-colors hover:bg-foreground/5 hover:text-label-alt"
+          className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-label-alt transition-colors hover:bg-foreground/5 hover:text-label-neutral"
         >
           <ChevronDownIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
         </button>
@@ -585,7 +585,7 @@ export function CalendarSection({
         {/* 요일 행 (일~토) */}
         <div className="mt-2 grid grid-cols-7 text-center">
           {WEEKDAY_SHORT_LABELS.map((label) => (
-            <span key={label} className="py-1 text-xs text-label-assistive">
+            <span key={label} className="py-1 text-xs text-label-alt">
               {label}
             </span>
           ))}
@@ -707,7 +707,7 @@ export function CalendarSection({
           onClick={() => setExpanded((prev) => !prev)}
           aria-label={expanded ? "주 달력으로 접기" : "월 달력으로 펼치기"}
           aria-expanded={expanded}
-          className="mt-1 flex w-full items-center justify-center rounded-md py-1 text-label-disable transition-colors hover:bg-foreground/5 hover:text-label-alt"
+          className="mt-1 flex w-full items-center justify-center rounded-md py-1 text-label-alt transition-colors hover:bg-foreground/5 hover:text-label-neutral"
         >
           <ChevronDownIcon
             className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")}
@@ -726,7 +726,7 @@ export function CalendarSection({
           </div>
         ) : null
       ) : isTodosError ? (
-        <p className="mt-4 text-center text-xs text-label-assistive">
+        <p className="mt-4 text-center text-xs text-label-alt">
           할 일을 불러오지 못했어요.
         </p>
       ) : (
@@ -734,7 +734,7 @@ export function CalendarSection({
           {/* 빈 상태도 지연 표시 — 데이터가 곧 도착하는 상황에서 "없어요"가 스치면
               실제로 없는 것처럼 읽힌다. isLoading이 잠깐 false인 순간에 대한 방어. */}
           {activeTodos.length === 0 && completedTodos.length === 0 && showEmptyTodos && (
-            <p className="mt-4 text-center text-xs text-label-assistive">
+            <p className="mt-4 text-center text-xs text-label-alt">
               {dateLabel}의 할 일이 없어요.
             </p>
           )}
@@ -959,7 +959,7 @@ function TodoRow({
           </button>
 
           {(time || repeatLabel) && (
-            <span className="flex h-5 shrink-0 items-center gap-1 text-[10px] text-label-disable">
+            <span className="flex h-5 shrink-0 items-center gap-1 text-[10px] text-label-alt">
               {time && <span>{time}</span>}
               {repeatLabel && (
                 <>
@@ -973,7 +973,7 @@ function TodoRow({
 
         {/* 2행 — 세부정보 한 줄. pl-6(24px)로 타이틀과 좌측을 맞춘다(체크박스 20 + gap 4) */}
         {todo.detail && (
-          <p className="mt-1 line-clamp-1 pl-6 text-xs leading-4 text-label-assistive">
+          <p className="mt-1 line-clamp-1 pl-6 text-xs leading-4 text-label-alt">
             {todo.detail}
           </p>
         )}

@@ -460,7 +460,7 @@ export function DiaryEditor({
       <div className="mx-auto max-w-2xl px-3 py-4">
         {/* 주간 기록 컨텍스트 — 어느 주/버킷의 무엇인지 본문 위에 밝힌다 */}
         {weekStart && (
-          <p className="mb-2 text-xs text-label-assistive">
+          <p className="mb-2 text-xs text-label-alt">
             {formatWeekLabel(weekStart)} {weekKind === "goal" ? "목표" : "회고"}
             {bucketTitle ? ` · #${bucketTitle}` : ""}
           </p>
@@ -474,7 +474,7 @@ export function DiaryEditor({
         {/* organize 코멘트 — 일기 아래. 제목=버튼명/질문, 본문=AI 응답. (본문과 분리 저장) */}
         {comments.length > 0 && (
           <div className="mt-6 border-t border-foreground/10 pt-4">
-            <p className="mb-2 text-xs font-medium text-label-assistive">코멘트</p>
+            <p className="mb-2 text-xs font-medium text-label-alt">코멘트</p>
             <ul className="flex flex-col gap-3">
               {comments.map((c) => (
                 <li
@@ -487,7 +487,7 @@ export function DiaryEditor({
                       type="button"
                       aria-label="코멘트 삭제"
                       onClick={() => handleDeleteComment(c.id)}
-                      className="-mr-1 -mt-0.5 shrink-0 rounded p-1 text-label-disable transition-colors hover:bg-foreground/5 hover:text-label-alt"
+                      className="-mr-1 -mt-0.5 shrink-0 rounded p-1 text-label-alt transition-colors hover:bg-foreground/5 hover:text-label-neutral"
                     >
                       <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />

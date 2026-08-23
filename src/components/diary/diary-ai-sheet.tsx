@@ -110,7 +110,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
     <BottomSheet open={open} onClose={onClose} size="large" hideHeader>
       {selectionPreview && (
         <div className="mb-3 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-2">
-          <p className="text-[11px] font-medium text-label-assistive">선택한 부분</p>
+          <p className="text-[11px] font-medium text-label-alt">선택한 부분</p>
           <p className="mt-0.5 line-clamp-2 text-xs text-label-alt">“{selectionPreview}”</p>
         </div>
       )}
@@ -158,7 +158,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
 
       {/* 결과 */}
       {loading && (
-        <p className="mt-4 animate-pulse text-center text-sm text-label-assistive">
+        <p className="mt-4 animate-pulse text-center text-sm text-label-alt">
           일기를 곱씹어보는 중이에요…
         </p>
       )}
@@ -175,7 +175,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
       )}
       {result && !loading && (
         <div className="mt-4 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
-          <p className="text-[11px] font-medium text-label-assistive">{resultTitle}</p>
+          <p className="text-[11px] font-medium text-label-alt">{resultTitle}</p>
           <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-label-neutral">{result}</p>
           <Button
             onClick={handleComment}
