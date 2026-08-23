@@ -5,19 +5,24 @@ import { ToastProvider } from "@/components/ui/toast";
 import { QueryProvider } from "@/components/providers/query-provider";
 import "./globals.css";
 
-// Pretendard — Figma 텍스트 스타일이 쓰는 폰트. 한글 웹폰트가 없어 그동안
-// 한글은 시스템 폰트로 렌더되고 있었다(라틴만 Geist).
+// Gmarket Sans — 지마켓이 무료 배포하는 글꼴(제약 없이 수정·재배포 허용).
 //
-// KS X 1001 서브셋(공식 빌드)을 자체 호스팅한다. 굵기는 Figma가 쓰는 셋만 —
-// Regular/Medium/Bold. 전체 Variable은 2MB로 2.5배라 모바일에 무겁다.
-// 서브셋에 없는 드문 한자·특수문자는 fallback이 받는다.
-const pretendard = localFont({
+// 공식은 웹폰트를 배포하지 않아 TTF 를 직접 서브셋 + woff2 로 변환했다.
+// 커버리지는 직전에 쓰던 Pretendard 서브셋과 동일(한글 2780자)하고 용량은 417KB —
+// 자형이 기하학적이라 압축이 잘 되어 Pretendard(787KB)보다 오히려 가볍다.
+//
+// 굵기는 Light / Medium / Bold 셋뿐이고 **Regular(400)가 없다.**
+// 기본 본문(400)은 Medium 이 받는다 — Light 는 12~14px 한글에서 너무 가늘다.
+// 그래서 400·500 이 같은 파일이라 font-medium 은 기본 본문과 구분되지 않는다.
+//
+// 서브셋에 없는 악센트 라틴(À Á Â…)은 원본에 아예 없어 fallback 이 받는다.
+const gmarketSans = localFont({
   src: [
-    { path: "../../public/fonts/Pretendard-Regular.subset.woff2", weight: "400", style: "normal" },
-    { path: "../../public/fonts/Pretendard-Medium.subset.woff2", weight: "500", style: "normal" },
-    { path: "../../public/fonts/Pretendard-Bold.subset.woff2", weight: "700", style: "normal" },
+    { path: "../../public/fonts/GmarketSans-Light.subset.woff2", weight: "300", style: "normal" },
+    { path: "../../public/fonts/GmarketSans-Medium.subset.woff2", weight: "400 500", style: "normal" },
+    { path: "../../public/fonts/GmarketSans-Bold.subset.woff2", weight: "700", style: "normal" },
   ],
-  variable: "--font-pretendard",
+  variable: "--font-gmarket-sans",
   display: "swap",
   fallback: ["Apple SD Gothic Neo", "Malgun Gothic", "sans-serif"],
 });
@@ -72,7 +77,7 @@ export default function RootLayout({
     <html
       lang="ko"
       suppressHydrationWarning
-      className={`${pretendard.variable} ${geistMono.variable}`}
+      className={`${gmarketSans.variable} ${geistMono.variable}`}
     >
       <head>
         {/* 상태바 주변 색 — 아래 스크립트가 실제 테마로 즉시 보정한다(기본값은 라이트) */}

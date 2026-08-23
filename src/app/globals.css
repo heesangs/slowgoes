@@ -232,7 +232,7 @@
   --color-warning: var(--warning);
   --color-success: var(--success);
 
-  --font-sans: var(--font-pretendard);
+  --font-sans: var(--font-gmarket-sans);
   --font-mono: var(--font-geist-mono);
 
   /* 글자 스케일 — Figma 텍스트 스타일이 정본. 이름은 Tailwind 것을 그대로 쓴다.
