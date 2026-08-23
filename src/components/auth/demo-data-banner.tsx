@@ -24,15 +24,15 @@ export function DemoDataBanner() {
   return (
     <div className="mb-4 rounded-xl border border-foreground/15 bg-foreground/[0.03] p-4 text-sm">
       <p className="font-medium">체험 데이터가 저장되어 있어요</p>
-      <p className="mt-1 line-clamp-2 text-foreground/70">
+      <p className="mt-1 line-clamp-2 text-label-alt">
         &ldquo;{data.sceneText}&rdquo;
       </p>
       {todoCount > 0 && (
-        <p className="mt-1 text-foreground/70">
+        <p className="mt-1 text-label-alt">
           {FEATURE_NAMES.DAILY_TODO} {todoCount}개가 보관 중이에요.
         </p>
       )}
-      <p className="mt-1 text-foreground/70">
+      <p className="mt-1 text-label-alt">
         가입하면 그대로 이어서 시작할 수 있어요.
       </p>
     </div>

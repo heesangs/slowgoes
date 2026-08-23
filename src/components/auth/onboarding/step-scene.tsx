@@ -77,7 +77,7 @@ export function StepScene({
   return (
     <div className="flex flex-col gap-6">
       <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
-        <p className="text-sm text-foreground/70">{FEATURE_NAMES.MY_CLOCK}</p>
+        <p className="text-sm text-label-alt">{FEATURE_NAMES.MY_CLOCK}</p>
         <p className="text-base font-semibold">
           {lifeClock ? `${FEATURE_NAMES.MY_CLOCK}은 ${lifeClock.label}이에요.` : `${FEATURE_NAMES.MY_CLOCK}을 알려주세요`}
         </p>
@@ -89,7 +89,7 @@ export function StepScene({
 
       {/* 카테고리 6개 카드 — 모바일 2열, sm↑ 3열 */}
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-foreground/70">
+        <p className="text-sm text-label-alt">
           하나만 선택할 수 있어요. 마음이 1%라도 더 기우는 쪽으로!
         </p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -103,7 +103,7 @@ export function StepScene({
                 className={cn(
                   "flex flex-col items-start rounded-xl border px-4 py-4 text-left transition-colors",
                   isSelected
-                    ? "border-foreground bg-foreground text-background"
+                    ? "border-inverse-background bg-inverse-background text-inverse-label"
                     : "border-foreground/15 hover:bg-foreground/[0.04]"
                 )}
               >
@@ -112,7 +112,7 @@ export function StepScene({
                 <p
                   className={cn(
                     "mt-0.5 text-xs",
-                    isSelected ? "text-background/80" : "text-foreground/70"
+                    isSelected ? "text-background/80" : "text-label-alt"
                   )}
                 >
                   {cat.desc}
@@ -140,7 +140,7 @@ export function StepScene({
               className={cn(
                 "min-h-[44px] cursor-pointer rounded-lg border px-4 py-3 text-left text-sm font-medium transition-colors",
                 selectedDemoScene?.id === item.id
-                  ? "border-foreground bg-foreground text-background"
+                  ? "border-inverse-background bg-inverse-background text-inverse-label"
                   : "border-foreground/20 hover:bg-foreground/5"
               )}
             >
@@ -152,7 +152,7 @@ export function StepScene({
 
       {/* 프로필 미완성 안내 — 카테고리는 골랐지만 추천을 띄울 수 없을 때 */}
       {selectedLifeCategory && isProfileIncomplete && (
-        <p className="rounded-lg bg-foreground/[0.04] px-3 py-2 text-xs leading-relaxed text-foreground/70">
+        <p className="rounded-lg bg-foreground/[0.04] px-3 py-2 text-xs leading-relaxed text-label-alt">
           프로필 정보가 아직이라 추천을 보여드릴 수 없어요. 아래에 직접 입력해 보세요.
         </p>
       )}
@@ -160,13 +160,13 @@ export function StepScene({
       {/* 직접 입력 */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-baseline justify-between">
-          <label htmlFor="custom_scene" className="text-sm font-medium text-foreground/70">
+          <label htmlFor="custom_scene" className="text-sm font-medium text-label-alt">
             직접 입력 ✏️
           </label>
           <span
             className={cn(
               "text-xs",
-              customTooLong ? "text-danger" : "text-foreground/40"
+              customTooLong ? "text-danger" : "text-label-disable"
             )}
           >
             {trimmedCustom.length}/{SCENE_MAX_LENGTH}
@@ -197,7 +197,7 @@ export function StepScene({
 
       {selectedSceneText && (
         <div className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
-          <p className="mb-1 text-xs text-foreground/50">선택한 장면</p>
+          <p className="mb-1 text-xs text-label-assistive">선택한 장면</p>
           <p className="text-sm font-medium">{selectedSceneText}</p>
         </div>
       )}

@@ -6,11 +6,11 @@ import { ButtonHTMLAttributes, forwardRef } from "react";
 // 버튼 variant별 스타일
 const variantStyles = {
   primary:
-    "bg-foreground text-background hover:opacity-90 active:opacity-80",
+    "bg-inverse-background text-inverse-label hover:opacity-90 active:opacity-80",
   secondary:
-    "bg-transparent border border-foreground/20 text-foreground hover:bg-foreground/5 active:bg-foreground/10",
+    "bg-transparent border border-foreground/20 text-label-normal hover:bg-foreground/5 active:bg-foreground/10",
   ghost:
-    "bg-transparent text-foreground hover:bg-foreground/5 active:bg-foreground/10",
+    "bg-transparent text-label-normal hover:bg-foreground/5 active:bg-foreground/10",
 } as const;
 
 // 버튼 크기별 스타일

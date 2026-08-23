@@ -254,7 +254,7 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
   // 테마 색상 (라이트/다크 공통 — canvas는 CSS 변수를 직접 못 쓰므로 읽어온다)
   const readColors = useCallback(() => {
     const styles = getComputedStyle(document.documentElement);
-    const fg = styles.getPropertyValue("--foreground").trim() || "#333333";
+    const fg = styles.getPropertyValue("--label-normal").trim() || "#171719";
     const bg = styles.getPropertyValue("--background").trim() || "#ffffff";
     return { fg, bg };
   }, []);
@@ -973,7 +973,7 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
             className="pointer-events-none absolute inset-x-0 flex flex-col items-center gap-3 px-4 text-center"
             style={{ top: messageTop }}
           >
-            <p className="text-lg font-medium leading-snug text-foreground/80">
+            <p className="text-lg font-medium leading-snug text-label-neutral">
               {messageLines.map((line, lineIdx) => {
                 // 줄이 바뀌어도 stagger 지연은 이어진다
                 const offset = messageLines
@@ -1005,7 +1005,7 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
         ref={revArrowRef}
         aria-hidden
         className={cn(
-          "pointer-events-none absolute left-1 top-16 text-foreground transition-opacity duration-150",
+          "pointer-events-none absolute left-1 top-16 text-label-normal transition-opacity duration-150",
           reverseArrow ? "opacity-100" : "opacity-0"
         )}
       >
@@ -1020,7 +1020,7 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
         ref={fwdArrowRef}
         aria-hidden
         className={cn(
-          "pointer-events-none absolute right-1 top-16 text-foreground transition-opacity duration-150",
+          "pointer-events-none absolute right-1 top-16 text-label-normal transition-opacity duration-150",
           forwardArrow ? "opacity-100" : "opacity-0"
         )}
       >

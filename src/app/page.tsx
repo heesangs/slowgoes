@@ -14,12 +14,12 @@ export default function LandingPage() {
         {/* 앱 테마는 :root[data-theme] 속성 기반이라 Tailwind의 dark:(prefers-color-scheme)는
             프로필에서 고른 다크를 따라가지 못한다 → foreground 토큰으로 통일.
             투명도는 대비를 재서 정했다 — /60은 3.69:1로 본문 기준(4.5:1)에 미달한다. */}
-        <p className="text-xl text-foreground/80">
+        <p className="text-xl text-label-neutral">
           나의 속도로, 천천히
         </p>
 
         {/* 설명 */}
-        <p className="max-w-md text-base leading-relaxed text-foreground/70">
+        <p className="max-w-md text-base leading-relaxed text-label-alt">
           우린 멀리보고 소중하게 한걸음을 내딛자고요.
           <br />
           내 속도에 맞게, 내 리듬에 맞게, 
@@ -44,7 +44,7 @@ export default function LandingPage() {
         <div className="flex gap-4">
           <Link
             href="/login"
-            className="rounded-full bg-foreground px-8 py-3 text-sm font-medium text-background transition-colors hover:opacity-90"
+            className="rounded-full bg-inverse-background px-8 py-3 text-sm font-medium text-inverse-label transition-colors hover:opacity-90"
           >
             시작하기
           </Link>
@@ -56,7 +56,7 @@ export default function LandingPage() {
           </Link>
         </div>
 
-        <DemoStartLink className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground hover:underline" />
+        <DemoStartLink className="text-sm font-medium text-label-alt transition-colors hover:text-label-normal hover:underline" />
       </main>
     </div>
   );

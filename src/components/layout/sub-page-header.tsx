@@ -26,7 +26,7 @@ interface SubPageHeaderProps {
 }
 
 const BACK_BUTTON_CLASS =
-  "inline-flex h-9 w-9 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-foreground/5";
+  "inline-flex h-9 w-9 items-center justify-center rounded-lg text-label-normal transition-colors hover:bg-foreground/5";
 
 function BackIcon() {
   return (
@@ -71,7 +71,7 @@ export function SubPageHeader({ title, actions, backHref, onBack, hideBack }: Su
               </button>
             ))}
           {title != null && (
-            <span className="min-w-0 truncate text-base font-medium text-foreground/70">{title}</span>
+            <span className="min-w-0 truncate text-base font-medium text-label-alt">{title}</span>
           )}
         </div>
         {actions != null && <div className="flex items-center gap-1">{actions}</div>}

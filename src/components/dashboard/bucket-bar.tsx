@@ -69,11 +69,11 @@ export function BucketBar({
           SURFACE_SHADOW
         )}
       >
-        <span className="shrink-0 text-xs text-foreground/50">{FEATURE_NAMES.BUCKET}</span>
+        <span className="shrink-0 text-xs text-label-assistive">{FEATURE_NAMES.BUCKET}</span>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">
           {selectedBucket?.title ?? `선택된 ${FEATURE_NAMES.BUCKET}이 없어요`}
         </span>
-        <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 text-foreground/50" strokeWidth={2} />
+        <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 text-label-assistive" strokeWidth={2} />
       </button>
 
       {/* 버킷 리스트 시트 — 전환 + 추가 + 편집(수정/삭제) */}
@@ -89,7 +89,7 @@ export function BucketBar({
             className={cn(
               "inline-flex min-h-[36px] items-center rounded-md border px-2.5 text-xs transition-colors",
               editMode
-                ? "border-foreground bg-foreground text-background"
+                ? "border-inverse-background bg-inverse-background text-inverse-label"
                 : "border-foreground/20 hover:bg-foreground/5"
             )}
           >
@@ -145,7 +145,7 @@ export function BucketBar({
                   className={cn(
                     "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-3 text-left text-sm transition-colors",
                     isCurrent
-                      ? "bg-foreground font-semibold text-background"
+                      ? "bg-inverse-background font-semibold text-inverse-label"
                       : "hover:bg-foreground/5"
                   )}
                 >
@@ -167,7 +167,7 @@ export function BucketBar({
                   closeSheet();
                   onAddBucket();
                 }}
-                className="flex w-full items-center gap-2 rounded-lg border border-dashed border-foreground/25 px-3 py-3 text-left text-sm text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
+                className="flex w-full items-center gap-2 rounded-lg border border-dashed border-foreground/25 px-3 py-3 text-left text-sm text-label-alt transition-colors hover:bg-foreground/5 hover:text-label-normal"
               >
                 <span aria-hidden>+</span> {FEATURE_NAMES.BUCKET} 추가
               </button>

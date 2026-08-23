@@ -22,7 +22,7 @@ export function Checkbox({ checked, size = "md", className }: CheckboxProps) {
         "inline-flex shrink-0 items-center justify-center rounded border transition-colors",
         size === "md" ? "h-5 w-5" : "h-4 w-4",
         checked
-          ? "border-foreground bg-foreground text-background"
+          ? "border-inverse-background bg-inverse-background text-inverse-label"
           : "border-foreground/30 bg-transparent",
         className
       )}

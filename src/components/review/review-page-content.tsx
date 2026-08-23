@@ -50,7 +50,7 @@ export function ReviewPageContent({
       <div className="flex flex-col gap-6">
         <div>
           <h1 className="text-2xl font-bold">회고 / 학습</h1>
-          <p className="mt-1 text-sm text-foreground/70">
+          <p className="mt-1 text-sm text-label-alt">
             완료한 한 걸음이 쌓이면 나만의 실행 패턴을 보여드릴게요.
           </p>
         </div>
@@ -60,19 +60,19 @@ export function ReviewPageContent({
         )}
 
         <section className="rounded-xl border border-dashed border-foreground/20 px-4 py-6 text-center">
-          <p className="text-sm text-foreground/70">
+          <p className="text-sm text-label-alt">
             아직 행동 기록이 없어요. 오늘의 한 걸음을 완료하면 회고 화면이 채워집니다.
           </p>
           <div className="mt-4 flex justify-center gap-2">
             <Link
               href="/dashboard"
-              className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-inverse-background px-4 py-2 text-sm font-medium text-inverse-label transition-opacity hover:opacity-90"
             >
               대시보드로
             </Link>
             <Link
               href="/onboarding?step=2"
-              className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-foreground/20 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/5"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-foreground/20 px-4 py-2 text-sm font-medium text-label-normal transition-colors hover:bg-foreground/5"
             >
               버킷 추가
             </Link>
@@ -88,7 +88,7 @@ export function ReviewPageContent({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold">회고 / 학습</h1>
-        <p className="text-sm text-foreground/70">
+        <p className="text-sm text-label-alt">
           {displayName ? `${displayName}님의` : "나의"} 실행 패턴을 돌아보고 다음 한 걸음을 더 잘 준비해요.
         </p>
       </div>
@@ -99,9 +99,9 @@ export function ReviewPageContent({
 
       {lifeBalance && (
         <Card as="section" padded>
-          <p className="text-sm text-foreground/70">인생균형흐름</p>
-          <p className="mt-2 text-sm text-foreground/80">{lifeBalance.message}</p>
-          <p className="mt-2 text-xs text-foreground/70">
+          <p className="text-sm text-label-alt">인생균형흐름</p>
+          <p className="mt-2 text-sm text-label-neutral">{lifeBalance.message}</p>
+          <p className="mt-2 text-xs text-label-alt">
             집중 영역: {lifeBalance.focusArea ?? "-"}
             {" · "}
             비어있는 영역: {lifeBalance.neglectedArea ?? "-"}
@@ -112,11 +112,11 @@ export function ReviewPageContent({
       {/* PR 23: 평균 예상/실제 시간 위젯 제거 (DB에 측정 데이터 없음 → 항상 '-') */}
       <section className="grid grid-cols-2 gap-3">
         <Card padded>
-          <p className="text-xs text-foreground/70">누적 완료 행동</p>
+          <p className="text-xs text-label-alt">누적 완료 행동</p>
           <p className="mt-1 text-xl font-semibold">{data.completedCount}개</p>
         </Card>
         <Card padded>
-          <p className="text-xs text-foreground/70">최근 14일 완료</p>
+          <p className="text-xs text-label-alt">최근 14일 완료</p>
           <p className="mt-1 text-xl font-semibold">{data.completedInLast14Days}개</p>
         </Card>
       </section>
@@ -128,28 +128,28 @@ export function ReviewPageContent({
       <WeekdayPatternChart data={data.weekdayCompletions} />
 
       <Card as="section" padded>
-        <p className="mb-2 text-sm text-foreground/70">이번 회고 인사이트</p>
-        <p className={cn("text-sm", data.insight ? "text-foreground/80" : "text-foreground/70")}>
+        <p className="mb-2 text-sm text-label-alt">이번 회고 인사이트</p>
+        <p className={cn("text-sm", data.insight ? "text-label-neutral" : "text-label-alt")}>
           {data.insight ?? "완료 데이터가 쌓이면 개인화 인사이트가 생성됩니다."}
         </p>
-        <p className="mt-3 text-xs text-foreground/50">
+        <p className="mt-3 text-xs text-label-assistive">
           대표 시간대: {data.strongestBand ? STRONGEST_BAND_LABEL[data.strongestBand] : "데이터 수집 중"}
         </p>
       </Card>
 
       <Card as="section" padded>
-        <p className="mb-3 text-sm text-foreground/70">시간대 리듬</p>
+        <p className="mb-3 text-sm text-label-alt">시간대 리듬</p>
         <div className="flex flex-col gap-3">
           {data.timeBandStats.map((item) => (
             <div key={item.band} className="flex items-center gap-3">
-              <span className="w-24 shrink-0 text-xs text-foreground/70">{item.label}</span>
+              <span className="w-24 shrink-0 text-xs text-label-alt">{item.label}</span>
               <div className="h-2.5 flex-1 rounded-full bg-foreground/10">
                 <div
                   className="h-2.5 rounded-full bg-foreground/70"
                   style={{ width: `${Math.round((item.count / maxBandCount) * 100)}%` }}
                 />
               </div>
-              <span className="w-7 shrink-0 text-right text-xs text-foreground/70">{item.count}</span>
+              <span className="w-7 shrink-0 text-right text-xs text-label-alt">{item.count}</span>
             </div>
           ))}
         </div>
@@ -158,22 +158,22 @@ export function ReviewPageContent({
       {/* PR 23: 난이도 학습 섹션 제거 (DB에 난이도 측정 데이터 없음 → 항상 neutral) */}
 
       <Card as="section" padded>
-        <p className="mb-3 text-sm text-foreground/70">최근회고 기록</p>
+        <p className="mb-3 text-sm text-label-alt">최근회고 기록</p>
         <div className="flex flex-col gap-3">
           {data.recent.map((item) => (
             <article key={item.id} className="rounded-lg border border-foreground/10 px-3 py-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-sm font-medium">{item.title}</p>
-                  <p className="mt-0.5 text-xs text-foreground/70">{shortDate(item.completedAt)}</p>
+                  <p className="mt-0.5 text-xs text-label-alt">{shortDate(item.completedAt)}</p>
                 </div>
-                <span className="inline-flex min-h-[28px] items-center rounded-full border border-foreground/20 px-2.5 text-[11px] text-foreground/70">
+                <span className="inline-flex min-h-[28px] items-center rounded-full border border-foreground/20 px-2.5 text-[11px] text-label-alt">
                   {itemTypeLabel(item.itemType)}
                 </span>
               </div>
 
               {(item.bucketTitle || item.lifeAreaName) && (
-                <p className="mt-1 text-xs text-foreground/70">
+                <p className="mt-1 text-xs text-label-alt">
                   {item.lifeAreaName ? `${item.lifeAreaName} · ` : ""}
                   {item.bucketTitle ?? `${FEATURE_NAMES.BUCKET} 미연결`}
                 </p>

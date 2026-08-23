@@ -22,7 +22,7 @@ export function RoutineCompletionRing({ rate }: RoutineCompletionRingProps) {
 
   return (
     <Card as="section" padded>
-      <p className="mb-3 text-sm text-foreground/70">이번 주 {FEATURE_NAMES.ROUTINE} 달성률</p>
+      <p className="mb-3 text-sm text-label-alt">이번 주 {FEATURE_NAMES.ROUTINE} 달성률</p>
 
       <div className="flex items-center gap-5">
         {/* SVG 링 */}
@@ -41,7 +41,7 @@ export function RoutineCompletionRing({ rate }: RoutineCompletionRingProps) {
               fill="none"
               stroke="currentColor"
               strokeWidth={STROKE}
-              className="text-foreground/10"
+              className="text-fill-normal"
             />
             {/* 진행도 (12시 방향에서 시작, 시계방향) */}
             <circle
@@ -55,7 +55,7 @@ export function RoutineCompletionRing({ rate }: RoutineCompletionRingProps) {
               strokeDasharray={CIRCUMFERENCE}
               strokeDashoffset={dashOffset}
               transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
-              className="text-foreground transition-[stroke-dashoffset] duration-500"
+              className="text-label-normal transition-[stroke-dashoffset] duration-500"
             />
           </svg>
         </div>
@@ -63,10 +63,10 @@ export function RoutineCompletionRing({ rate }: RoutineCompletionRingProps) {
         {/* 수치 + 메타 */}
         <div className="flex-1 min-w-0">
           <p className="text-3xl font-bold leading-tight">{rate.percentage}%</p>
-          <p className="mt-1 text-sm text-foreground/70">
+          <p className="mt-1 text-sm text-label-alt">
             {rate.completed} / {rate.total}회 달성
           </p>
-          <p className="mt-2 text-xs text-foreground/50">
+          <p className="mt-2 text-xs text-label-assistive">
             {rate.total === 0
               ? `활성 ${FEATURE_NAMES.ROUTINE}이 없어요. 새 ${FEATURE_NAMES.ROUTINE}을 추가해보세요.`
               : rate.percentage >= 80
