@@ -296,7 +296,7 @@ export const KeyboardAccessoryInput = forwardRef<
               readOnly={locked}
               rows={1}
               tabIndex={open ? 0 : -1}
-              className="w-full resize-none bg-transparent text-[16px] leading-6 outline-none placeholder:text-[var(--kai-placeholder)]"
+              className="w-full resize-none bg-transparent text-base leading-6 outline-none placeholder:text-[var(--kai-placeholder)]"
               style={{ color: "var(--kai-text)" }}
             />
 
@@ -305,7 +305,7 @@ export const KeyboardAccessoryInput = forwardRef<
               <span
                 key={placeholderIdx % animatedPlaceholders.length}
                 aria-hidden
-                className="pointer-events-none absolute inset-x-0 top-0 animate-[kai-fade_0.5s_ease] text-[16px] leading-6"
+                className="pointer-events-none absolute inset-x-0 top-0 animate-[kai-fade_0.5s_ease] text-base leading-6"
                 style={{ color: "var(--kai-placeholder)" }}
               >
                 {animatedPlaceholders[placeholderIdx % animatedPlaceholders.length]}
@@ -315,7 +315,7 @@ export const KeyboardAccessoryInput = forwardRef<
             {/* AI 추천중 오버레이 — 기존 입력값이 있어도 진행 상태가 보이게 (피그마 상태 3) */}
             {isBusy && (
               <span
-                className="pointer-events-none absolute inset-0 flex items-start text-[16px] leading-6"
+                className="pointer-events-none absolute inset-0 flex items-start text-base leading-6"
                 style={{ background: "var(--kai-surface)", color: "var(--kai-placeholder)" }}
               >
                 {busyPlaceholder ?? "추천중..."}
@@ -334,7 +334,7 @@ export const KeyboardAccessoryInput = forwardRef<
               tabIndex={open ? 0 : -1}
               // 제목(16px/--kai-text)보다 한 단계 낮춰 위계를 만든다 — 14px + placeholder 톤.
               // 16px 미만이지만 viewport maximumScale:1(app/layout.tsx)이 iOS 포커스 확대를 막는다.
-              className="w-full bg-transparent text-[14px] leading-5 outline-none placeholder:text-[var(--kai-placeholder)]"
+              className="w-full bg-transparent text-sm leading-5 outline-none placeholder:text-[var(--kai-placeholder)]"
               style={{ color: "var(--kai-placeholder)" }}
             />
           )}

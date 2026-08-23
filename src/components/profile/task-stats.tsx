@@ -15,7 +15,7 @@ export function TaskStatsSection({ stats }: TaskStatsSectionProps) {
     return (
       <Card>
         <CardHeader>
-          <h2 className="text-base font-semibold">나의 통계</h2>
+          <h2 className="text-base font-bold">나의 통계</h2>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-2 py-8">
           <p className="text-center text-sm text-label-alt">
@@ -35,7 +35,7 @@ export function TaskStatsSection({ stats }: TaskStatsSectionProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-base font-semibold">나의 통계</h2>
+      <h2 className="text-base font-bold">나의 통계</h2>
 
       <div className="grid grid-cols-2 gap-3">
         <Card>
@@ -67,7 +67,7 @@ export function TaskStatsSection({ stats }: TaskStatsSectionProps) {
       <Card>
         <CardContent className="flex flex-col gap-2 py-4">
           <p className="text-sm text-label-neutral">
-            이번 주 {FEATURE_NAMES.ROUTINE} 완료 <span className="font-semibold">{stats.completedRoutinesThisWeek}개</span>
+            이번 주 {FEATURE_NAMES.ROUTINE} 완료 <span className="font-bold">{stats.completedRoutinesThisWeek}개</span>
           </p>
           <div className="h-3 w-full rounded-full bg-fill-normal">
             <div
@@ -89,7 +89,7 @@ export function TaskStatsSection({ stats }: TaskStatsSectionProps) {
       <Card>
         <CardContent className="flex flex-col gap-1 py-4">
           <p className="text-sm text-label-neutral">
-            완료된 {FEATURE_NAMES.DAILY_TODO} <span className="font-semibold">{stats.completedDailyTodos}개</span>
+            완료된 {FEATURE_NAMES.DAILY_TODO} <span className="font-bold">{stats.completedDailyTodos}개</span>
           </p>
           <p className="text-xs text-label-alt">
             전체 {FEATURE_NAMES.DAILY_TODO} {stats.totalDailyTodos}개 중 완료 비율을 추적합니다.

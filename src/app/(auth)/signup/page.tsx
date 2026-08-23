@@ -55,7 +55,7 @@ export default function SignUpPage() {
       <div>
         <div className="text-center mb-8">
           <Link href="/" className="text-2xl font-bold mb-2 inline-block hover:opacity-70 transition-opacity">slowgoes</Link>
-          <h2 className="text-lg font-semibold mb-2">회원가입</h2>
+          <h2 className="text-lg font-bold mb-2">회원가입</h2>
           <p className="text-sm text-label-alt">
             나만의 속도로 공부를 시작해보세요
           </p>

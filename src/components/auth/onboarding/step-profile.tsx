@@ -55,7 +55,7 @@ export function StepProfile({
 
           <div className="min-h-[48px]">
             {lifeClock ? (
-              <p className="text-base font-semibold">{FEATURE_NAMES.MY_CLOCK}은 {lifeClock.label}이에요.</p>
+              <p className="text-base font-bold">{FEATURE_NAMES.MY_CLOCK}은 {lifeClock.label}이에요.</p>
             ) : (
               <p className="text-sm text-label-alt">나이를 입력하면 {FEATURE_NAMES.MY_CLOCK}이 표시돼요.</p>
             )}

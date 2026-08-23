@@ -78,13 +78,13 @@ export function StepScene({
     <div className="flex flex-col gap-6">
       <div className="rounded-xl border border-line-alt bg-fill-alt px-4 py-3">
         <p className="text-sm text-label-alt">{FEATURE_NAMES.MY_CLOCK}</p>
-        <p className="text-base font-semibold">
+        <p className="text-base font-bold">
           {lifeClock ? `${FEATURE_NAMES.MY_CLOCK}은 ${lifeClock.label}이에요.` : `${FEATURE_NAMES.MY_CLOCK}을 알려주세요`}
         </p>
       </div>
 
       <div>
-        <h2 className="mb-1 text-base font-semibold">내가 원하는게 뭘까요?</h2>
+        <h2 className="mb-1 text-base font-bold">내가 원하는게 뭘까요?</h2>
       </div>
 
       {/* 카테고리 6개 카드 — 모바일 2열, sm↑ 3열 */}
@@ -108,7 +108,7 @@ export function StepScene({
                 )}
               >
                 <span className="text-2xl">{cat.icon}</span>
-                <p className="mt-2 text-sm font-semibold">{cat.label}</p>
+                <p className="mt-2 text-sm font-bold">{cat.label}</p>
                 <p
                   className={cn(
                     "mt-0.5 text-xs",

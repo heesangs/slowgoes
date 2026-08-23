@@ -206,7 +206,7 @@ export function ProfileContent() {
       {/* Section 1: 기본 정보 */}
       <Card>
         <CardHeader>
-          <h2 className="text-base font-semibold">기본 정보</h2>
+          <h2 className="text-base font-bold">기본 정보</h2>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           <Input
@@ -231,7 +231,7 @@ export function ProfileContent() {
       {/* Section: 화면 테마 */}
       <Card>
         <CardHeader>
-          <h2 className="text-base font-semibold">화면 테마</h2>
+          <h2 className="text-base font-bold">화면 테마</h2>
         </CardHeader>
         <CardContent>
           <ThemeSetting />
@@ -244,7 +244,7 @@ export function ProfileContent() {
       {/* Section 3: 계정 관리 */}
       <Card>
         <CardHeader>
-          <h2 className="text-base font-semibold">계정 관리</h2>
+          <h2 className="text-base font-bold">계정 관리</h2>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {/* 이메일 (읽기 전용) */}
@@ -312,7 +312,7 @@ export function ProfileContent() {
           {/* 회원탈퇴 */}
           <div className="rounded-lg border border-danger/30 bg-danger/5 p-4">
             <div className="flex flex-col gap-1.5">
-              <p className="text-sm font-semibold text-danger">회원탈퇴</p>
+              <p className="text-sm font-bold text-danger">회원탈퇴</p>
               <p className="text-xs text-danger/90">
                 회원탈퇴 시 프로필, 할 일, 세부 단계 등 계정 데이터가 즉시 영구 삭제되며 복구할 수
                 없습니다.

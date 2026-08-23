@@ -20,7 +20,7 @@ export function WeekdayPatternChart({ data }: WeekdayPatternChartProps) {
     <Card as="section" padded>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm text-label-alt">요일별 수행 패턴</p>
-        <span className="text-[10px] text-label-alt">최근 4주</span>
+        <span className="text-2xs text-label-alt">최근 4주</span>
       </div>
 
       {/* 막대 차트 — 7개 세로 막대 */}
@@ -30,7 +30,7 @@ export function WeekdayPatternChart({ data }: WeekdayPatternChartProps) {
           const isTop = top && day.count > 0 && day.weekday === top.weekday;
           return (
             <div key={day.weekday} className="flex flex-1 flex-col items-center gap-1">
-              <span className="text-[10px] text-label-alt">{day.count}</span>
+              <span className="text-2xs text-label-alt">{day.count}</span>
               <div
                 className="w-full rounded-t-sm bg-fill-normal relative overflow-hidden"
                 style={{ height: "100%" }}
@@ -45,8 +45,8 @@ export function WeekdayPatternChart({ data }: WeekdayPatternChartProps) {
               </div>
               <span
                 className={cn(
-                  "text-[11px]",
-                  isTop ? "font-semibold text-label-normal" : "text-label-alt"
+                  "text-2xs",
+                  isTop ? "font-bold text-label-normal" : "text-label-alt"
                 )}
               >
                 {day.label}

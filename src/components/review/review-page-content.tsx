@@ -113,11 +113,11 @@ export function ReviewPageContent({
       <section className="grid grid-cols-2 gap-3">
         <Card padded>
           <p className="text-xs text-label-alt">누적 완료 행동</p>
-          <p className="mt-1 text-xl font-semibold">{data.completedCount}개</p>
+          <p className="mt-1 text-xl font-bold">{data.completedCount}개</p>
         </Card>
         <Card padded>
           <p className="text-xs text-label-alt">최근 14일 완료</p>
-          <p className="mt-1 text-xl font-semibold">{data.completedInLast14Days}개</p>
+          <p className="mt-1 text-xl font-bold">{data.completedInLast14Days}개</p>
         </Card>
       </section>
 
@@ -167,7 +167,7 @@ export function ReviewPageContent({
                   <p className="text-sm font-medium">{item.title}</p>
                   <p className="mt-0.5 text-xs text-label-alt">{shortDate(item.completedAt)}</p>
                 </div>
-                <span className="inline-flex min-h-[28px] items-center rounded-full border border-line-normal px-2.5 text-[11px] text-label-alt">
+                <span className="inline-flex min-h-[28px] items-center rounded-full border border-line-normal px-2.5 text-2xs text-label-alt">
                   {itemTypeLabel(item.itemType)}
                 </span>
               </div>

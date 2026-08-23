@@ -482,7 +482,7 @@ export function DiaryEditor({
                   className="rounded-lg border border-line-alt bg-fill-alt px-3 py-2.5"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs font-semibold text-label-alt">{c.title}</p>
+                    <p className="text-xs font-bold text-label-alt">{c.title}</p>
                     <button
                       type="button"
                       aria-label="코멘트 삭제"

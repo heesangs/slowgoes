@@ -42,7 +42,7 @@ export function StepAnalysis({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="mb-1 text-base font-semibold">
+        <h2 className="mb-1 text-base font-bold">
           {isAnalyzingLifeScene ? HEADER_ANALYZING : HEADER_DONE}
         </h2>
         {isAnalyzingLifeScene ? (
@@ -84,7 +84,7 @@ export function StepAnalysis({
 
           {/* 나의 발걸음 (this_month 이상, 긴→짧은 순 — someday 먼저) */}
           <section className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold">{FEATURE_NAMES.MY_STRIDES}</h3>
+            <h3 className="text-sm font-bold">{FEATURE_NAMES.MY_STRIDES}</h3>
             <div className="flex flex-col gap-3">
               {displayStrides.map((item, index) => (
                 <div
@@ -103,7 +103,7 @@ export function StepAnalysis({
               감추면 왜 진행이 안 되는지 알 수 없는 화면이 된다. */}
           <section className="flex flex-col gap-3">
             <div>
-              <h3 className="text-sm font-semibold">{FEATURE_NAMES.BUCKET}을 위한 {FEATURE_NAMES.DAILY_TODO}</h3>
+              <h3 className="text-sm font-bold">{FEATURE_NAMES.BUCKET}을 위한 {FEATURE_NAMES.DAILY_TODO}</h3>
               <p className="text-xs text-label-alt">
                 하나를 선택하면 이번 주 {FEATURE_NAMES.DAILY_TODO}가 됩니다.
               </p>

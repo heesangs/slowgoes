@@ -103,7 +103,7 @@ export function DiaryListContent() {
         <div className="flex flex-col gap-6">
           {groups.map((group) => (
             <section key={group.key}>
-              <h2 className="mb-2 text-sm font-semibold text-label-alt">{group.label}</h2>
+              <h2 className="mb-2 text-sm font-bold text-label-alt">{group.label}</h2>
               {/* 월 안에서 다시 주 단위로 묶는다 — 주간 회고는 대상 주에 붙는다 */}
               <div className="flex flex-col gap-3">
                 {group.weeks.map((week) => (
@@ -119,7 +119,7 @@ export function DiaryListContent() {
                             {/* 날짜 컬럼 */}
                             <div className="w-9 shrink-0 pt-0.5 text-center">
                               <div className="text-xs text-label-alt">{item.weekday}</div>
-                              <div className="text-lg font-semibold leading-tight text-label-normal">
+                              <div className="text-lg font-bold leading-tight text-label-normal">
                                 {String(item.day).padStart(2, "0")}
                               </div>
                             </div>
@@ -127,20 +127,20 @@ export function DiaryListContent() {
                             <div className="min-w-0 flex-1">
                               {/* 주간 기록 표식 — 목표/회고 + #버킷명 (버킷이 지워졌으면 라벨만) */}
                               {item.isWeekly && (
-                                <p className="mb-0.5 truncate text-[11px] font-medium text-label-alt">
+                                <p className="mb-0.5 truncate text-2xs font-medium text-label-alt">
                                   {item.week_kind === "goal" ? "주간 목표" : "주간 회고"}
                                   {item.bucket_title ? ` · #${item.bucket_title}` : ""}
                                 </p>
                               )}
-                              <p className="truncate text-[15px] font-semibold text-label-normal">
+                              <p className="truncate text-base font-bold text-label-normal">
                                 {item.title}
                               </p>
                               {item.preview && (
-                                <p className="mt-0.5 line-clamp-2 text-[14px] text-label-alt">
+                                <p className="mt-0.5 line-clamp-2 text-sm text-label-alt">
                                   {item.preview}
                                 </p>
                               )}
-                              <p className="mt-1 text-[12px] text-label-alt">{item.time}</p>
+                              <p className="mt-1 text-xs text-label-alt">{item.time}</p>
                             </div>
                           </Link>
                         </li>

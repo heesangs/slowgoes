@@ -1,12 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { ToastProvider } from "@/components/ui/toast";
 import { QueryProvider } from "@/components/providers/query-provider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// Pretendard — Figma 텍스트 스타일이 쓰는 폰트. 한글 웹폰트가 없어 그동안
+// 한글은 시스템 폰트로 렌더되고 있었다(라틴만 Geist).
+//
+// KS X 1001 서브셋(공식 빌드)을 자체 호스팅한다. 굵기는 Figma가 쓰는 셋만 —
+// Regular/Medium/Bold. 전체 Variable은 2MB로 2.5배라 모바일에 무겁다.
+// 서브셋에 없는 드문 한자·특수문자는 fallback이 받는다.
+const pretendard = localFont({
+  src: [
+    { path: "../../public/fonts/Pretendard-Regular.subset.woff2", weight: "400", style: "normal" },
+    { path: "../../public/fonts/Pretendard-Medium.subset.woff2", weight: "500", style: "normal" },
+    { path: "../../public/fonts/Pretendard-Bold.subset.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-pretendard",
+  display: "swap",
+  fallback: ["Apple SD Gothic Neo", "Malgun Gothic", "sans-serif"],
 });
 
 const geistMono = Geist_Mono({
@@ -56,7 +69,11 @@ export default function RootLayout({
   const shouldLoadFigmaCapture = process.env.NODE_ENV === "development";
 
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html
+      lang="ko"
+      suppressHydrationWarning
+      className={`${pretendard.variable} ${geistMono.variable}`}
+    >
       <head>
         {/* 상태바 주변 색 — 아래 스크립트가 실제 테마로 즉시 보정한다(기본값은 라이트) */}
         <meta name="theme-color" content="#ffffff" />
@@ -78,9 +95,7 @@ export default function RootLayout({
           />
         )}
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <QueryProvider>
           <ToastProvider>{children}</ToastProvider>
         </QueryProvider>
