@@ -50,7 +50,7 @@ export function DiaryEditorLoader({ id, backHref }: { id: string; backHref?: str
   if (isError) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8 text-center">
-        <p className="text-sm text-foreground/70">일기를 불러오지 못했습니다.</p>
+        <p className="text-sm text-label-alt">일기를 불러오지 못했습니다.</p>
       </div>
     );
   }

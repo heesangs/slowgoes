@@ -528,7 +528,7 @@ export function CalendarSection({
     >
       {/* 섹션 타이틀 행 — 우측: 페이지네이션 점 3개 (주 → 일생 → 시계) */}
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-foreground/70">{pageTitle}</p>
+        <p className="text-sm font-medium text-label-alt">{pageTitle}</p>
       </div>
 
       {/* 일생 뷰에선 이번달 발걸음/날짜 그리드 대신 5200주 조망만 */}
@@ -563,7 +563,7 @@ export function CalendarSection({
         <p className="shrink-0 text-sm font-semibold">{headerLabel}</p>
         <p
           className={cn(
-            "min-w-0 flex-1 text-xs leading-relaxed text-foreground/70",
+            "min-w-0 flex-1 text-xs leading-relaxed text-label-alt",
             !expanded && "truncate"
           )}
         >
@@ -574,7 +574,7 @@ export function CalendarSection({
           type="button"
           onClick={onOpenDirection}
           aria-label={`${FEATURE_NAMES.DIRECTION} 열기`}
-          className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
+          className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-label-disable transition-colors hover:bg-foreground/5 hover:text-label-alt"
         >
           <ChevronDownIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
         </button>
@@ -585,7 +585,7 @@ export function CalendarSection({
         {/* 요일 행 (일~토) */}
         <div className="mt-2 grid grid-cols-7 text-center">
           {WEEKDAY_SHORT_LABELS.map((label) => (
-            <span key={label} className="py-1 text-xs text-foreground/50">
+            <span key={label} className="py-1 text-xs text-label-assistive">
               {label}
             </span>
           ))}
@@ -649,12 +649,12 @@ export function CalendarSection({
                   className={cn(
                     "inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors",
                     isSelected
-                      ? "bg-foreground font-semibold text-background"
+                      ? "bg-inverse-background font-semibold text-inverse-label"
                       : cn(
                           "hover:bg-foreground/5",
                           // 오늘 날짜는 테두리로 강조(선택 날짜는 fill 우선)
-                          isTodayCell && "border border-foreground font-semibold",
-                          expanded && !inMonth ? "text-foreground/40" : "text-foreground"
+                          isTodayCell && "border border-inverse-background font-semibold",
+                          expanded && !inMonth ? "text-label-disable" : "text-label-normal"
                         )
                   )}
                 >
@@ -670,7 +670,7 @@ export function CalendarSection({
             <span
               aria-hidden
               className={cn(
-                "pointer-events-none absolute inset-y-0 right-1 flex items-center text-foreground",
+                "pointer-events-none absolute inset-y-0 right-1 flex items-center text-label-normal",
                 !dragging && "transition-opacity duration-150"
               )}
               style={{ opacity: arrowOpacity, transform: `translateX(${-progress * ARROW_TRAVEL}px)` }}
@@ -707,7 +707,7 @@ export function CalendarSection({
           onClick={() => setExpanded((prev) => !prev)}
           aria-label={expanded ? "주 달력으로 접기" : "월 달력으로 펼치기"}
           aria-expanded={expanded}
-          className="mt-1 flex w-full items-center justify-center rounded-md py-1 text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
+          className="mt-1 flex w-full items-center justify-center rounded-md py-1 text-label-disable transition-colors hover:bg-foreground/5 hover:text-label-alt"
         >
           <ChevronDownIcon
             className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")}
@@ -726,7 +726,7 @@ export function CalendarSection({
           </div>
         ) : null
       ) : isTodosError ? (
-        <p className="mt-4 text-center text-xs text-foreground/50">
+        <p className="mt-4 text-center text-xs text-label-assistive">
           할 일을 불러오지 못했어요.
         </p>
       ) : (
@@ -734,14 +734,14 @@ export function CalendarSection({
           {/* 빈 상태도 지연 표시 — 데이터가 곧 도착하는 상황에서 "없어요"가 스치면
               실제로 없는 것처럼 읽힌다. isLoading이 잠깐 false인 순간에 대한 방어. */}
           {activeTodos.length === 0 && completedTodos.length === 0 && showEmptyTodos && (
-            <p className="mt-4 text-center text-xs text-foreground/50">
+            <p className="mt-4 text-center text-xs text-label-assistive">
               {dateLabel}의 할 일이 없어요.
             </p>
           )}
 
           {activeTodos.length > 0 && (
             <div className="mt-3">
-              <p className="text-xs font-medium text-foreground/70">{dateLabel}</p>
+              <p className="text-xs font-medium text-label-alt">{dateLabel}</p>
               <ul className="mt-1.5 flex flex-col gap-2">
                 {activeTodos.map((todo) => (
                   <TodoRow
@@ -758,7 +758,7 @@ export function CalendarSection({
 
           {completedTodos.length > 0 && (
             <div className="mt-3">
-              <p className="text-xs font-medium text-foreground/70">완료</p>
+              <p className="text-xs font-medium text-label-alt">완료</p>
               <ul className="mt-1.5 flex flex-col gap-2">
                 {completedTodos.map((todo) => (
                   <TodoRow
@@ -952,14 +952,14 @@ function TodoRow({
             aria-label={`${todo.title} 수정`}
             className={cn(
               "min-w-0 flex-1 break-words text-left text-sm leading-5",
-              isCompleted && "text-foreground/50 line-through"
+              isCompleted && "text-label-assistive line-through"
             )}
           >
             {todo.title}
           </button>
 
           {(time || repeatLabel) && (
-            <span className="flex h-5 shrink-0 items-center gap-1 text-[10px] text-foreground/40">
+            <span className="flex h-5 shrink-0 items-center gap-1 text-[10px] text-label-disable">
               {time && <span>{time}</span>}
               {repeatLabel && (
                 <>
@@ -973,7 +973,7 @@ function TodoRow({
 
         {/* 2행 — 세부정보 한 줄. pl-6(24px)로 타이틀과 좌측을 맞춘다(체크박스 20 + gap 4) */}
         {todo.detail && (
-          <p className="mt-1 line-clamp-1 pl-6 text-xs leading-4 text-foreground/50">
+          <p className="mt-1 line-clamp-1 pl-6 text-xs leading-4 text-label-assistive">
             {todo.detail}
           </p>
         )}

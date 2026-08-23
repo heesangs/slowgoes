@@ -27,7 +27,7 @@ const Card = forwardRef<HTMLElement, CardProps>(function Card(
     <Tag
       ref={ref as React.Ref<HTMLDivElement>}
       className={cn(
-        "rounded-xl border border-foreground/10 bg-background",
+        "rounded-xl border border-foreground/10 bg-background-elevated",
         padded && "px-4 py-4",
         className
       )}

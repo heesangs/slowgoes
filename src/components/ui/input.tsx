@@ -18,7 +18,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="flex flex-col gap-1.5">
         {label && (
-          <label htmlFor={id} className="text-sm font-medium text-foreground/70">
+          <label htmlFor={id} className="text-sm font-medium text-label-alt">
             {label}
           </label>
         )}
@@ -30,7 +30,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             value={value}
             className={cn(
               "w-full rounded-lg border bg-transparent px-4 py-3 text-base min-h-[44px] transition-colors",
-              "placeholder:text-foreground/40",
+              "placeholder:text-label-disable",
               "focus:outline-none focus:ring-2 focus:ring-foreground/20",
               error
                 ? "border-danger focus:ring-danger/20"
@@ -46,7 +46,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               type="button"
               onClick={onClear}
               aria-label="입력값 지우기"
-              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full text-foreground/40 transition-colors hover:bg-foreground/10 hover:text-foreground/70"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full text-label-disable transition-colors hover:bg-foreground/10 hover:text-label-alt"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

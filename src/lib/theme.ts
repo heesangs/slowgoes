@@ -6,7 +6,7 @@
 // 상단만 흰 띠로 남았다. → media 없는 meta 하나를 두고 실제 테마에 맞춰 갱신한다.
 
 /** globals.css의 --background와 같은 값 (여기가 바뀌면 globals.css도 함께) */
-export const THEME_BG = { light: "#ffffff", dark: "#333333" } as const;
+export const THEME_BG = { light: "#ffffff", dark: "#1b1c1e" } as const;
 
 /** 지금 화면이 다크인지 — data-theme 우선, 없으면 OS 설정 */
 export function isDarkTheme(): boolean {

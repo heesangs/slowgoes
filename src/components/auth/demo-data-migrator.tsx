@@ -121,7 +121,7 @@ export function DemoDataMigrator({ children }: DemoDataMigratorProps) {
   if (migrating) {
     return (
       <div className="flex min-h-dvh items-center justify-center px-4">
-        <p className="text-sm text-foreground/70">
+        <p className="text-sm text-label-alt">
           체험판 데이터를 불러오는 중...
         </p>
       </div>

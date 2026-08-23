@@ -56,7 +56,7 @@ export default function SignUpPage() {
         <div className="text-center mb-8">
           <Link href="/" className="text-2xl font-bold mb-2 inline-block hover:opacity-70 transition-opacity">slowgoes</Link>
           <h2 className="text-lg font-semibold mb-2">회원가입</h2>
-          <p className="text-sm text-foreground/70">
+          <p className="text-sm text-label-alt">
             나만의 속도로 공부를 시작해보세요
           </p>
         </div>
@@ -106,9 +106,9 @@ export default function SignUpPage() {
           </Button>
         </form>
 
-        <p className="text-sm text-foreground/70 text-center mt-6">
+        <p className="text-sm text-label-alt text-center mt-6">
           이미 계정이 있으신가요?{" "}
-          <Link href="/login" className="text-foreground font-medium hover:underline">
+          <Link href="/login" className="text-label-normal font-medium hover:underline">
             로그인
           </Link>
         </p>

@@ -63,7 +63,7 @@ export function DiaryListContent() {
 
   return (
     <div className="relative mx-auto min-h-[70vh] max-w-2xl px-3 py-5 pb-24">
-      <h1 className="mb-4 text-2xl font-bold text-foreground">{FEATURE_NAMES.DIARY}</h1>
+      <h1 className="mb-4 text-2xl font-bold text-label-normal">{FEATURE_NAMES.DIARY}</h1>
 
       {isError && (
         <ErrorBox className="mb-4">
@@ -94,8 +94,8 @@ export function DiaryListContent() {
         ) : null
       ) : !isError && (entries?.length ?? 0) === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-24 text-center">
-          <p className="text-base font-medium text-foreground/70">아직 작성한 일기가 없어요</p>
-          <p className="text-sm text-foreground/50">
+          <p className="text-base font-medium text-label-alt">아직 작성한 일기가 없어요</p>
+          <p className="text-sm text-label-assistive">
             우측 하단의 + 버튼으로 첫 일기를 남겨보세요.
           </p>
         </div>
@@ -103,12 +103,12 @@ export function DiaryListContent() {
         <div className="flex flex-col gap-6">
           {groups.map((group) => (
             <section key={group.key}>
-              <h2 className="mb-2 text-sm font-semibold text-foreground/50">{group.label}</h2>
+              <h2 className="mb-2 text-sm font-semibold text-label-assistive">{group.label}</h2>
               {/* 월 안에서 다시 주 단위로 묶는다 — 주간 회고는 대상 주에 붙는다 */}
               <div className="flex flex-col gap-3">
                 {group.weeks.map((week) => (
                   <div key={week.key}>
-                    <h3 className="mb-1 text-xs font-medium text-foreground/40">{week.label}</h3>
+                    <h3 className="mb-1 text-xs font-medium text-label-disable">{week.label}</h3>
                     <ul className="flex flex-col divide-y divide-foreground/10 border-y border-foreground/10">
                       {week.items.map((item) => (
                         <li key={item.id}>
@@ -118,8 +118,8 @@ export function DiaryListContent() {
                           >
                             {/* 날짜 컬럼 */}
                             <div className="w-9 shrink-0 pt-0.5 text-center">
-                              <div className="text-xs text-foreground/50">{item.weekday}</div>
-                              <div className="text-lg font-semibold leading-tight text-foreground">
+                              <div className="text-xs text-label-assistive">{item.weekday}</div>
+                              <div className="text-lg font-semibold leading-tight text-label-normal">
                                 {String(item.day).padStart(2, "0")}
                               </div>
                             </div>
@@ -127,20 +127,20 @@ export function DiaryListContent() {
                             <div className="min-w-0 flex-1">
                               {/* 주간 기록 표식 — 목표/회고 + #버킷명 (버킷이 지워졌으면 라벨만) */}
                               {item.isWeekly && (
-                                <p className="mb-0.5 truncate text-[11px] font-medium text-foreground/50">
+                                <p className="mb-0.5 truncate text-[11px] font-medium text-label-assistive">
                                   {item.week_kind === "goal" ? "주간 목표" : "주간 회고"}
                                   {item.bucket_title ? ` · #${item.bucket_title}` : ""}
                                 </p>
                               )}
-                              <p className="truncate text-[15px] font-semibold text-foreground">
+                              <p className="truncate text-[15px] font-semibold text-label-normal">
                                 {item.title}
                               </p>
                               {item.preview && (
-                                <p className="mt-0.5 line-clamp-2 text-[14px] text-foreground/70">
+                                <p className="mt-0.5 line-clamp-2 text-[14px] text-label-alt">
                                   {item.preview}
                                 </p>
                               )}
-                              <p className="mt-1 text-[12px] text-foreground/50">{item.time}</p>
+                              <p className="mt-1 text-[12px] text-label-assistive">{item.time}</p>
                             </div>
                           </Link>
                         </li>
@@ -158,7 +158,7 @@ export function DiaryListContent() {
       <Link
         href="/diary/new"
         aria-label="일기 작성"
-        className="fixed bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom)+1rem)] right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-background shadow-lg transition-opacity hover:opacity-90 active:opacity-80"
+        className="fixed bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom)+1rem)] right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-inverse-background text-inverse-label shadow-lg transition-opacity hover:opacity-90 active:opacity-80"
       >
         <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />

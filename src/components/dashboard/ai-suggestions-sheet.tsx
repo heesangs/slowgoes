@@ -64,7 +64,7 @@ export function AiSuggestionsSheet({
 
   return (
     <BottomSheet open={open} onClose={onClose} title={title}>
-      <p className="mb-3 text-xs text-foreground/50">{description}</p>
+      <p className="mb-3 text-xs text-label-assistive">{description}</p>
 
       <ul className="flex flex-col gap-1.5">
         {suggestions.map((suggestion, index) => {

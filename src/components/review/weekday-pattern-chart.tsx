@@ -19,8 +19,8 @@ export function WeekdayPatternChart({ data }: WeekdayPatternChartProps) {
   return (
     <Card as="section" padded>
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm text-foreground/70">요일별 수행 패턴</p>
-        <span className="text-[10px] text-foreground/50">최근 4주</span>
+        <p className="text-sm text-label-alt">요일별 수행 패턴</p>
+        <span className="text-[10px] text-label-assistive">최근 4주</span>
       </div>
 
       {/* 막대 차트 — 7개 세로 막대 */}
@@ -30,7 +30,7 @@ export function WeekdayPatternChart({ data }: WeekdayPatternChartProps) {
           const isTop = top && day.count > 0 && day.weekday === top.weekday;
           return (
             <div key={day.weekday} className="flex flex-1 flex-col items-center gap-1">
-              <span className="text-[10px] text-foreground/70">{day.count}</span>
+              <span className="text-[10px] text-label-alt">{day.count}</span>
               <div
                 className="w-full rounded-t-sm bg-foreground/10 relative overflow-hidden"
                 style={{ height: "100%" }}
@@ -38,7 +38,7 @@ export function WeekdayPatternChart({ data }: WeekdayPatternChartProps) {
                 <div
                   className={cn(
                     "absolute inset-x-0 bottom-0 transition-[height] duration-500",
-                    isTop ? "bg-foreground" : "bg-foreground/40"
+                    isTop ? "bg-inverse-background" : "bg-foreground/40"
                   )}
                   style={{ height: `${Math.round(ratio * 100)}%` }}
                 />
@@ -46,7 +46,7 @@ export function WeekdayPatternChart({ data }: WeekdayPatternChartProps) {
               <span
                 className={cn(
                   "text-[11px]",
-                  isTop ? "font-semibold text-foreground" : "text-foreground/70"
+                  isTop ? "font-semibold text-label-normal" : "text-label-alt"
                 )}
               >
                 {day.label}
@@ -56,7 +56,7 @@ export function WeekdayPatternChart({ data }: WeekdayPatternChartProps) {
         })}
       </div>
 
-      <p className="mt-3 text-xs text-foreground/70">
+      <p className="mt-3 text-xs text-label-alt">
         {total === 0
           ? "최근 4주 완료 기록이 없어요."
           : top

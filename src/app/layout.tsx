@@ -68,7 +68,7 @@ export default function RootLayout({
               "if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);" +
               "var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);" +
               "var m=document.querySelector('meta[name=\"theme-color\"]');" +
-              "if(m)m.setAttribute('content',d?'#333333':'#ffffff');}catch(e){}})();",
+              "if(m)m.setAttribute('content',d?'#1b1c1e':'#ffffff');}catch(e){}})();",
           }}
         />
         {shouldLoadFigmaCapture && (

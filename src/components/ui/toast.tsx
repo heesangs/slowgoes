@@ -44,7 +44,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               // 성공은 무채색(앱 흑백 톤 — 라이트/다크가 자동 반전).
               // 실패만 빨강을 남긴다 — 조용히 지나가면 안 되는 신호라서.
               t.type === "success"
-                ? "bg-foreground text-background"
+                ? "bg-inverse-background text-inverse-label"
                 : "bg-red-600 text-white"
             )}
           >

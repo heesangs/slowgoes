@@ -194,12 +194,12 @@ export function ProfileContent() {
     <div className="flex flex-col gap-6">
       {/* 프로필 헤더 */}
       <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-background text-xl font-bold shrink-0">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-inverse-background text-inverse-label text-xl font-bold shrink-0">
           {(displayName || "?")[0]}
         </div>
         <div className="flex flex-col gap-1 min-w-0">
           <h1 className="text-xl font-bold truncate">{displayName || "이름 없음"}</h1>
-          <p className="text-sm text-foreground/70">slowgoes과 함께한 지 {daysSinceJoined}일째</p>
+          <p className="text-sm text-label-alt">slowgoes과 함께한 지 {daysSinceJoined}일째</p>
         </div>
       </div>
 
@@ -249,8 +249,8 @@ export function ProfileContent() {
         <CardContent className="flex flex-col gap-4">
           {/* 이메일 (읽기 전용) */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground/70">이메일</label>
-            <p className="rounded-lg border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-foreground/70">
+            <label className="text-sm font-medium text-label-alt">이메일</label>
+            <p className="rounded-lg border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-label-alt">
               {email}
             </p>
           </div>

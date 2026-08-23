@@ -30,7 +30,7 @@ export function SegmentControl<T extends string>({
           className={cn(
             "flex-1 min-h-[40px] rounded-md px-3 py-2 text-sm font-medium transition-colors",
             value === option.value
-              ? "bg-foreground text-background"
+              ? "bg-inverse-background text-inverse-label"
               : "hover:bg-foreground/5"
           )}
         >

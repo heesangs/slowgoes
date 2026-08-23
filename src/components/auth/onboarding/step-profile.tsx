@@ -40,14 +40,14 @@ export function StepProfile({
   return (
     <div className="flex flex-col gap-6">
       <div className="rounded-2xl border border-foreground/15 bg-foreground/[0.03] p-5">
-        <p className="mb-4 text-sm text-foreground/70">{FEATURE_NAMES.MY_CLOCK}을 알려주세요</p>
+        <p className="mb-4 text-sm text-label-alt">{FEATURE_NAMES.MY_CLOCK}을 알려주세요</p>
 
         <div className="flex items-center gap-4">
           <div className="relative h-20 w-20 rounded-full border-2 border-foreground/20 bg-background">
             <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground/60" />
             <div
               className={cn(
-                "absolute left-1/2 top-1/2 h-8 w-0.5 -translate-x-1/2 -translate-y-[95%] origin-bottom rounded-full bg-foreground transition-transform duration-300",
+                "absolute left-1/2 top-1/2 h-8 w-0.5 -translate-x-1/2 -translate-y-[95%] origin-bottom rounded-full bg-inverse-background transition-transform duration-300",
                 lifeClock?.handClassName ?? "rotate-0"
               )}
             />
@@ -57,10 +57,10 @@ export function StepProfile({
             {lifeClock ? (
               <p className="text-base font-semibold">{FEATURE_NAMES.MY_CLOCK}은 {lifeClock.label}이에요.</p>
             ) : (
-              <p className="text-sm text-foreground/50">나이를 입력하면 {FEATURE_NAMES.MY_CLOCK}이 표시돼요.</p>
+              <p className="text-sm text-label-assistive">나이를 입력하면 {FEATURE_NAMES.MY_CLOCK}이 표시돼요.</p>
             )}
             {personalityType && (
-              <p className="mt-1 text-xs text-foreground/50">현재 성향: {personalityType}</p>
+              <p className="mt-1 text-xs text-label-assistive">현재 성향: {personalityType}</p>
             )}
           </div>
         </div>
@@ -69,7 +69,7 @@ export function StepProfile({
       <div className="flex flex-col gap-5">
         {/* 나이 */}
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="life_clock_age" className="text-sm font-medium text-foreground/70">
+          <label htmlFor="life_clock_age" className="text-sm font-medium text-label-alt">
             나이
           </label>
           <input
@@ -82,13 +82,13 @@ export function StepProfile({
             value={age ?? ""}
             onChange={(e) => onAgeChange(e.target.value)}
             autoFocus
-            className="min-h-[44px] w-full rounded-lg border border-foreground/20 bg-transparent px-4 py-3 text-base placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-foreground/20"
+            className="min-h-[44px] w-full rounded-lg border border-foreground/20 bg-transparent px-4 py-3 text-base placeholder:text-label-disable focus:outline-none focus:ring-2 focus:ring-foreground/20"
           />
         </div>
 
         {/* 성별 */}
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-foreground/70">성별</p>
+          <p className="text-sm font-medium text-label-alt">성별</p>
           <div className="grid grid-cols-2 gap-2">
             {GENDER_OPTIONS.map((option) => (
               <button
@@ -98,7 +98,7 @@ export function StepProfile({
                 className={cn(
                   "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
                   gender === option.value
-                    ? "border-foreground bg-foreground text-background"
+                    ? "border-inverse-background bg-inverse-background text-inverse-label"
                     : "border-foreground/20 hover:bg-foreground/5"
                 )}
               >
@@ -111,16 +111,16 @@ export function StepProfile({
         {/* MBTI — 두 축만 묻는다. 나머지 두 축(S/N·J/P)은 마지막 단계의 선택 입력.
             추천 장면 시드가 실제로 쓰는 정보량이 정확히 이 두 축이다. */}
         <div className="flex flex-col gap-3">
-          <p className="text-sm font-medium text-foreground/70">MBTI 성향</p>
+          <p className="text-sm font-medium text-label-alt">MBTI 성향</p>
 
           <div className="flex flex-col gap-2">
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-foreground/50">에너지 방향</p>
+              <p className="text-xs text-label-assistive">에너지 방향</p>
               <SegmentControl options={MBTI_ENERGY_OPTIONS} value={energyType} onChange={onEnergySelect} />
             </div>
 
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-foreground/50">판단 방식</p>
+              <p className="text-xs text-label-assistive">판단 방식</p>
               <SegmentControl options={MBTI_JUDGMENT_OPTIONS} value={judgmentType} onChange={onJudgmentSelect} />
             </div>
           </div>

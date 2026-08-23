@@ -78,7 +78,7 @@ export function MoreActionsMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         className={cn(
-          "inline-flex h-7 w-7 items-center justify-center rounded-md text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground",
+          "inline-flex h-7 w-7 items-center justify-center rounded-md text-label-alt transition-colors hover:bg-foreground/5 hover:text-label-normal",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30",
           triggerClassName
         )}

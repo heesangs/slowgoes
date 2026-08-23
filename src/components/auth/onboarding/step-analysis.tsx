@@ -46,12 +46,12 @@ export function StepAnalysis({
           {isAnalyzingLifeScene ? HEADER_ANALYZING : HEADER_DONE}
         </h2>
         {isAnalyzingLifeScene ? (
-          <p className="text-sm text-foreground/70">
+          <p className="text-sm text-label-alt">
             {FEATURE_NAMES.MY_STRIDES}과 {FEATURE_NAMES.DAILY_TODO}를 확인해보세요
           </p>
         ) : (
           selectedSceneText && (
-            <p className="text-sm text-foreground/70">
+            <p className="text-sm text-label-alt">
               &ldquo;{selectedSceneText}&rdquo;를 시간 위에 펼친 결과예요
             </p>
           )
@@ -63,7 +63,7 @@ export function StepAnalysis({
           <div
             role="status"
             aria-live="polite"
-            className="rounded-lg bg-foreground/[0.04] px-4 py-3 text-sm text-foreground/70"
+            className="rounded-lg bg-foreground/[0.04] px-4 py-3 text-sm text-label-alt"
           >
             AI가 {FEATURE_NAMES.MY_STRIDES}을 그리는 중이에요… 잠시만 기다려 주세요
           </div>
@@ -91,7 +91,7 @@ export function StepAnalysis({
                   key={`stride-${item.level}-${index}`}
                   className={cn("w-full rounded-xl border px-4 py-4 text-left", getStrideTone(item.level))}
                 >
-                  <p className="mb-1 text-xs font-medium text-foreground/70">{item.label}</p>
+                  <p className="mb-1 text-xs font-medium text-label-alt">{item.label}</p>
                   <p className="text-sm font-medium">{item.action}</p>
                 </div>
               ))}
@@ -104,7 +104,7 @@ export function StepAnalysis({
           <section className="flex flex-col gap-3">
             <div>
               <h3 className="text-sm font-semibold">{FEATURE_NAMES.BUCKET}을 위한 {FEATURE_NAMES.DAILY_TODO}</h3>
-              <p className="text-xs text-foreground/70">
+              <p className="text-xs text-label-alt">
                 하나를 선택하면 이번 주 {FEATURE_NAMES.DAILY_TODO}가 됩니다.
               </p>
             </div>
@@ -120,7 +120,7 @@ export function StepAnalysis({
                       className={cn(
                         "flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left transition-colors",
                         isSelected
-                          ? "border-foreground bg-foreground text-background"
+                          ? "border-inverse-background bg-inverse-background text-inverse-label"
                           : "border-foreground/15 hover:bg-foreground/[0.04]"
                       )}
                     >
@@ -130,10 +130,10 @@ export function StepAnalysis({
                           isSelected ? "border-background bg-background" : "border-foreground/30"
                         )}
                       >
-                        {isSelected && <span className="h-2 w-2 rounded-full bg-foreground" />}
+                        {isSelected && <span className="h-2 w-2 rounded-full bg-inverse-background" />}
                       </span>
                       <div className="flex-1">
-                        <p className={cn("mb-0.5 text-xs", isSelected ? "text-background/70" : "text-foreground/50")}>
+                        <p className={cn("mb-0.5 text-xs", isSelected ? "text-background/70" : "text-label-assistive")}>
                           {item.label}
                         </p>
                         <p className="text-sm font-medium">{item.action}</p>
@@ -144,7 +144,7 @@ export function StepAnalysis({
               </div>
             ) : (
               <div className="rounded-lg bg-foreground/[0.04] px-3 py-3">
-                <p className="text-xs leading-relaxed text-foreground/70">
+                <p className="text-xs leading-relaxed text-label-alt">
                   고를 만한 짧은 걸음이 나오지 않았어요.
                 </p>
                 <Button

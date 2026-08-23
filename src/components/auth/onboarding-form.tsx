@@ -331,7 +331,7 @@ export function OnboardingForm({
           key={s}
           className={cn(
             "h-1.5 rounded-full transition-all",
-            s === step ? "w-6 bg-foreground" : "w-3 bg-foreground/20"
+            s === step ? "w-6 bg-inverse-background" : "w-3 bg-foreground/20"
           )}
         />
       ))}
@@ -433,7 +433,7 @@ export function OnboardingForm({
         backHref={step === initialStep ? "/" : undefined}
         onBack={step === initialStep ? undefined : handleBack}
         actions={
-          <span className="px-1 text-sm tabular-nums text-foreground/50" aria-label={`${TOTAL_STEPS}단계 중 ${step}단계`}>
+          <span className="px-1 text-sm tabular-nums text-label-assistive" aria-label={`${TOTAL_STEPS}단계 중 ${step}단계`}>
             {step}/{TOTAL_STEPS}
           </span>
         }

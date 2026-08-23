@@ -170,7 +170,7 @@ export function BottomSheet({ open, onClose, title, children, footer, size = "de
       <button
         type="button"
         style={{ opacity: dimOpacity, transitionDuration: `${dragging ? 0 : animMs}ms` }}
-        className="absolute inset-0 touch-none overscroll-contain bg-black/40 transition-opacity"
+        className="absolute inset-0 touch-none overscroll-contain bg-material-dimmer transition-opacity"
         onClick={onClose}
         aria-label="바텀시트 닫기"
       />
@@ -188,7 +188,7 @@ export function BottomSheet({ open, onClose, title, children, footer, size = "de
           transitionDuration: `${dragging ? 0 : dragY > 0 ? SNAP_MS : animMs}ms`,
         }}
         className={cn(
-          "absolute inset-x-0 bottom-0 mx-auto w-full max-w-2xl rounded-t-2xl border border-foreground/10 bg-background px-4 pb-4 pt-3 shadow-2xl",
+          "absolute inset-x-0 bottom-0 mx-auto w-full max-w-2xl rounded-t-2xl border border-foreground/10 bg-background-elevated px-4 pb-4 pt-3 shadow-2xl",
           "transition-transform ease-out"
         )}
       >

@@ -36,7 +36,7 @@ interface MarkdownEditorProps {
 
 // .ProseMirror 하위 요소 스타일 — 전부 앱 토큰(foreground) 기반, sky/blue 없음.
 const EDITOR_WRAPPER_CLASS = [
-  "[&_.ProseMirror]:min-h-[55vh] [&_.ProseMirror]:outline-none [&_.ProseMirror]:text-foreground",
+  "[&_.ProseMirror]:min-h-[55vh] [&_.ProseMirror]:outline-none [&_.ProseMirror]:text-label-normal",
   // 문단 — 14px, 자동 줄바꿈 1.5. 엔터(문단) 간격은 +7px로 2.0 리듬(14×1.5=21 + 7 = 28 ≈ 2.0×14)
   "[&_.ProseMirror_p]:text-[14px] [&_.ProseMirror_p]:leading-[1.5] [&_.ProseMirror_p]:mt-0 [&_.ProseMirror_p]:mb-[7px]",
   // 헤딩 — 반전(오름차순): # 은 본문크기+볼드, ## 더 크게, ### 가장 크게
@@ -47,7 +47,7 @@ const EDITOR_WRAPPER_CLASS = [
   "[&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-5 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-5",
   "[&_.ProseMirror_li]:text-[14px] [&_.ProseMirror_li]:leading-[1.5]",
   // 인용구
-  "[&_.ProseMirror_blockquote]:border-l-2 [&_.ProseMirror_blockquote]:border-foreground/25 [&_.ProseMirror_blockquote]:pl-3 [&_.ProseMirror_blockquote]:text-foreground/70",
+  "[&_.ProseMirror_blockquote]:border-l-2 [&_.ProseMirror_blockquote]:border-foreground/25 [&_.ProseMirror_blockquote]:pl-3 [&_.ProseMirror_blockquote]:text-label-alt",
   // 구분선
   "[&_.ProseMirror_hr]:my-4 [&_.ProseMirror_hr]:border-t [&_.ProseMirror_hr]:border-foreground/15",
   // 코드
@@ -61,7 +61,7 @@ const EDITOR_WRAPPER_CLASS = [
   "[&_ul[data-type=taskList]_li>label]:mt-1 [&_ul[data-type=taskList]_li>label]:shrink-0",
   "[&_ul[data-type=taskList]_li>label_input]:h-4 [&_ul[data-type=taskList]_li>label_input]:w-4 [&_ul[data-type=taskList]_li>label_input]:accent-foreground",
   "[&_ul[data-type=taskList]_li>div]:flex-1",
-  "[&_ul[data-type=taskList]_li[data-checked=true]>div]:text-foreground/40 [&_ul[data-type=taskList]_li[data-checked=true]>div]:line-through",
+  "[&_ul[data-type=taskList]_li[data-checked=true]>div]:text-label-disable [&_ul[data-type=taskList]_li[data-checked=true]>div]:line-through",
 ].join(" ");
 
 // React.memo — 부모(DiaryEditor)가 저장 상태 표시로 리렌더돼도 에디터 서브트리는

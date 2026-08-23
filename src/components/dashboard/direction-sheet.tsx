@@ -49,7 +49,7 @@ function StrideCard({
           : "border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/[0.05]"
       )}
     >
-      <p className={cn("text-xs font-medium", emphasized ? "text-foreground/70" : "text-foreground/70")}>
+      <p className={cn("text-xs font-medium", emphasized ? "text-label-alt" : "text-label-alt")}>
         {label}
       </p>
       <p className="mt-1 text-sm leading-snug">{action}</p>

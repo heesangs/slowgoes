@@ -95,7 +95,7 @@ export function RepeatOptionsSheet({
         </ul>
       ) : (
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-foreground/70">반복할 요일을 선택하세요</p>
+          <p className="text-sm text-label-alt">반복할 요일을 선택하세요</p>
           <div className="flex justify-between gap-1">
             {WEEKDAY_SHORT_LABELS.map((label, day) => {
               const active = customWeekdays.includes(day);
@@ -108,8 +108,8 @@ export function RepeatOptionsSheet({
                   className={cn(
                     "inline-flex h-10 w-10 items-center justify-center rounded-full border text-sm transition-colors",
                     active
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/20 text-foreground hover:bg-foreground/5"
+                      ? "border-inverse-background bg-inverse-background text-inverse-label"
+                      : "border-foreground/20 text-label-normal hover:bg-foreground/5"
                   )}
                 >
                   {label}
