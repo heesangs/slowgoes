@@ -16,10 +16,9 @@ Figma MCP 연결은 **로컬에 설치된 폰트에 접근하지 못한다.** �
 1. Figma 데스크톱에서 대상 파일을 연다
 2. `Plugins → Development → Import plugin from manifest…` → 이 폴더의 `manifest.json`
 3. `Plugins → Development → slowgoes — Font Swap` 실행
-4. 처음에는 `DRY_RUN = true`라 **무엇이 바뀔지 출력만** 한다. 내용을 확인한다
-5. `code.js`의 `DRY_RUN`을 `false`로 바꾸고 다시 실행
+4. 창이 열리면 **바뀔 내용을 먼저 보여준다.** 확인 후 `[적용하기]`를 누른다
 
-플러그인을 다시 불러올 필요는 없다 — 실행할 때마다 `code.js`를 새로 읽는다.
+`code.js`를 직접 고칠 필요는 없다. 버튼을 누르기 전까지는 아무것도 바뀌지 않는다.
 
 ## 설정 (`code.js` 맨 위)
 
@@ -27,7 +26,6 @@ Figma MCP 연결은 **로컬에 설치된 폰트에 접근하지 못한다.** �
 const FROM = "Pretendard";                 // 바꿀 대상 폰트
 const TO_PATTERN = /g\s*market/i;          // 새 폰트를 이름으로 찾는다
 const STYLE_MAP = { Regular: "Medium", Medium: "Medium", Bold: "Bold" };
-const DRY_RUN = true;
 ```
 
 **`Regular → Medium`인 이유** — Gmarket Sans에는 Regular(400)가 없다.
@@ -41,6 +39,7 @@ const DRY_RUN = true;
   쓰는 스타일은 자동으로 빠진다
 - **`STYLE_MAP`에 없는 굵기는 건너뛴다** — 임의로 매핑하지 않고 보고만 한다
 - **face를 전부 먼저 로드한다** — 하나라도 실패하면 아무것도 바꾸지 않는다
+- **`[적용하기]`를 누르기 전까지 아무것도 바뀌지 않는다**
 
 ## 바뀌지 않는 것
 
