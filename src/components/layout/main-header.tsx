@@ -50,7 +50,7 @@ export function MainHeader() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:bg-foreground/5",
-                  active ? "text-label-normal" : "text-label-assistive"
+                  active ? "text-label-normal" : "text-label-alt"
                 )}
               >
                 <Icon className="h-5 w-5" />

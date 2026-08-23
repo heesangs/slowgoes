@@ -57,10 +57,10 @@ export function StepProfile({
             {lifeClock ? (
               <p className="text-base font-semibold">{FEATURE_NAMES.MY_CLOCK}은 {lifeClock.label}이에요.</p>
             ) : (
-              <p className="text-sm text-label-assistive">나이를 입력하면 {FEATURE_NAMES.MY_CLOCK}이 표시돼요.</p>
+              <p className="text-sm text-label-alt">나이를 입력하면 {FEATURE_NAMES.MY_CLOCK}이 표시돼요.</p>
             )}
             {personalityType && (
-              <p className="mt-1 text-xs text-label-assistive">현재 성향: {personalityType}</p>
+              <p className="mt-1 text-xs text-label-alt">현재 성향: {personalityType}</p>
             )}
           </div>
         </div>
@@ -82,7 +82,7 @@ export function StepProfile({
             value={age ?? ""}
             onChange={(e) => onAgeChange(e.target.value)}
             autoFocus
-            className="min-h-[44px] w-full rounded-lg border border-foreground/20 bg-transparent px-4 py-3 text-base placeholder:text-label-disable focus:outline-none focus:ring-2 focus:ring-foreground/20"
+            className="min-h-[44px] w-full rounded-lg border border-foreground/20 bg-transparent px-4 py-3 text-base placeholder:text-label-alt focus:outline-none focus:ring-2 focus:ring-foreground/20"
           />
         </div>
 
@@ -115,12 +115,12 @@ export function StepProfile({
 
           <div className="flex flex-col gap-2">
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-label-assistive">에너지 방향</p>
+              <p className="text-xs text-label-alt">에너지 방향</p>
               <SegmentControl options={MBTI_ENERGY_OPTIONS} value={energyType} onChange={onEnergySelect} />
             </div>
 
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-label-assistive">판단 방식</p>
+              <p className="text-xs text-label-alt">판단 방식</p>
               <SegmentControl options={MBTI_JUDGMENT_OPTIONS} value={judgmentType} onChange={onJudgmentSelect} />
             </div>
           </div>

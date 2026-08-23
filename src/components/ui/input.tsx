@@ -46,7 +46,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               type="button"
               onClick={onClear}
               aria-label="입력값 지우기"
-              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full text-label-disable transition-colors hover:bg-foreground/10 hover:text-label-alt"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full text-label-alt transition-colors hover:bg-foreground/10 hover:text-label-neutral"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

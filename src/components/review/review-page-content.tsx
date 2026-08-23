@@ -132,7 +132,7 @@ export function ReviewPageContent({
         <p className={cn("text-sm", data.insight ? "text-label-neutral" : "text-label-alt")}>
           {data.insight ?? "완료 데이터가 쌓이면 개인화 인사이트가 생성됩니다."}
         </p>
-        <p className="mt-3 text-xs text-label-assistive">
+        <p className="mt-3 text-xs text-label-alt">
           대표 시간대: {data.strongestBand ? STRONGEST_BAND_LABEL[data.strongestBand] : "데이터 수집 중"}
         </p>
       </Card>

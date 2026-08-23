@@ -51,7 +51,7 @@ export function StepConfirm({
       {/* 나의 시간 + 성향 — 확정 직전에 "지금 내가 어디쯤인지"를 한 번 더 보여준다 */}
       <div className="rounded-xl border border-foreground/15 bg-foreground/[0.03] px-4 py-4">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-xs text-label-assistive">{FEATURE_NAMES.MY_CLOCK}</p>
+          <p className="text-xs text-label-alt">{FEATURE_NAMES.MY_CLOCK}</p>
           {personalityType && (
             <p className="text-xs font-medium text-label-alt">{personalityType}</p>
           )}
@@ -64,29 +64,29 @@ export function StepConfirm({
             필수가 아니고, 넣어도 이미 나온 분석을 다시 돌리지 않는다(저장만). */}
         <div className="mt-4 flex flex-col gap-2 border-t border-foreground/10 pt-3">
           <p className="text-xs text-label-alt">
-            성향을 더 알려주시면 다음 추천이 정확해져요 <span className="text-label-disable">(선택)</span>
+            성향을 더 알려주시면 다음 추천이 정확해져요 <span className="text-label-alt">(선택)</span>
           </p>
           <div className="flex flex-col gap-1">
-            <p className="text-[11px] text-label-assistive">정보 수집 방식</p>
+            <p className="text-[11px] text-label-alt">정보 수집 방식</p>
             <SegmentControl options={MBTI_SENSE_OPTIONS} value={senseType} onChange={onSenseSelect} />
           </div>
           <div className="flex flex-col gap-1">
-            <p className="text-[11px] text-label-assistive">생활 방식</p>
+            <p className="text-[11px] text-label-alt">생활 방식</p>
             <SegmentControl options={MBTI_LIFESTYLE_OPTIONS} value={lifestyleType} onChange={onLifestyleSelect} />
           </div>
         </div>
       </div>
 
       <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-4">
-        <p className="mb-1 text-xs text-label-assistive">선택한 장면</p>
+        <p className="mb-1 text-xs text-label-alt">선택한 장면</p>
         <p className="text-sm font-medium">{selectedSceneText}</p>
         {lifeSceneAnalysis?.lifeArea && (
-          <p className="mt-1 text-xs text-label-assistive">영역: {lifeSceneAnalysis.lifeArea}</p>
+          <p className="mt-1 text-xs text-label-alt">영역: {lifeSceneAnalysis.lifeArea}</p>
         )}
       </div>
 
       <Card padded>
-        <p className="text-xs text-label-assistive">{FEATURE_NAMES.DAILY_TODO}</p>
+        <p className="text-xs text-label-alt">{FEATURE_NAMES.DAILY_TODO}</p>
         {selectedDailyTodo ? (
           <p className="mt-1 text-sm font-medium">{selectedDailyTodo}</p>
         ) : (

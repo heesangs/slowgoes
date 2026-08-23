@@ -151,7 +151,7 @@ export function WeekSheet({
             className="inline-flex min-w-0 items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-foreground/5"
           >
             <span className="truncate text-base font-semibold">{formatWeekLabel(weekStart)}</span>
-            <ChevronIcon className={cn("h-3.5 w-3.5 shrink-0 -rotate-90 text-label-assistive", listOpen && "rotate-90")} />
+            <ChevronIcon className={cn("h-3.5 w-3.5 shrink-0 -rotate-90 text-label-alt", listOpen && "rotate-90")} />
           </button>
 
           <button
@@ -167,7 +167,7 @@ export function WeekSheet({
         {/* 갱신 중은 날짜 범위를 살짝 흐리게만 — 카드를 비우지 않는다 */}
         <p
           className={cn(
-            "mt-0.5 text-center text-xs text-label-assistive transition-opacity",
+            "mt-0.5 text-center text-xs text-label-alt transition-opacity",
             isFetching && "opacity-40"
           )}
         >
@@ -194,7 +194,7 @@ export function WeekSheet({
                 <span className={cn("text-sm", w === weekStart ? "font-semibold" : "text-label-alt")}>
                   {formatWeekLabel(w)}
                 </span>
-                <span className="shrink-0 text-[11px] text-label-disable">{formatWeekRange(w)}</span>
+                <span className="shrink-0 text-[11px] text-label-alt">{formatWeekRange(w)}</span>
               </button>
             </li>
           ))}
@@ -209,7 +209,7 @@ export function WeekSheet({
             className="flex flex-col gap-1 rounded-lg border border-foreground/25 bg-foreground/[0.03] px-3 py-3"
           >
             <span className="flex items-baseline justify-between gap-2">
-              <span className="text-[11px] font-medium text-label-assistive">
+              <span className="text-[11px] font-medium text-label-alt">
                 주간 목표{bucketTitle ? ` · #${bucketTitle}` : ""}
               </span>
               {goal && goal.total > 0 && (
@@ -251,7 +251,7 @@ export function WeekSheet({
               )}
             >
               <div className="w-8 shrink-0 text-center">
-                <div className="text-[11px] text-label-assistive">{WEEKDAY_SHORT_LABELS[i]}</div>
+                <div className="text-[11px] text-label-alt">{WEEKDAY_SHORT_LABELS[i]}</div>
                 <div
                   className={cn(
                     "text-base font-semibold leading-tight",
@@ -324,7 +324,7 @@ export function WeekSheet({
             href={reviewHref}
             className="flex flex-col gap-1 rounded-lg border border-foreground/25 bg-foreground/[0.03] px-3 py-3"
           >
-            <span className="text-[11px] font-medium text-label-assistive">
+            <span className="text-[11px] font-medium text-label-alt">
               주간 회고{bucketTitle ? ` · #${bucketTitle}` : ""}
             </span>
             {weekly ? (

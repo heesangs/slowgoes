@@ -133,7 +133,7 @@ export function StepAnalysis({
                         {isSelected && <span className="h-2 w-2 rounded-full bg-inverse-background" />}
                       </span>
                       <div className="flex-1">
-                        <p className={cn("mb-0.5 text-xs", isSelected ? "text-background/70" : "text-label-assistive")}>
+                        <p className={cn("mb-0.5 text-xs", isSelected ? "text-background/70" : "text-label-alt")}>
                           {item.label}
                         </p>
                         <p className="text-sm font-medium">{item.action}</p>

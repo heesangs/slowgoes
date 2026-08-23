@@ -433,7 +433,7 @@ export function OnboardingForm({
         backHref={step === initialStep ? "/" : undefined}
         onBack={step === initialStep ? undefined : handleBack}
         actions={
-          <span className="px-1 text-sm tabular-nums text-label-assistive" aria-label={`${TOTAL_STEPS}단계 중 ${step}단계`}>
+          <span className="px-1 text-sm tabular-nums text-label-alt" aria-label={`${TOTAL_STEPS}단계 중 ${step}단계`}>
             {step}/{TOTAL_STEPS}
           </span>
         }
