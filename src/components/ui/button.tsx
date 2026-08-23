@@ -5,8 +5,10 @@ import { ButtonHTMLAttributes, forwardRef } from "react";
 
 // 버튼 variant별 스타일
 const variantStyles = {
+  // Primary 면 위 라벨은 **테마와 무관하게** 검정이다 — 밝은 민트 위에서
+  // label/inverse 계열은 테마에 따라 흰색이 되어 1.4:1까지 떨어진다.
   primary:
-    "bg-inverse-background text-inverse-label hover:opacity-90 active:opacity-80",
+    "bg-primary-normal text-static-black hover:bg-primary-strong active:bg-primary-heavy",
   secondary:
     "bg-transparent border border-line-normal text-label-normal hover:bg-fill-alt active:bg-fill-normal",
   ghost:

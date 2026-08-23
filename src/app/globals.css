@@ -44,13 +44,15 @@
   --fill-strong: #70737c29;
   --fill-alt: #70737c0d;
 
-  /* ── Primary — 강조색 */
-  --primary-normal: #0066ff;
-  --primary-strong: #005eeb;
-  --primary-heavy: #0054d1;
+  /* ── Primary — 강조색. Figma에서 그린 계열로 바뀌었다(Green/50·45·40).
+        밝은 민트라 **면으로만** 쓴다 — 흰 배경 위 글자로 쓰면 1.74:1 밖에 안 나온다.
+        버튼 배경으로 쓸 때 라벨은 테마와 무관하게 검정(static-black)이어야 한다. */
+  --primary-normal: #06e182;
+  --primary-strong: #06cd77;
+  --primary-heavy: #05b273;
 
   /* ── Status */
-  --status-positive: #00bf40;
+  --status-positive: #06cd77;
   --status-cautionary: #ff9200;
   --status-negative: #ff4242;
 
@@ -117,11 +119,11 @@
   --fill-strong: #70737c47;
   --fill-alt: #70737c1f;
 
-  --primary-normal: #3385ff;
-  --primary-strong: #1a75ff;
-  --primary-heavy: #0066ff;
+  --primary-normal: #14f387;
+  --primary-strong: #06e182;
+  --primary-heavy: #05b273;
 
-  --status-positive: #1ed45a;
+  --status-positive: #14f387;
   --status-cautionary: #ffa938;
   --status-negative: #ff6363;
 
@@ -250,11 +252,11 @@
     --fill-strong: #70737c47;
     --fill-alt: #70737c1f;
 
-    --primary-normal: #3385ff;
-    --primary-strong: #1a75ff;
-    --primary-heavy: #0066ff;
+    --primary-normal: #14f387;
+    --primary-strong: #06e182;
+    --primary-heavy: #05b273;
 
-    --status-positive: #1ed45a;
+    --status-positive: #14f387;
     --status-cautionary: #ffa938;
     --status-negative: #ff6363;
 
