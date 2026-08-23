@@ -5,8 +5,7 @@
    이름은 Figma 경로를 소문자 + `/`→`-`, `Alternative`→`alt` 로 옮긴 것.
      Label/Assistive        → --label-assistive     → text-label-assistive
      Background/Elevated/…  → --background-elevated → bg-background-elevated
-     Line/Solid/Normal      → --line-solid-normal   → border-line-solid-normal
-     Line/Normal/Normal     → --line-normal         (중간 그룹 "Normal"은 생략)
+     Line/Normal/Normal     → --line-normal         → border-line-normal
 
    ⚠️ 다크 값은 아래 **두 블록**에 똑같이 적어야 한다 —
       `[data-theme="dark"]`(프로필에서 직접 고른 경우)와
@@ -31,16 +30,14 @@
   --background-elevated: #ffffff;
   --background-elevated-alt: #f7f7f8;
 
-  /* ── Line — 실선(solid)과 반투명(그 외) 두 갈래.
-        카드·인풋 테두리는 solid, 목록 구분선은 반투명 쪽. */
-  --line-solid-normal: #e1e2e4;
-  --line-solid-neutral: #eaebec;
-  --line-solid-alt: #f4f4f5;
-  --line-solid-strong: #aeb0b6;
-  --line-normal: #70737c38;
-  --line-neutral: #70737c29;
-  --line-alt: #70737c14;
-  --line-strong: #70737c85;
+  /* ── Line — 3단계. Label과 같은 이유로 값은 실제 화면 기준(검정/흰색 알파)이다.
+        Semantic의 Line/Solid 4단계는 이 앱이 한 번도 쓰지 않아 뺐다.
+          alt     카드 테두리·구분선
+          normal  컨트롤 테두리(버튼·인풋·세그먼트)
+          strong  선택 상태 강조·핸들 */
+  --line-alt: #00000012;
+  --line-normal: #00000029;
+  --line-strong: #0000004d;
 
   /* ── Fill — 호버·선택 같은 얕은 면 */
   --fill-normal: #70737c14;
@@ -80,13 +77,10 @@
   --accent-purple: #cb59ff;
   --accent-pink: #f553da;
 
-  /* ── 이관 중 — 아직 label/line/fill 로 옮기지 않은 `foreground/N` 호출부가
-        참조한다. 선·Fill 정리(PR 2)가 끝나면 사라진다. */
-  --foreground: #333333;
   /* 상태 색(에러·경고·성공). 단일 값으로는 두 테마를 못 덮는다 —
      red-500은 흰 배경 3.76:1 / 다크 3.36:1로 **양쪽 다 WCAG 4.5:1 미달**이고,
      red-700·amber-700·green-700은 라이트 5:1이지만 다크에서 2.5:1까지 떨어진다.
-     그래서 --foreground와 같이 테마별 값을 둔다(라이트=진한 쪽 / 다크=밝은 쪽).
+     그래서 --background와 같이 테마별 값을 둔다(라이트=진한 쪽 / 다크=밝은 쪽).
        danger  red-600 4.83:1  / red-400 4.57:1
        warning amber-700 5.02:1 / amber-500 5.88:1
        success green-700 5.02:1 / green-400 7.25:1 */
@@ -115,14 +109,9 @@
   --background-elevated: #212225;
   --background-elevated-alt: #141415;
 
-  --line-solid-normal: #37383c;
-  --line-solid-neutral: #333438;
-  --line-solid-alt: #2e2f33;
-  --line-solid-strong: #70737c;
-  --line-normal: #70737c52;
-  --line-neutral: #70737c47;
-  --line-alt: #70737c38;
-  --line-strong: #c2c4c885;
+  --line-alt: #ffffff1f;
+  --line-normal: #ffffff52;
+  --line-strong: #ffffff80;
 
   --fill-normal: #70737c38;
   --fill-strong: #70737c47;
@@ -153,7 +142,6 @@
   --accent-purple: #d478ff;
   --accent-pink: #fa73e3;
 
-  --foreground: #e6e6e6;
   --danger: #f87171;
   --warning: #f59e0b;
   --success: #4ade80;
@@ -188,14 +176,16 @@
   --color-background-elevated: var(--background-elevated);
   --color-background-elevated-alt: var(--background-elevated-alt);
 
-  --color-line-solid-normal: var(--line-solid-normal);
-  --color-line-solid-neutral: var(--line-solid-neutral);
-  --color-line-solid-alt: var(--line-solid-alt);
-  --color-line-solid-strong: var(--line-solid-strong);
-  --color-line-normal: var(--line-normal);
-  --color-line-neutral: var(--line-neutral);
   --color-line-alt: var(--line-alt);
+  --color-line-normal: var(--line-normal);
   --color-line-strong: var(--line-strong);
+
+  /* 그림자 — Figma Semantic의 Shadow 4단계(각 3겹)를 그대로 옮겼다.
+     다크에서는 그림자가 거의 안 보이므로 테두리와 함께 쓰는 것을 전제로 한다. */
+  --shadow-normal: 0 0 1px rgb(0 0 0 / .08), 0 0 1px rgb(0 0 0 / .08), 0 1px 2px rgb(0 0 0 / .12);
+  --shadow-emphasize: 0 0 1px rgb(0 0 0 / .08), 0 1px 4px rgb(0 0 0 / .08), 0 2px 8px rgb(0 0 0 / .12);
+  --shadow-strong: 0 0 4px rgb(0 0 0 / .08), 0 4px 8px rgb(0 0 0 / .08), 0 6px 12px rgb(0 0 0 / .12);
+  --shadow-heavy: 0 0 8px rgb(0 0 0 / .08), 0 8px 16px rgb(0 0 0 / .08), 0 16px 20px rgb(0 0 0 / .12);
 
   --color-fill-normal: var(--fill-normal);
   --color-fill-strong: var(--fill-strong);
@@ -228,8 +218,7 @@
   --color-accent-purple: var(--accent-purple);
   --color-accent-pink: var(--accent-pink);
 
-  /* 이관 중 (PR 2에서 제거) */
-  --color-foreground: var(--foreground);
+  /* 이관 중 — 상태색은 PR 3에서 status-* 로 옮긴다 */
   --color-danger: var(--danger);
   --color-warning: var(--warning);
   --color-success: var(--success);
@@ -253,14 +242,9 @@
     --background-elevated: #212225;
     --background-elevated-alt: #141415;
 
-    --line-solid-normal: #37383c;
-    --line-solid-neutral: #333438;
-    --line-solid-alt: #2e2f33;
-    --line-solid-strong: #70737c;
-    --line-normal: #70737c52;
-    --line-neutral: #70737c47;
-    --line-alt: #70737c38;
-    --line-strong: #c2c4c885;
+    --line-alt: #ffffff1f;
+    --line-normal: #ffffff52;
+    --line-strong: #ffffff80;
 
     --fill-normal: #70737c38;
     --fill-strong: #70737c47;
@@ -291,8 +275,7 @@
     --accent-purple: #d478ff;
     --accent-pink: #fa73e3;
 
-    --foreground: #e6e6e6;
-    --danger: #f87171;
+      --danger: #f87171;
     --warning: #f59e0b;
     --success: #4ade80;
   }

@@ -78,8 +78,8 @@ export function MoreActionsMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         className={cn(
-          "inline-flex h-7 w-7 items-center justify-center rounded-md text-label-alt transition-colors hover:bg-foreground/5 hover:text-label-normal",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30",
+          "inline-flex h-7 w-7 items-center justify-center rounded-md text-label-alt transition-colors hover:bg-fill-alt hover:text-label-normal",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-label-normal/30",
           triggerClassName
         )}
       >
@@ -95,7 +95,7 @@ export function MoreActionsMenu({
         <div
           role="menu"
           className={cn(
-            "absolute z-30 mt-1 min-w-[120px] overflow-hidden rounded-lg border border-foreground/10 bg-background shadow-lg",
+            "absolute z-30 mt-1 min-w-[120px] overflow-hidden rounded-lg border border-line-alt bg-background shadow-emphasize",
             align === "right" ? "right-0" : "left-0"
           )}
         >
@@ -112,7 +112,7 @@ export function MoreActionsMenu({
               disabled={action.disabled}
               className={cn(
                 "flex w-full items-center px-3 py-2 text-left text-sm transition-colors",
-                "hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+                "hover:bg-fill-alt disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
                 action.variant === "danger" && "text-danger hover:bg-danger/10"
               )}
             >

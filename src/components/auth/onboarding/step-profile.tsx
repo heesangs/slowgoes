@@ -39,12 +39,12 @@ export function StepProfile({
 }: StepProfileProps) {
   return (
     <div className="flex flex-col gap-6">
-      <div className="rounded-2xl border border-foreground/15 bg-foreground/[0.03] p-5">
+      <div className="rounded-2xl border border-line-alt bg-fill-alt p-5">
         <p className="mb-4 text-sm text-label-alt">{FEATURE_NAMES.MY_CLOCK}을 알려주세요</p>
 
         <div className="flex items-center gap-4">
-          <div className="relative h-20 w-20 rounded-full border-2 border-foreground/20 bg-background">
-            <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground/60" />
+          <div className="relative h-20 w-20 rounded-full border-2 border-line-normal bg-background">
+            <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-label-neutral" />
             <div
               className={cn(
                 "absolute left-1/2 top-1/2 h-8 w-0.5 -translate-x-1/2 -translate-y-[95%] origin-bottom rounded-full bg-inverse-background transition-transform duration-300",
@@ -82,7 +82,7 @@ export function StepProfile({
             value={age ?? ""}
             onChange={(e) => onAgeChange(e.target.value)}
             autoFocus
-            className="min-h-[44px] w-full rounded-lg border border-foreground/20 bg-transparent px-4 py-3 text-base placeholder:text-label-alt focus:outline-none focus:ring-2 focus:ring-foreground/20"
+            className="min-h-[44px] w-full rounded-lg border border-line-normal bg-transparent px-4 py-3 text-base placeholder:text-label-alt focus:outline-none focus:ring-2 focus:ring-label-normal/20"
           />
         </div>
 
@@ -99,7 +99,7 @@ export function StepProfile({
                   "min-h-[44px] cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
                   gender === option.value
                     ? "border-inverse-background bg-inverse-background text-inverse-label"
-                    : "border-foreground/20 hover:bg-foreground/5"
+                    : "border-line-normal hover:bg-fill-alt"
                 )}
               >
                 {option.label}

@@ -533,7 +533,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       )}
 
       {!data.stridePlan && (
-        <p className="rounded-xl border border-foreground/10 px-4 py-4 text-sm text-label-alt">
+        <p className="rounded-xl border border-line-alt px-4 py-4 text-sm text-label-alt">
           아직 {FEATURE_NAMES.MY_STRIDES}이 없어요. 상단 + 버튼으로 새 장면을 추가해보세요.
         </p>
       )}
@@ -542,7 +542,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       <button
         type="button"
         onClick={handleAddOpen}
-        className="fixed bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom)+1rem)] right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-inverse-background text-2xl text-inverse-label shadow-lg transition-opacity hover:opacity-90"
+        className="fixed bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom)+1rem)] right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-inverse-background text-2xl text-inverse-label shadow-strong transition-opacity hover:opacity-90"
         aria-label={FEATURE_NAMES.STEP_MORE}
       >
         +

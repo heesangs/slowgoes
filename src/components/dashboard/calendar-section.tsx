@@ -206,13 +206,13 @@ export function CalendarSection({
     const label = morphLabelRef.current;
     if (!el) return;
     if (variant === "fill") {
-      el.style.background = "var(--foreground)";
+      el.style.background = "var(--label-normal)";
       el.style.border = "none";
       if (label) label.style.color = "var(--background)";
     } else {
       el.style.background = "var(--background)";
-      el.style.border = "1px solid color-mix(in srgb, var(--foreground) 55%, transparent)";
-      if (label) label.style.color = "var(--foreground)";
+      el.style.border = "1px solid color-mix(in srgb, var(--label-normal) 55%, transparent)";
+      if (label) label.style.color = "var(--label-normal)";
     }
   }, []);
 
@@ -556,7 +556,7 @@ export function CalendarSection({
           — 달력을 펼치면(월 뷰) 말줄임 없이 전체 표시 */}
       <div
         className={cn(
-          "mt-3 flex gap-2 border-b border-foreground/10 pb-2",
+          "mt-3 flex gap-2 border-b border-line-alt pb-2",
           expanded ? "items-start" : "items-center"
         )}
       >
@@ -574,7 +574,7 @@ export function CalendarSection({
           type="button"
           onClick={onOpenDirection}
           aria-label={`${FEATURE_NAMES.DIRECTION} 열기`}
-          className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-label-alt transition-colors hover:bg-foreground/5 hover:text-label-neutral"
+          className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-label-alt transition-colors hover:bg-fill-alt hover:text-label-neutral"
         >
           <ChevronDownIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
         </button>
@@ -608,8 +608,8 @@ export function CalendarSection({
             )}
             style={{
               width: `calc(100% * ${1 - collapseT} + ${COLLAPSED_W}px * ${collapseT})`,
-              background: `color-mix(in srgb, var(--foreground) ${fillPct}%, transparent)`,
-              borderColor: `color-mix(in srgb, var(--foreground) ${borderAlpha * 100}%, transparent)`,
+              background: `color-mix(in srgb, var(--label-normal) ${fillPct}%, transparent)`,
+              borderColor: `color-mix(in srgb, var(--label-normal) ${borderAlpha * 100}%, transparent)`,
               opacity: reverseLanding ? 0 : 1,
             }}
           />
@@ -651,7 +651,7 @@ export function CalendarSection({
                     isSelected
                       ? "bg-inverse-background font-semibold text-inverse-label"
                       : cn(
-                          "hover:bg-foreground/5",
+                          "hover:bg-fill-alt",
                           // 오늘 날짜는 테두리로 강조(선택 날짜는 fill 우선)
                           isTodayCell && "border border-inverse-background font-semibold",
                           expanded && !inMonth ? "text-label-disable" : "text-label-normal"
@@ -707,7 +707,7 @@ export function CalendarSection({
           onClick={() => setExpanded((prev) => !prev)}
           aria-label={expanded ? "주 달력으로 접기" : "월 달력으로 펼치기"}
           aria-expanded={expanded}
-          className="mt-1 flex w-full items-center justify-center rounded-md py-1 text-label-alt transition-colors hover:bg-foreground/5 hover:text-label-neutral"
+          className="mt-1 flex w-full items-center justify-center rounded-md py-1 text-label-alt transition-colors hover:bg-fill-alt hover:text-label-neutral"
         >
           <ChevronDownIcon
             className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")}
@@ -720,9 +720,9 @@ export function CalendarSection({
         // 300ms 안에 끝나면 스켈레톤도 그리지 않는다(깜빡임 방지 — 앱 공통 정책)
         showTodosSkeleton ? (
           <div className="mt-3 flex flex-col gap-2 animate-pulse" aria-label="할 일 로딩 중">
-            <div className="h-3 w-10 rounded bg-foreground/10" />
-            <div className="h-10 w-full rounded-lg bg-foreground/10" />
-            <div className="h-10 w-full rounded-lg bg-foreground/10" />
+            <div className="h-3 w-10 rounded bg-fill-normal" />
+            <div className="h-10 w-full rounded-lg bg-fill-normal" />
+            <div className="h-10 w-full rounded-lg bg-fill-normal" />
           </div>
         ) : null
       ) : isTodosError ? (

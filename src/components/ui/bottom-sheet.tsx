@@ -188,14 +188,14 @@ export function BottomSheet({ open, onClose, title, children, footer, size = "de
           transitionDuration: `${dragging ? 0 : dragY > 0 ? SNAP_MS : animMs}ms`,
         }}
         className={cn(
-          "absolute inset-x-0 bottom-0 mx-auto w-full max-w-2xl rounded-t-2xl border border-foreground/10 bg-background-elevated px-4 pb-4 pt-3 shadow-2xl",
+          "absolute inset-x-0 bottom-0 mx-auto w-full max-w-2xl rounded-t-2xl border border-line-alt bg-background-elevated px-4 pb-4 pt-3 shadow-heavy",
           "transition-transform ease-out"
         )}
       >
         {/* 손잡이 — 보이는 크기는 그대로 두고 위아래 패딩으로 잡기 쉽게.
             여기서 시작하면 본문 스크롤 위치와 무관하게 끌 수 있다. */}
         <div data-sheet-grab className="-mt-3 cursor-grab touch-none py-3 active:cursor-grabbing">
-          <div className="mx-auto h-1.5 w-12 rounded-full bg-foreground/20" />
+          <div className="mx-auto h-1.5 w-12 rounded-full bg-line-strong" />
         </div>
         {!hideHeader && (
           <div data-sheet-grab className="mb-3 flex items-center justify-between gap-3">
@@ -204,7 +204,7 @@ export function BottomSheet({ open, onClose, title, children, footer, size = "de
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex min-h-[36px] items-center rounded-md border border-foreground/20 px-2.5 text-xs transition-colors hover:bg-foreground/5"
+                className="inline-flex min-h-[36px] items-center rounded-md border border-line-normal px-2.5 text-xs transition-colors hover:bg-fill-alt"
               >
                 닫기
               </button>

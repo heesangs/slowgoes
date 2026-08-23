@@ -69,7 +69,7 @@ export function TaskStatsSection({ stats }: TaskStatsSectionProps) {
           <p className="text-sm text-label-neutral">
             이번 주 {FEATURE_NAMES.ROUTINE} 완료 <span className="font-semibold">{stats.completedRoutinesThisWeek}개</span>
           </p>
-          <div className="h-3 w-full rounded-full bg-foreground/10">
+          <div className="h-3 w-full rounded-full bg-fill-normal">
             <div
               className="h-3 rounded-full bg-inverse-background transition-all"
               style={{

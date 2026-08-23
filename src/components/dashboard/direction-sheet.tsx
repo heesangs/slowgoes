@@ -45,8 +45,8 @@ function StrideCard({
       className={cn(
         "w-full rounded-lg border px-3 py-2.5 text-left transition-colors",
         emphasized
-          ? "border-foreground/25 bg-foreground/[0.05] hover:bg-foreground/[0.08]"
-          : "border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/[0.05]"
+          ? "border-line-strong bg-fill-alt hover:bg-fill-normal"
+          : "border-line-alt bg-fill-alt hover:bg-fill-alt"
       )}
     >
       <p className={cn("text-xs font-medium", emphasized ? "text-label-alt" : "text-label-alt")}>
@@ -81,7 +81,7 @@ export function DirectionSheet({
         {monthStride && (
           <>
             {/* 구분선 — 큰 지평(언젠가·올해안)과 해당 달을 나눠 강조 */}
-            <div className="my-1 border-t border-foreground/10" />
+            <div className="my-1 border-t border-line-alt" />
             <StrideCard
               label={monthLabel}
               action={monthStride.action}

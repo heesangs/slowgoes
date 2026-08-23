@@ -12,7 +12,7 @@
 //   --- + enter         → 구분선
 //   - [ ] + space       → 클릭 가능한 체크박스 (TaskList/TaskItem)
 //
-// 컬러: 하늘색 미사용. 앱 기존 블랙 계열 토큰(foreground)만 사용.
+// 컬러: 하늘색 미사용. 앱 기존 블랙 계열 토큰(label·line·fill)만 사용.
 // 본문 폰트: 작성화면 스크린샷 기준 17px.
 
 import { memo } from "react";
@@ -34,7 +34,7 @@ interface MarkdownEditorProps {
   onReady?: (editor: Editor) => void;
 }
 
-// .ProseMirror 하위 요소 스타일 — 전부 앱 토큰(foreground) 기반, sky/blue 없음.
+// .ProseMirror 하위 요소 스타일 — 전부 앱 토큰(label·line·fill) 기반, sky/blue 없음.
 const EDITOR_WRAPPER_CLASS = [
   "[&_.ProseMirror]:min-h-[55vh] [&_.ProseMirror]:outline-none [&_.ProseMirror]:text-label-normal",
   // 문단 — 14px, 자동 줄바꿈 1.5. 엔터(문단) 간격은 +7px로 2.0 리듬(14×1.5=21 + 7 = 28 ≈ 2.0×14)
@@ -47,11 +47,11 @@ const EDITOR_WRAPPER_CLASS = [
   "[&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-5 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-5",
   "[&_.ProseMirror_li]:text-[14px] [&_.ProseMirror_li]:leading-[1.5]",
   // 인용구
-  "[&_.ProseMirror_blockquote]:border-l-2 [&_.ProseMirror_blockquote]:border-foreground/25 [&_.ProseMirror_blockquote]:pl-3 [&_.ProseMirror_blockquote]:text-label-alt",
+  "[&_.ProseMirror_blockquote]:border-l-2 [&_.ProseMirror_blockquote]:border-line-strong [&_.ProseMirror_blockquote]:pl-3 [&_.ProseMirror_blockquote]:text-label-alt",
   // 구분선
-  "[&_.ProseMirror_hr]:my-4 [&_.ProseMirror_hr]:border-t [&_.ProseMirror_hr]:border-foreground/15",
+  "[&_.ProseMirror_hr]:my-4 [&_.ProseMirror_hr]:border-t [&_.ProseMirror_hr]:border-line-alt",
   // 코드
-  "[&_.ProseMirror_code]:rounded [&_.ProseMirror_code]:bg-foreground/10 [&_.ProseMirror_code]:px-1 [&_.ProseMirror_code]:py-0.5 [&_.ProseMirror_code]:text-[13px]",
+  "[&_.ProseMirror_code]:rounded [&_.ProseMirror_code]:bg-fill-normal [&_.ProseMirror_code]:px-1 [&_.ProseMirror_code]:py-0.5 [&_.ProseMirror_code]:text-[13px]",
   // 체크리스트 — 항목은 li[data-checked]로 잡는다.
   // (TipTap이 내보내는 마크업은 `<ul data-type="taskList"><li data-checked="false">`로,
   //  li에는 data-type이 붙지 않는다. taskItem으로 걸면 아무것도 매칭되지 않아
@@ -59,7 +59,7 @@ const EDITOR_WRAPPER_CLASS = [
   "[&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]]:pl-0",
   "[&_ul[data-type=taskList]_li]:flex [&_ul[data-type=taskList]_li]:items-start [&_ul[data-type=taskList]_li]:gap-2",
   "[&_ul[data-type=taskList]_li>label]:mt-1 [&_ul[data-type=taskList]_li>label]:shrink-0",
-  "[&_ul[data-type=taskList]_li>label_input]:h-4 [&_ul[data-type=taskList]_li>label_input]:w-4 [&_ul[data-type=taskList]_li>label_input]:accent-foreground",
+  "[&_ul[data-type=taskList]_li>label_input]:h-4 [&_ul[data-type=taskList]_li>label_input]:w-4 [&_ul[data-type=taskList]_li>label_input]:accent-label-normal",
   "[&_ul[data-type=taskList]_li>div]:flex-1",
   "[&_ul[data-type=taskList]_li[data-checked=true]>div]:text-label-disable [&_ul[data-type=taskList]_li[data-checked=true]>div]:line-through",
 ].join(" ");

@@ -23,7 +23,7 @@ export function Checkbox({ checked, size = "md", className }: CheckboxProps) {
         size === "md" ? "h-5 w-5" : "h-4 w-4",
         checked
           ? "border-inverse-background bg-inverse-background text-inverse-label"
-          : "border-foreground/30 bg-transparent",
+          : "border-line-strong bg-transparent",
         className
       )}
       aria-hidden

@@ -32,13 +32,13 @@ export function WeekdayPatternChart({ data }: WeekdayPatternChartProps) {
             <div key={day.weekday} className="flex flex-1 flex-col items-center gap-1">
               <span className="text-[10px] text-label-alt">{day.count}</span>
               <div
-                className="w-full rounded-t-sm bg-foreground/10 relative overflow-hidden"
+                className="w-full rounded-t-sm bg-fill-normal relative overflow-hidden"
                 style={{ height: "100%" }}
               >
                 <div
                   className={cn(
                     "absolute inset-x-0 bottom-0 transition-[height] duration-500",
-                    isTop ? "bg-inverse-background" : "bg-foreground/40"
+                    isTop ? "bg-inverse-background" : "bg-interaction-inactive"
                   )}
                   style={{ height: `${Math.round(ratio * 100)}%` }}
                 />

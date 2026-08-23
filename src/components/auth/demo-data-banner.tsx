@@ -22,7 +22,7 @@ export function DemoDataBanner() {
   const todoCount = data.selectedDailyTodos?.length ?? 0;
 
   return (
-    <div className="mb-4 rounded-xl border border-foreground/15 bg-foreground/[0.03] p-4 text-sm">
+    <div className="mb-4 rounded-xl border border-line-alt bg-fill-alt p-4 text-sm">
       <p className="font-medium">체험 데이터가 저장되어 있어요</p>
       <p className="mt-1 line-clamp-2 text-label-alt">
         &ldquo;{data.sceneText}&rdquo;

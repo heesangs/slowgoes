@@ -22,7 +22,7 @@ import { useProfileView } from "@/hooks/use-profile-view";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { ChevronDownIcon } from "@/components/ui/icons";
 
-const SKELETON = "rounded bg-foreground/10";
+const SKELETON = "rounded bg-fill-normal";
 
 export function ProfileContent() {
   const { data, isError } = useProfileView();
@@ -250,7 +250,7 @@ export function ProfileContent() {
           {/* 이메일 (읽기 전용) */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-label-alt">이메일</label>
-            <p className="rounded-lg border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-label-alt">
+            <p className="rounded-lg border border-line-alt bg-fill-alt px-4 py-3 text-sm text-label-alt">
               {email}
             </p>
           </div>
@@ -260,7 +260,7 @@ export function ProfileContent() {
             <button
               type="button"
               onClick={() => setShowPasswordForm((prev) => !prev)}
-              className="flex items-center justify-between rounded-lg border border-foreground/20 px-4 py-3 text-sm font-medium transition-colors hover:bg-foreground/5 cursor-pointer"
+              className="flex items-center justify-between rounded-lg border border-line-normal px-4 py-3 text-sm font-medium transition-colors hover:bg-fill-alt cursor-pointer"
             >
               <span>비밀번호 변경</span>
               <ChevronDownIcon
@@ -269,7 +269,7 @@ export function ProfileContent() {
             </button>
 
             {showPasswordForm && (
-              <div className="flex flex-col gap-3 rounded-lg border border-foreground/10 p-4">
+              <div className="flex flex-col gap-3 rounded-lg border border-line-alt p-4">
                 <Input
                   id="new_password"
                   label="새 비밀번호"

@@ -40,7 +40,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={t.id}
             className={cn(
-              "px-4 py-3 rounded-lg text-sm font-medium shadow-lg animate-[fadeIn_0.2s_ease-out] break-words whitespace-pre-wrap max-h-40 overflow-y-auto",
+              "px-4 py-3 rounded-lg text-sm font-medium shadow-strong animate-[fadeIn_0.2s_ease-out] break-words whitespace-pre-wrap max-h-40 overflow-y-auto",
               // 성공은 무채색(앱 흑백 톤 — 라이트/다크가 자동 반전).
               // 실패만 빨강을 남긴다 — 조용히 지나가면 안 되는 신호라서.
               t.type === "success"

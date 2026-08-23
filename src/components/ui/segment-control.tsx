@@ -21,7 +21,7 @@ export function SegmentControl<T extends string>({
   className,
 }: SegmentControlProps<T>) {
   return (
-    <div className={cn("flex rounded-lg border border-foreground/20 p-0.5 gap-0.5", className)}>
+    <div className={cn("flex rounded-lg border border-line-normal p-0.5 gap-0.5", className)}>
       {options.map((option) => (
         <button
           key={option.value}
@@ -31,7 +31,7 @@ export function SegmentControl<T extends string>({
             "flex-1 min-h-[40px] rounded-md px-3 py-2 text-sm font-medium transition-colors",
             value === option.value
               ? "bg-inverse-background text-inverse-label"
-              : "hover:bg-foreground/5"
+              : "hover:bg-fill-alt"
           )}
         >
           {option.label}

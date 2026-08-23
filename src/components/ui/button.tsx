@@ -8,9 +8,9 @@ const variantStyles = {
   primary:
     "bg-inverse-background text-inverse-label hover:opacity-90 active:opacity-80",
   secondary:
-    "bg-transparent border border-foreground/20 text-label-normal hover:bg-foreground/5 active:bg-foreground/10",
+    "bg-transparent border border-line-normal text-label-normal hover:bg-fill-alt active:bg-fill-normal",
   ghost:
-    "bg-transparent text-label-normal hover:bg-foreground/5 active:bg-foreground/10",
+    "bg-transparent text-label-normal hover:bg-fill-alt active:bg-fill-normal",
 } as const;
 
 // 버튼 크기별 스타일
@@ -32,7 +32,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center rounded-lg font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30",
+          "inline-flex items-center justify-center rounded-lg font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-label-normal/30",
           variantStyles[variant],
           sizeStyles[size],
           className

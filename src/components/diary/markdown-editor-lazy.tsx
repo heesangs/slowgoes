@@ -12,7 +12,7 @@
 import dynamic from "next/dynamic";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 
-const SKELETON = "rounded bg-foreground/10";
+const SKELETON = "rounded bg-fill-normal";
 
 /** 청크가 늦게 올 때만(300ms 초과) 보이는 본문 스켈레톤 — loading.tsx 대신 지연 플래그 */
 function EditorBodySkeleton() {

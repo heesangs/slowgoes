@@ -42,7 +42,7 @@ export function BottomNavBar() {
     <nav
       aria-label="캘린더 화면"
       // z-30: FAB(40) · 시트/토스트/입력창(50)보다 아래 — 이들이 네비에 가리면 안 된다
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-foreground/10 bg-background pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-line-alt bg-background pb-[env(safe-area-inset-bottom)]"
     >
       <ul className="mx-auto flex h-[var(--bottom-nav-h)] max-w-2xl items-stretch">
         {TABS.map(({ view, label, Icon }) => {

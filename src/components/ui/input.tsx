@@ -31,10 +31,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             className={cn(
               "w-full rounded-lg border bg-transparent px-4 py-3 text-base min-h-[44px] transition-colors",
               "placeholder:text-label-disable",
-              "focus:outline-none focus:ring-2 focus:ring-foreground/20",
+              "focus:outline-none focus:ring-2 focus:ring-label-normal/20",
               error
                 ? "border-danger focus:ring-danger/20"
-                : "border-foreground/20",
+                : "border-line-normal",
               showClear && "pr-10",
               className
             )}
@@ -46,7 +46,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               type="button"
               onClick={onClear}
               aria-label="입력값 지우기"
-              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full text-label-alt transition-colors hover:bg-foreground/10 hover:text-label-neutral"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full text-label-alt transition-colors hover:bg-fill-normal hover:text-label-neutral"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

@@ -26,7 +26,7 @@ interface SubPageHeaderProps {
 }
 
 const BACK_BUTTON_CLASS =
-  "inline-flex h-9 w-9 items-center justify-center rounded-lg text-label-normal transition-colors hover:bg-foreground/5";
+  "inline-flex h-9 w-9 items-center justify-center rounded-lg text-label-normal transition-colors hover:bg-fill-alt";
 
 function BackIcon() {
   return (
@@ -48,7 +48,7 @@ export function SubPageHeader({ title, actions, backHref, onBack, hideBack }: Su
   return (
     <header
       // sticky top-0 — standalone에선 상태바가 이 위에 겹치므로 안전영역만큼 밀어준다
-      className="sticky top-0 z-20 border-b border-foreground/10 bg-background px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))]"
+      className="sticky top-0 z-20 border-b border-line-alt bg-background px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))]"
     >
       {/* min-h로 우측 actions(완료/저장 표시 등)의 등장·교체에도 헤더 높이가 흔들리지 않게 고정 */}
       <div

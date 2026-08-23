@@ -5,11 +5,11 @@ import { CLOCK_HAND_ROTATION_CLASSES } from "./constants";
 // 길수록 진하게 — someday가 가장 진한 톤
 export function getStrideTone(level: StrideLevel) {
   const idx = STRIDE_ORDER.indexOf(level);
-  if (idx >= 7) return "border-foreground/30 bg-foreground/[0.12]";
-  if (idx >= 5) return "border-foreground/25 bg-foreground/[0.1]";
-  if (idx >= 3) return "border-foreground/20 bg-foreground/[0.07]";
-  if (idx >= 1) return "border-foreground/15 bg-foreground/[0.04]";
-  return "border-foreground/10 bg-foreground/[0.02]";
+  if (idx >= 7) return "border-line-strong bg-fill-strong";
+  if (idx >= 5) return "border-line-strong bg-fill-normal";
+  if (idx >= 3) return "border-line-normal bg-fill-normal";
+  if (idx >= 1) return "border-line-normal bg-fill-alt";
+  return "border-line-alt bg-fill-alt";
 }
 
 export type LifeClockInfo = {

@@ -78,8 +78,8 @@ export function AiSuggestionsSheet({
                 className={cn(
                   "flex w-full items-start gap-2 rounded-lg border px-3 py-3 text-left text-sm transition-colors",
                   isChecked
-                    ? "border-foreground/40 bg-foreground/[0.05]"
-                    : "border-foreground/10 hover:bg-foreground/[0.03]"
+                    ? "border-line-strong bg-fill-alt"
+                    : "border-line-alt hover:bg-fill-alt"
                 )}
               >
                 <Checkbox checked={isChecked} size="sm" className="mt-0.5" />

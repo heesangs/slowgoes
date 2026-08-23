@@ -9,12 +9,12 @@ import { useDiaryEntry } from "@/hooks/use-diary";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { DiaryEditor } from "./diary-editor";
 
-const SKELETON = "rounded bg-foreground/10";
+const SKELETON = "rounded bg-fill-normal";
 
 function EditorSkeleton() {
   return (
     <div className="animate-pulse" aria-label="일기 로딩 중">
-      <div className="sticky top-0 z-20 border-b border-foreground/10 bg-background px-4 py-3">
+      <div className="sticky top-0 z-20 border-b border-line-alt bg-background px-4 py-3">
         <div className="mx-auto flex max-w-2xl items-center justify-between">
           <div className="flex items-center gap-2">
             <div className={`${SKELETON} h-6 w-6`} />
