@@ -59,7 +59,7 @@ export function ReviewPageContent({
           <ErrorBox as="section">{fetchError}</ErrorBox>
         )}
 
-        <section className="rounded-xl border border-dashed border-foreground/20 px-4 py-6 text-center">
+        <section className="rounded-xl border border-dashed border-line-normal px-4 py-6 text-center">
           <p className="text-sm text-label-alt">
             아직 행동 기록이 없어요. 오늘의 한 걸음을 완료하면 회고 화면이 채워집니다.
           </p>
@@ -72,7 +72,7 @@ export function ReviewPageContent({
             </Link>
             <Link
               href="/onboarding?step=2"
-              className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-foreground/20 px-4 py-2 text-sm font-medium text-label-normal transition-colors hover:bg-foreground/5"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-line-normal px-4 py-2 text-sm font-medium text-label-normal transition-colors hover:bg-fill-alt"
             >
               버킷 추가
             </Link>
@@ -143,9 +143,9 @@ export function ReviewPageContent({
           {data.timeBandStats.map((item) => (
             <div key={item.band} className="flex items-center gap-3">
               <span className="w-24 shrink-0 text-xs text-label-alt">{item.label}</span>
-              <div className="h-2.5 flex-1 rounded-full bg-foreground/10">
+              <div className="h-2.5 flex-1 rounded-full bg-fill-normal">
                 <div
-                  className="h-2.5 rounded-full bg-foreground/70"
+                  className="h-2.5 rounded-full bg-label-neutral"
                   style={{ width: `${Math.round((item.count / maxBandCount) * 100)}%` }}
                 />
               </div>
@@ -161,13 +161,13 @@ export function ReviewPageContent({
         <p className="mb-3 text-sm text-label-alt">최근회고 기록</p>
         <div className="flex flex-col gap-3">
           {data.recent.map((item) => (
-            <article key={item.id} className="rounded-lg border border-foreground/10 px-3 py-3">
+            <article key={item.id} className="rounded-lg border border-line-alt px-3 py-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-sm font-medium">{item.title}</p>
                   <p className="mt-0.5 text-xs text-label-alt">{shortDate(item.completedAt)}</p>
                 </div>
-                <span className="inline-flex min-h-[28px] items-center rounded-full border border-foreground/20 px-2.5 text-[11px] text-label-alt">
+                <span className="inline-flex min-h-[28px] items-center rounded-full border border-line-normal px-2.5 text-[11px] text-label-alt">
                   {itemTypeLabel(item.itemType)}
                 </span>
               </div>

@@ -109,7 +109,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
   return (
     <BottomSheet open={open} onClose={onClose} size="large" hideHeader>
       {selectionPreview && (
-        <div className="mb-3 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-2">
+        <div className="mb-3 rounded-lg border border-line-alt bg-fill-alt px-3 py-2">
           <p className="text-[11px] font-medium text-label-alt">선택한 부분</p>
           <p className="mt-0.5 line-clamp-2 text-xs text-label-alt">“{selectionPreview}”</p>
         </div>
@@ -126,8 +126,8 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
               onClick={() => run({ mode, title: label })}
               disabled={loading}
               className={cn(
-                "rounded-lg border border-foreground/15 px-3 py-2.5 text-sm font-medium text-label-neutral transition-colors",
-                "hover:bg-foreground/5 disabled:opacity-40",
+                "rounded-lg border border-line-normal px-3 py-2.5 text-sm font-medium text-label-neutral transition-colors",
+                "hover:bg-fill-alt disabled:opacity-40",
                 mode === "summary" && "col-span-2"
               )}
             >
@@ -144,7 +144,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="직접 물어보기 (예: 이 글에서 가장 인상적인 문장은?)"
           rows={2}
-          className="w-full resize-none rounded-lg border border-foreground/15 bg-transparent px-3 py-2 text-sm text-label-normal outline-none placeholder:text-label-disable focus:border-foreground/40"
+          className="w-full resize-none rounded-lg border border-line-normal bg-transparent px-3 py-2 text-sm text-label-normal outline-none placeholder:text-label-disable focus:border-line-strong"
         />
         <Button
           variant="secondary"
@@ -174,7 +174,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
         </ErrorBox>
       )}
       {result && !loading && (
-        <div className="mt-4 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
+        <div className="mt-4 rounded-lg border border-line-alt bg-fill-alt px-4 py-3">
           <p className="text-[11px] font-medium text-label-alt">{resultTitle}</p>
           <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-label-neutral">{result}</p>
           <Button

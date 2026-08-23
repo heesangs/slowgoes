@@ -63,16 +63,16 @@ export function StepAnalysis({
           <div
             role="status"
             aria-live="polite"
-            className="rounded-lg bg-foreground/[0.04] px-4 py-3 text-sm text-label-alt"
+            className="rounded-lg bg-fill-alt px-4 py-3 text-sm text-label-alt"
           >
             AI가 {FEATURE_NAMES.MY_STRIDES}을 그리는 중이에요… 잠시만 기다려 주세요
           </div>
           <div className="flex animate-pulse flex-col gap-3">
-            <div className="h-8 w-24 rounded-full bg-foreground/10" />
-            <div className="h-5 w-2/3 rounded bg-foreground/10" />
-            <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.12]" />
-            <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.07]" />
-            <div className="h-20 rounded-xl border border-foreground/10 bg-foreground/[0.03]" />
+            <div className="h-8 w-24 rounded-full bg-fill-normal" />
+            <div className="h-5 w-2/3 rounded bg-fill-normal" />
+            <div className="h-20 rounded-xl border border-line-alt bg-fill-strong" />
+            <div className="h-20 rounded-xl border border-line-alt bg-fill-normal" />
+            <div className="h-20 rounded-xl border border-line-alt bg-fill-alt" />
           </div>
         </>
       )}
@@ -121,13 +121,13 @@ export function StepAnalysis({
                         "flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left transition-colors",
                         isSelected
                           ? "border-inverse-background bg-inverse-background text-inverse-label"
-                          : "border-foreground/15 hover:bg-foreground/[0.04]"
+                          : "border-line-normal hover:bg-fill-alt"
                       )}
                     >
                       <span
                         className={cn(
                           "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
-                          isSelected ? "border-background bg-background" : "border-foreground/30"
+                          isSelected ? "border-background bg-background" : "border-line-strong"
                         )}
                       >
                         {isSelected && <span className="h-2 w-2 rounded-full bg-inverse-background" />}
@@ -143,7 +143,7 @@ export function StepAnalysis({
                 })}
               </div>
             ) : (
-              <div className="rounded-lg bg-foreground/[0.04] px-3 py-3">
+              <div className="rounded-lg bg-fill-alt px-3 py-3">
                 <p className="text-xs leading-relaxed text-label-alt">
                   고를 만한 짧은 걸음이 나오지 않았어요.
                 </p>

@@ -49,7 +49,7 @@ export function StepConfirm({
       </div>
 
       {/* 나의 시간 + 성향 — 확정 직전에 "지금 내가 어디쯤인지"를 한 번 더 보여준다 */}
-      <div className="rounded-xl border border-foreground/15 bg-foreground/[0.03] px-4 py-4">
+      <div className="rounded-xl border border-line-alt bg-fill-alt px-4 py-4">
         <div className="flex items-baseline justify-between gap-3">
           <p className="text-xs text-label-alt">{FEATURE_NAMES.MY_CLOCK}</p>
           {personalityType && (
@@ -62,7 +62,7 @@ export function StepConfirm({
 
         {/* MBTI 보완 입력 — 두 축만 답한 상태면 여기서 마저 채울 수 있다.
             필수가 아니고, 넣어도 이미 나온 분석을 다시 돌리지 않는다(저장만). */}
-        <div className="mt-4 flex flex-col gap-2 border-t border-foreground/10 pt-3">
+        <div className="mt-4 flex flex-col gap-2 border-t border-line-alt pt-3">
           <p className="text-xs text-label-alt">
             성향을 더 알려주시면 다음 추천이 정확해져요 <span className="text-label-alt">(선택)</span>
           </p>
@@ -77,7 +77,7 @@ export function StepConfirm({
         </div>
       </div>
 
-      <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-4">
+      <div className="rounded-xl border border-line-alt bg-fill-alt px-4 py-4">
         <p className="mb-1 text-xs text-label-alt">선택한 장면</p>
         <p className="text-sm font-medium">{selectedSceneText}</p>
         {lifeSceneAnalysis?.lifeArea && (

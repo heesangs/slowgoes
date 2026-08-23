@@ -16,7 +16,7 @@ import { useDiaryEntries } from "@/hooks/use-diary";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { preloadMarkdownEditor } from "./markdown-editor-lazy";
 
-const SKELETON = "rounded bg-foreground/10";
+const SKELETON = "rounded bg-fill-normal";
 
 export function DiaryListContent() {
   const { data: entries, isLoading, isError } = useDiaryEntries();
@@ -75,7 +75,7 @@ export function DiaryListContent() {
         showSkeleton ? (
         <div className="animate-pulse" aria-label="일기 로딩 중">
           <div className={`${SKELETON} h-4 w-24`} />
-          <div className="mt-3 flex flex-col divide-y divide-foreground/10 border-y border-foreground/10">
+          <div className="mt-3 flex flex-col divide-y divide-line-alt border-y border-line-alt">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="flex gap-3 py-3">
                 <div className="w-9 shrink-0 pt-0.5">
@@ -109,12 +109,12 @@ export function DiaryListContent() {
                 {group.weeks.map((week) => (
                   <div key={week.key}>
                     <h3 className="mb-1 text-xs font-medium text-label-alt">{week.label}</h3>
-                    <ul className="flex flex-col divide-y divide-foreground/10 border-y border-foreground/10">
+                    <ul className="flex flex-col divide-y divide-line-alt border-y border-line-alt">
                       {week.items.map((item) => (
                         <li key={item.id}>
                           <Link
                             href={`/diary/${item.id}`}
-                            className="flex gap-3 py-3 transition-colors hover:bg-foreground/[0.03]"
+                            className="flex gap-3 py-3 transition-colors hover:bg-fill-alt"
                           >
                             {/* 날짜 컬럼 */}
                             <div className="w-9 shrink-0 pt-0.5 text-center">
@@ -158,7 +158,7 @@ export function DiaryListContent() {
       <Link
         href="/diary/new"
         aria-label="일기 작성"
-        className="fixed bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom)+1rem)] right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-inverse-background text-inverse-label shadow-lg transition-opacity hover:opacity-90 active:opacity-80"
+        className="fixed bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom)+1rem)] right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-inverse-background text-inverse-label shadow-strong transition-opacity hover:opacity-90 active:opacity-80"
       >
         <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />

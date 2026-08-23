@@ -12,7 +12,7 @@ export default function LandingPage() {
 
         {/* 슬로건 */}
         {/* 앱 테마는 :root[data-theme] 속성 기반이라 Tailwind의 dark:(prefers-color-scheme)는
-            프로필에서 고른 다크를 따라가지 못한다 → foreground 토큰으로 통일.
+            프로필에서 고른 다크를 따라가지 못한다 → label 토큰으로 통일.
             투명도는 대비를 재서 정했다 — /60은 3.69:1로 본문 기준(4.5:1)에 미달한다. */}
         <p className="text-xl text-label-neutral">
           나의 속도로, 천천히
@@ -50,7 +50,7 @@ export default function LandingPage() {
           </Link>
           <Link
             href="/signup"
-            className="rounded-full border border-foreground/20 px-8 py-3 text-sm font-medium transition-colors hover:bg-foreground/5"
+            className="rounded-full border border-line-normal px-8 py-3 text-sm font-medium transition-colors hover:bg-fill-alt"
           >
             회원가입
           </Link>

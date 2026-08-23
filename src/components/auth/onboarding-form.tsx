@@ -331,7 +331,7 @@ export function OnboardingForm({
           key={s}
           className={cn(
             "h-1.5 rounded-full transition-all",
-            s === step ? "w-6 bg-inverse-background" : "w-3 bg-foreground/20"
+            s === step ? "w-6 bg-inverse-background" : "w-3 bg-line-strong"
           )}
         />
       ))}

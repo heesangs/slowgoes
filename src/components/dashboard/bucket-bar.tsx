@@ -65,7 +65,7 @@ export function BucketBar({
         aria-label={`${FEATURE_NAMES.BUCKET} 목록 열기`}
         className={cn(
           "sticky top-[calc(var(--top-header-h)+env(safe-area-inset-top))] z-20",
-          "flex w-full items-center gap-2 border-b border-foreground/10 bg-background px-4 py-2.5 text-left transition-colors hover:bg-foreground/[0.03]",
+          "flex w-full items-center gap-2 border-b border-line-alt bg-background px-4 py-2.5 text-left transition-colors hover:bg-fill-alt",
           SURFACE_SHADOW
         )}
       >
@@ -90,7 +90,7 @@ export function BucketBar({
               "inline-flex min-h-[36px] items-center rounded-md border px-2.5 text-xs transition-colors",
               editMode
                 ? "border-inverse-background bg-inverse-background text-inverse-label"
-                : "border-foreground/20 hover:bg-foreground/5"
+                : "border-line-normal hover:bg-fill-alt"
             )}
           >
             {editMode ? "완료" : "편집"}
@@ -106,7 +106,7 @@ export function BucketBar({
               return (
                 <li
                   key={bucket.id}
-                  className="flex items-center gap-2 rounded-lg border border-foreground/10 px-3 py-2.5"
+                  className="flex items-center gap-2 rounded-lg border border-line-alt px-3 py-2.5"
                 >
                   <span className="min-w-0 flex-1 break-words text-sm">
                     {bucket.title}
@@ -117,7 +117,7 @@ export function BucketBar({
                       closeSheet();
                       onEditTitle(bucket);
                     }}
-                    className="shrink-0 rounded-md border border-foreground/20 px-2 py-1 text-xs transition-colors hover:bg-foreground/5"
+                    className="shrink-0 rounded-md border border-line-normal px-2 py-1 text-xs transition-colors hover:bg-fill-alt"
                   >
                     수정
                   </button>
@@ -146,7 +146,7 @@ export function BucketBar({
                     "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-3 text-left text-sm transition-colors",
                     isCurrent
                       ? "bg-inverse-background font-semibold text-inverse-label"
-                      : "hover:bg-foreground/5"
+                      : "hover:bg-fill-alt"
                   )}
                 >
                   <span className="min-w-0 flex-1 break-words">{bucket.title}</span>
@@ -167,7 +167,7 @@ export function BucketBar({
                   closeSheet();
                   onAddBucket();
                 }}
-                className="flex w-full items-center gap-2 rounded-lg border border-dashed border-foreground/25 px-3 py-3 text-left text-sm text-label-alt transition-colors hover:bg-foreground/5 hover:text-label-normal"
+                className="flex w-full items-center gap-2 rounded-lg border border-dashed border-line-strong px-3 py-3 text-left text-sm text-label-alt transition-colors hover:bg-fill-alt hover:text-label-normal"
               >
                 <span aria-hidden>+</span> {FEATURE_NAMES.BUCKET} 추가
               </button>

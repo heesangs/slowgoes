@@ -76,7 +76,7 @@ export function StepScene({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
+      <div className="rounded-xl border border-line-alt bg-fill-alt px-4 py-3">
         <p className="text-sm text-label-alt">{FEATURE_NAMES.MY_CLOCK}</p>
         <p className="text-base font-semibold">
           {lifeClock ? `${FEATURE_NAMES.MY_CLOCK}은 ${lifeClock.label}이에요.` : `${FEATURE_NAMES.MY_CLOCK}을 알려주세요`}
@@ -104,7 +104,7 @@ export function StepScene({
                   "flex flex-col items-start rounded-xl border px-4 py-4 text-left transition-colors",
                   isSelected
                     ? "border-inverse-background bg-inverse-background text-inverse-label"
-                    : "border-foreground/15 hover:bg-foreground/[0.04]"
+                    : "border-line-normal hover:bg-fill-alt"
                 )}
               >
                 <span className="text-2xl">{cat.icon}</span>
@@ -141,7 +141,7 @@ export function StepScene({
                 "min-h-[44px] cursor-pointer rounded-lg border px-4 py-3 text-left text-sm font-medium transition-colors",
                 selectedDemoScene?.id === item.id
                   ? "border-inverse-background bg-inverse-background text-inverse-label"
-                  : "border-foreground/20 hover:bg-foreground/5"
+                  : "border-line-normal hover:bg-fill-alt"
               )}
             >
               {item.text}
@@ -152,7 +152,7 @@ export function StepScene({
 
       {/* 프로필 미완성 안내 — 카테고리는 골랐지만 추천을 띄울 수 없을 때 */}
       {selectedLifeCategory && isProfileIncomplete && (
-        <p className="rounded-lg bg-foreground/[0.04] px-3 py-2 text-xs leading-relaxed text-label-alt">
+        <p className="rounded-lg bg-fill-alt px-3 py-2 text-xs leading-relaxed text-label-alt">
           프로필 정보가 아직이라 추천을 보여드릴 수 없어요. 아래에 직접 입력해 보세요.
         </p>
       )}
@@ -196,7 +196,7 @@ export function StepScene({
       </div>
 
       {selectedSceneText && (
-        <div className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-4 py-3">
+        <div className="rounded-lg border border-line-alt bg-fill-alt px-4 py-3">
           <p className="mb-1 text-xs text-label-alt">선택한 장면</p>
           <p className="text-sm font-medium">{selectedSceneText}</p>
         </div>

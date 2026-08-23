@@ -139,7 +139,7 @@ export function WeekSheet({
             type="button"
             onClick={() => setWeekStart(shiftWeek(weekStart, -1))}
             aria-label="이전 주"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-label-alt transition-colors hover:bg-foreground/5"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-label-alt transition-colors hover:bg-fill-alt"
           >
             <ChevronIcon className="h-4 w-4" />
           </button>
@@ -148,7 +148,7 @@ export function WeekSheet({
             type="button"
             onClick={() => setListOpen((prev) => !prev)}
             aria-expanded={listOpen}
-            className="inline-flex min-w-0 items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-foreground/5"
+            className="inline-flex min-w-0 items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-fill-alt"
           >
             <span className="truncate text-base font-semibold">{formatWeekLabel(weekStart)}</span>
             <ChevronIcon className={cn("h-3.5 w-3.5 shrink-0 -rotate-90 text-label-alt", listOpen && "rotate-90")} />
@@ -159,7 +159,7 @@ export function WeekSheet({
             onClick={() => canGoNext && setWeekStart(shiftWeek(weekStart, 1))}
             disabled={!canGoNext}
             aria-label="다음 주"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-label-alt transition-colors hover:bg-foreground/5 disabled:opacity-25 disabled:hover:bg-transparent"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-label-alt transition-colors hover:bg-fill-alt disabled:opacity-25 disabled:hover:bg-transparent"
           >
             <ChevronIcon className="h-4 w-4 rotate-180" />
           </button>
@@ -177,7 +177,7 @@ export function WeekSheet({
 
       {/* 최근 주 목록 — 제목 탭으로 펼침 */}
       {listOpen && (
-        <ul className="mb-3 max-h-56 overflow-y-auto rounded-lg border border-foreground/10">
+        <ul className="mb-3 max-h-56 overflow-y-auto rounded-lg border border-line-alt">
           {recentWeeks.map((w) => (
             <li key={w}>
               <button
@@ -187,8 +187,8 @@ export function WeekSheet({
                   setListOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-baseline justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-foreground/5",
-                  w === weekStart && "bg-foreground/[0.06]"
+                  "flex w-full items-baseline justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-fill-alt",
+                  w === weekStart && "bg-fill-normal"
                 )}
               >
                 <span className={cn("text-sm", w === weekStart ? "font-semibold" : "text-label-alt")}>
@@ -206,7 +206,7 @@ export function WeekSheet({
         <li className="mb-1">
           <Link
             href={goalHref}
-            className="flex flex-col gap-1 rounded-lg border border-foreground/25 bg-foreground/[0.03] px-3 py-3"
+            className="flex flex-col gap-1 rounded-lg border border-line-strong bg-fill-alt px-3 py-3"
           >
             <span className="flex items-baseline justify-between gap-2">
               <span className="text-[11px] font-medium text-label-alt">
@@ -245,9 +245,9 @@ export function WeekSheet({
             <div
               className={cn(
                 "flex gap-3 rounded-lg border px-3 py-2.5",
-                entry && "border-foreground/15",
-                isWritable && "border-foreground/25 bg-foreground/[0.03]",
-                !entry && !isToday && "border-dashed border-foreground/10"
+                entry && "border-line-alt",
+                isWritable && "border-line-strong bg-fill-alt",
+                !entry && !isToday && "border-dashed border-line-alt"
               )}
             >
               <div className="w-8 shrink-0 text-center">
@@ -273,7 +273,7 @@ export function WeekSheet({
                   ) : isLoading ? (
                     // 콜드 오픈(캐시 없음) 중엔 7칸이 전부 "기록 없음"으로 먼저 떴다 —
                     // 실제로 기록이 있어도 없는 것처럼 읽힌다. 중립 플레이스홀더로 대체.
-                    <span className="block h-3 w-16 animate-pulse rounded bg-foreground/10" />
+                    <span className="block h-3 w-16 animate-pulse rounded bg-fill-normal" />
                   ) : (
                     <p
                       className={cn(
@@ -289,7 +289,7 @@ export function WeekSheet({
                 {isWritable && (
                   <span
                     aria-hidden
-                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-foreground/20 text-label-alt"
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-line-normal text-label-alt"
                   >
                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" d="M12 5v14M5 12h14" />
@@ -322,7 +322,7 @@ export function WeekSheet({
         <li className="mt-1">
           <Link
             href={reviewHref}
-            className="flex flex-col gap-1 rounded-lg border border-foreground/25 bg-foreground/[0.03] px-3 py-3"
+            className="flex flex-col gap-1 rounded-lg border border-line-strong bg-fill-alt px-3 py-3"
           >
             <span className="text-[11px] font-medium text-label-alt">
               주간 회고{bucketTitle ? ` · #${bucketTitle}` : ""}

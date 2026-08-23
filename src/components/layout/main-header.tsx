@@ -30,7 +30,7 @@ export function MainHeader() {
       // 아래를 칠할 주체가 없어, 오버레이가 지나간 뒤 그 자리가 어둡게 남았다.
       // z-30: 바텀 네비와 같은 층. 시트/입력창(50)보다는 아래.
       className={cn(
-        "sticky top-0 z-30 border-b border-foreground/10 bg-background px-4",
+        "sticky top-0 z-30 border-b border-line-alt bg-background px-4",
         "pt-[env(safe-area-inset-top)]",
         SURFACE_SHADOW
       )}
@@ -49,7 +49,7 @@ export function MainHeader() {
                 aria-label={label}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:bg-foreground/5",
+                  "inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:bg-fill-alt",
                   active ? "text-label-normal" : "text-label-alt"
                 )}
               >

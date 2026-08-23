@@ -9,7 +9,7 @@ import { ReviewPageContent } from "./review-page-content";
 import { Card } from "@/components/ui/card";
 import { ErrorBox } from "@/components/ui/error-box";
 
-const SKELETON = "rounded bg-foreground/10";
+const SKELETON = "rounded bg-fill-normal";
 
 function ReviewSkeleton() {
   return (

@@ -109,7 +109,7 @@ export function RepeatOptionsSheet({
                     "inline-flex h-10 w-10 items-center justify-center rounded-full border text-sm transition-colors",
                     active
                       ? "border-inverse-background bg-inverse-background text-inverse-label"
-                      : "border-foreground/20 text-label-normal hover:bg-foreground/5"
+                      : "border-line-normal text-label-normal hover:bg-fill-alt"
                   )}
                 >
                   {label}
@@ -146,7 +146,7 @@ function OptionRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition-colors hover:bg-foreground/5",
+        "flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition-colors hover:bg-fill-alt",
         active && "font-semibold"
       )}
     >
