@@ -35,12 +35,13 @@ const UI = `
   .warn { color: #b4530a; }
   .ok { color: #0a7d4b; }
 </style>
-<h2>텍스트 스타일 폰트 교체</h2>
+<h2 id="title">텍스트 스타일 폰트 교체</h2>
 <p class="sum" id="sum">확인하는 중…</p>
 <div class="box" id="log"></div>
 <div class="row">
   <button id="close">닫기</button>
-  <button id="apply" class="go" disabled>적용하기</button>
+  <button id="fixtext">선택 영역 텍스트 정리</button>
+  <button id="apply" class="go" disabled>폰트 교체 적용</button>
 </div>
 <script>
   const $ = (id) => document.getElementById(id);
@@ -58,6 +59,11 @@ const UI = `
     parent.postMessage({ pluginMessage: { type: 'apply' } }, '*');
   };
   $('close').onclick = () => parent.postMessage({ pluginMessage: { type: 'close' } }, '*');
+  $('fixtext').onclick = () => {
+    $('fixtext').disabled = true;
+    $('fixtext').textContent = '정리 중…';
+    parent.postMessage({ pluginMessage: { type: 'fixtext' } }, '*');
+  };
 </script>
 `;
 
@@ -184,8 +190,71 @@ async function apply() {
   );
 }
 
+// ── 선택한 프레임의 텍스트 레이아웃 정리 ──────────────────
+//
+// MCP 연결로 화면을 그리면 텍스트가 잘린 채로 남는다 — 그쪽에는 로컬 폰트가 없어
+// 글자 크기를 계산하지 못하고, textAutoResize·textAlignHorizontal 도 못 건드린다.
+// 여기(데스크톱 Figma)에서는 폰트가 있으므로 한 번 훑어 주면 제자리를 찾는다.
+//
+// 정렬은 부모 프레임 이름으로 정한다 — MCP 가 만든 구조의 규칙이다.
+//   head, btn_fill/*, foot  → 가운데
+//   그 외                    → 왼쪽
+async function fixText() {
+  const sel = figma.currentPage.selection;
+  if (sel.length === 0) {
+    send('<span class="warn">✕ 정리할 프레임을 먼저 선택하세요.</span>',
+      "캔버스에서 프레임(예: login, signup)을 하나 이상 고른 뒤 다시 누르세요.", false);
+    return;
+  }
+
+  const texts = [];
+  for (const node of sel) {
+    if ("findAll" in node) texts.push(...node.findAll((n) => n.type === "TEXT"));
+    else if (node.type === "TEXT") texts.push(node);
+  }
+  if (texts.length === 0) {
+    send('<span class="warn">✕ 선택 안에 텍스트가 없습니다.</span>', "", false);
+    return;
+  }
+
+  // 폰트를 전부 먼저 로드한다. 하나라도 실패하면 아무것도 바꾸지 않는다.
+  const fonts = new Map();
+  for (const t of texts) {
+    for (const seg of t.getStyledTextSegments(["fontName"])) {
+      const f = seg.fontName;
+      fonts.set(`${f.family}|${f.style}`, f);
+    }
+  }
+  try {
+    for (const f of fonts.values()) await figma.loadFontAsync(f);
+  } catch (e) {
+    send('<span class="warn">✕ 폰트 로드 실패 — 아무것도 바꾸지 않았습니다.</span>',
+      String((e && e.message) || e), false, true);
+    return;
+  }
+
+  let n = 0;
+  for (const t of texts) {
+    const p = t.parent ? t.parent.name : "";
+    const centered = p === "head" || p === "foot" || p.indexOf("btn_fill") === 0;
+    // 폭은 레이아웃이 정하고 높이만 내용에 맞춘다. 부모가 오토레이아웃이 아니면 둘 다.
+    const inAuto = t.parent && "layoutMode" in t.parent && t.parent.layoutMode !== "NONE";
+    t.textAutoResize = inAuto ? "HEIGHT" : "WIDTH_AND_HEIGHT";
+    t.textAlignHorizontal = centered ? "CENTER" : "LEFT";
+    n++;
+  }
+
+  send(`<span class="ok">✓ 텍스트 ${n}개를 정리했습니다.</span>`,
+    `선택한 프레임: ${sel.map((s) => s.name).join(", ")}\n` +
+    `로드한 폰트: ${[...fonts.values()].map((f) => f.family + " " + f.style).join(", ")}\n\n` +
+    "폭은 오토레이아웃이 정하고 높이는 내용에 맞췄습니다.\n" +
+    "정렬은 부모 이름으로 정했습니다 — head·foot·btn_fill 은 가운데, 나머지는 왼쪽.",
+    false, true);
+}
+
 figma.ui.onmessage = async (msg) => {
   if (msg.type === "apply") await apply();
+  else if (msg.type === "fixtext") await fixText();
   else if (msg.type === "close") figma.closePlugin();
 };
 
