@@ -97,7 +97,7 @@ export function StepConfirm({
       {error && <p className="text-center text-sm text-danger">{error}</p>}
 
       <div className="flex gap-2">
-        <Button type="button" variant="secondary" onClick={onBack} className="flex-1">
+        <Button type="button" variant="line" onClick={onBack} className="flex-1">
           이전
         </Button>
         <Button type="button" onClick={onSubmit} isLoading={isLoading} className="flex-1" disabled={isLoading}>

@@ -3,6 +3,7 @@ import { Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import { ToastProvider } from "@/components/ui/toast";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { APP } from "@/lib/constants/brand";
 import "./globals.css";
 
 // Gmarket Sans — 지마켓이 무료 배포하는 글꼴(제약 없이 수정·재배포 허용).
@@ -33,7 +34,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "slowgoes - 나의 속도로, 천천히",
+  title: `${APP.NAME} - ${APP.TAGLINE}`,
   description:
     "내 속도에 맞게 삶의 목표를 실행가능한 리듬으로 바꾼다",
   // 홈 화면 앱(iOS) — app/manifest.ts와 짝. 구 iOS는 매니페스트를 보지 않고

@@ -1,5 +1,7 @@
 # slowgoes
 
+> **Your values, your pace**
+>
 > 나의 속도로, 천천히. — AI가 추상적인 삶의 장면을 시간의 지평 + 루틴 + 데일리투두로 분해해주고, 사용자가 결정하고 실행한다.
 
 ## Tech Stack

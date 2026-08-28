@@ -207,7 +207,7 @@ export function StepScene({
         {isProfileStep && (
           <Button
             type="button"
-            variant="secondary"
+            variant="line"
             onClick={onBack}
             className="flex-1"
             disabled={isSubmitting}

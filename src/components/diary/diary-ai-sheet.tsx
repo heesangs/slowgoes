@@ -147,7 +147,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
           className="w-full resize-none rounded-lg border border-line-normal bg-transparent px-3 py-2 text-sm text-label-normal outline-none placeholder:text-label-disable focus:border-line-strong"
         />
         <Button
-          variant="secondary"
+          variant="line"
           onClick={() => run({ question: trimmedQuestion, title: trimmedQuestion.slice(0, 60) })}
           disabled={loading || trimmedQuestion.length === 0}
           className="w-full"
@@ -167,7 +167,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
           <p className="text-2xs font-medium">생성하지 못했어요</p>
           <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-label-neutral">{error}</p>
           {lastRun && (
-            <Button variant="secondary" onClick={() => run(lastRun)} className="mt-3 w-full">
+            <Button variant="line" onClick={() => run(lastRun)} className="mt-3 w-full">
               다시 시도
             </Button>
           )}

@@ -149,7 +149,7 @@ export function StepAnalysis({
                 </p>
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="line"
                   size="sm"
                   onClick={onRetryAnalysis}
                   className="mt-2 w-full"
@@ -169,7 +169,7 @@ export function StepAnalysis({
           <div className="mt-3 flex justify-end">
             <Button
               type="button"
-              variant="secondary"
+              variant="line"
               size="sm"
               onClick={onRetryAnalysis}
             >
@@ -184,7 +184,7 @@ export function StepAnalysis({
       <div className="flex gap-2">
         <Button
           type="button"
-          variant="secondary"
+          variant="line"
           onClick={onBack}
           className="flex-1"
           disabled={isAnalyzingLifeScene}

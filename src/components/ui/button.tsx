@@ -3,23 +3,39 @@
 import { cn } from "@/lib/utils";
 import { ButtonHTMLAttributes, forwardRef } from "react";
 
-// 버튼 variant별 스타일
+// 버튼 4종 — Figma 컴포넌트(36902:44778 / 44821 / 44800 / 44791)를 옮긴 것.
+// 각 4상태(Default / hover / press / disable)를 그대로 담는다.
+//
+//   fill     초록 면. 화면당 하나인 주 행동
+//   outline  초록 테두리·글자. 주 행동과 나란히 놓는 보조(랜딩의 "회원가입")
+//   line     회색 테두리. 중립 행동
+//   text     테두리 없음. 가장 약한 행동
+//
+// Figma 스펙의 색이 이미 코드 토큰과 맞물린다 —
+// outline 의 #067644 는 label-primary(Green/30)와 같은 값이다.
 const variantStyles = {
-  // Primary 면 위 라벨은 **테마와 무관하게** 검정이다 — 밝은 민트 위에서
-  // label/inverse 계열은 테마에 따라 흰색이 되어 1.4:1까지 떨어진다.
-  primary:
-    "bg-primary-normal text-static-black hover:bg-primary-strong active:bg-primary-heavy",
-  secondary:
-    "bg-transparent border border-line-normal text-label-normal hover:bg-fill-alt active:bg-fill-normal",
-  ghost:
-    "bg-transparent text-label-normal hover:bg-fill-alt active:bg-fill-normal",
+  fill:
+    "bg-primary-normal text-static-black hover:bg-primary-strong active:bg-primary-heavy " +
+    "disabled:bg-interaction-disable disabled:text-label-disable",
+  outline:
+    "border-2 border-label-primary bg-background text-label-primary " +
+    "hover:bg-background-alt active:bg-background-alt " +
+    "disabled:border-interaction-disable disabled:bg-fill-alt disabled:text-label-disable",
+  line:
+    "border border-line-normal bg-transparent text-label-neutral " +
+    "hover:bg-fill-alt active:bg-fill-normal " +
+    "disabled:bg-interaction-disable disabled:text-label-disable",
+  text:
+    "bg-transparent text-label-neutral hover:bg-fill-alt active:bg-fill-normal " +
+    "disabled:bg-interaction-disable disabled:text-label-disable",
 } as const;
 
-// 버튼 크기별 스타일
+// 높이는 44px 을 지킨다 — Figma 는 40px 이지만 모바일 터치 타겟 권장이 44px 이다.
+// 색·라운드·여백은 Figma 그대로.
 const sizeStyles = {
-  sm: "px-3 py-2 text-sm min-h-[44px]",
-  md: "px-4 py-2 text-base min-h-[44px]",
-  lg: "px-6 py-3 text-lg min-h-[52px]",
+  sm: "px-3 text-sm min-h-[44px]",
+  md: "px-4 text-sm min-h-[44px]",
+  lg: "px-6 text-base min-h-[52px]",
 } as const;
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -29,12 +45,15 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "primary", size = "md", isLoading, disabled, children, ...props }, ref) => {
+  ({ className, variant = "fill", size = "md", isLoading, disabled, children, ...props }, ref) => {
     return (
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center rounded-lg font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-label-normal/30",
+          // radius 4 · 라벨 Bold 는 Figma 스펙
+          "inline-flex items-center justify-center gap-2 rounded font-bold transition-all cursor-pointer",
+          "disabled:cursor-not-allowed",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-label-normal/30",
           variantStyles[variant],
           sizeStyles[size],
           className

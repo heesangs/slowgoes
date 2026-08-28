@@ -301,7 +301,7 @@ export function ProfileContent() {
 
           {/* 로그아웃 */}
           <Button
-            variant="secondary"
+            variant="line"
             onClick={handleSignOut}
             isLoading={isSigningOut}
             className="w-full"

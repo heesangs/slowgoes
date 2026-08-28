@@ -25,7 +25,7 @@ export function DemoStartLink({ className }: { className?: string }) {
         }
       }}
     >
-      로그인 없이 체험해보기 →
+      체험해보기 →
     </Link>
   );
 }

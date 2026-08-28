@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signInAction } from "@/app/(auth)/actions";
 import Link from "next/link";
+import { APP } from "@/lib/constants/brand";
 import { Suspense, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { FORM_WIDTH } from "@/lib/constants/layout";
@@ -142,11 +143,15 @@ export default function LoginPage() {
   return (
     <div className={cn("mx-auto w-full", FORM_WIDTH)}>
       <div>
-        <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold mb-2 inline-block hover:opacity-70 transition-opacity">slowgoes</Link>
-          <p className="text-sm text-label-alt">
-            나의 속도로, 천천히 확실하게
-          </p>
+        {/* 랜딩과 같은 머리 구성 — 로고 + 핵심 가치 한 줄 */}
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <Link
+            href="/"
+            className="text-2xl font-bold text-label-neutral transition-opacity hover:opacity-70"
+          >
+            {APP.NAME}
+          </Link>
+          <p className="text-base text-label-neutral">{APP.TAGLINE}</p>
         </div>
 
         <Suspense>

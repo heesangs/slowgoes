@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signUpAction } from "@/app/(auth)/actions";
 import Link from "next/link";
+import { APP } from "@/lib/constants/brand";
 import { useState } from "react";
 import { DemoDataBanner } from "@/components/auth/demo-data-banner";
 import { FORM_WIDTH } from "@/lib/constants/layout";
@@ -53,12 +54,16 @@ export default function SignUpPage() {
   return (
     <div className={cn("mx-auto w-full", FORM_WIDTH)}>
       <div>
-        <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold mb-2 inline-block hover:opacity-70 transition-opacity">slowgoes</Link>
-          <h2 className="text-lg font-bold mb-2">회원가입</h2>
-          <p className="text-sm text-label-alt">
-            나만의 속도로 공부를 시작해보세요
-          </p>
+        {/* 랜딩과 같은 머리 구성 — 로고 + 핵심 가치 한 줄 */}
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <Link
+            href="/"
+            className="text-2xl font-bold text-label-neutral transition-opacity hover:opacity-70"
+          >
+            {APP.NAME}
+          </Link>
+          <p className="text-base text-label-neutral">{APP.TAGLINE}</p>
+          <h2 className="mt-2 text-lg font-bold text-label-normal">회원가입</h2>
         </div>
 
         <DemoDataBanner />

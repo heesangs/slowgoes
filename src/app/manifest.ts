@@ -12,7 +12,7 @@ import { APP } from "@/lib/constants";
 //    iOS는 추가하는 시점의 설정을 캐시한다.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: `${APP.NAME} - 나의 속도로, 천천히`,
+    name: `${APP.NAME} - ${APP.TAGLINE}`,
     short_name: APP.NAME,
     description: "내 속도에 맞게 삶의 목표를 실행가능한 리듬으로 바꾼다",
     // 아이콘을 눌렀을 때 여는 화면. 랜딩(/)이 아니라 바로 대시보드로.
