@@ -18,8 +18,8 @@
   기본 본문(400)은 Medium 이 받는다. `src/app/layout.tsx` 참조
 - 악센트 라틴(À Á Â…)은 **원본에 아예 없어** fallback 이 받는다
 
-## 남겨둔 것 — Pretendard
+## 되돌릴 일이 생기면
 
-직전에 쓰던 폰트. 하이브리드(제목만 Gmarket)나 복귀를 대비해 남겨 두었다.
-`next/font/local` 은 참조된 파일만 번들하므로 배포 용량에는 영향이 없다.
-방향이 확정되면 지운다.
+직전에 쓰던 Pretendard 서브셋은 PR #129 커밋에 있다. 하이브리드(제목만 Gmarket +
+본문 Pretendard)로 가려면 거기서 파일 3개를 되살리고 `src/app/layout.tsx` 의
+`localFont` 선언과 `globals.css` 의 `--font-sans` 를 되돌리면 된다.

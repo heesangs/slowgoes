@@ -22,11 +22,12 @@
   --label-alt: #00000094;
   --label-assistive: #00000061;
   --label-disable: #37383c29;
-  /* 글자·아이콘용 Primary. 면(--primary-normal)과 달리 **두 모드 모두 Green/40 고정**.
-     ⚠️ 라이트에서 2.76:1 — 글자(4.5) 는 물론 아이콘(3.0) 기준도 못 넘는다.
-        Green 램프에 양쪽을 다 만족하는 단계가 없어(Green/30 은 다크가 2.99),
-        고치려면 danger·warning 처럼 테마별로 나눠야 한다. */
-  --label-primary: #05b273;
+  /* 글자·아이콘용 Primary. 면(--primary-normal)과 달리 **테마별로 다른 단계**를 쓴다.
+     Green 램프에 양쪽을 다 만족하는 단계가 없기 때문이다 —
+       Green/30 #067644  라이트 5.70 ✅ / 다크 2.99 ❌
+       Green/40 #05b273  라이트 2.76 ❌ / 다크 6.19 ✅
+     그래서 danger·warning 과 같은 방식으로 나눈다(라이트=진한 쪽 / 다크=밝은 쪽). */
+  --label-primary: #067644;
 
   /* ── Background — Normal(바탕)과 Elevated(카드·시트) 두 층.
         라이트에서는 두 층이 같은 흰색이고, 다크에서만 갈린다. */
@@ -39,7 +40,14 @@
         Semantic의 Line/Solid 4단계는 이 앱이 한 번도 쓰지 않아 뺐다.
           alt     카드 테두리·구분선
           normal  컨트롤 테두리(버튼·인풋·세그먼트)
-          strong  선택 상태 강조·핸들 */
+          strong  선택 상태 강조·핸들
+
+        ⚠️ line-normal 은 WCAG 1.4.11(UI 경계 3:1)을 못 넘는다 — 라이트 1.45 / 다크 2.92.
+           **의도적으로 유지하는 값이다.** 후보를 다 재봤지만 전부 미달이었고
+           (Figma Semantic 1.32 / Figma line-solid-strong 2.17 / 실제 화면 1.45),
+           3:1 을 맞추려면 테두리가 #8a8a8a 수준이 되어 앱 인상이 통째로 바뀐다.
+           인풋은 플레이스홀더·라벨·배경으로도 식별되므로 테두리만으로 판단하지 않는다.
+           다시 재보기 전에 이 주석을 먼저 읽을 것. */
   --line-alt: #00000012;
   --line-normal: #00000029;
   --line-strong: #0000004d;
@@ -61,7 +69,10 @@
   --status-cautionary: #ff9200;
   --status-negative: #ff4242;
 
-  /* ── Inverse — 바탕과 글자를 뒤집은 짝(선택 상태·기본 버튼) */
+  /* ── Inverse — 바탕과 글자를 뒤집은 짝.
+        **선택 상태(날짜·칩·세그먼트 21곳)는 의도적으로 흑백이다.** Primary 그린은
+        기본 버튼에만 쓴다 — "강조는 하나"라는 위계를 지키기 위해서다.
+        선택까지 그린으로 칠하면 화면에 초록이 너무 많아진다. */
   --inverse-background: #1b1c1e;
   --inverse-label: #f7f7f8;
   --inverse-primary: #14f387;
