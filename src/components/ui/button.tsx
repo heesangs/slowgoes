@@ -30,11 +30,11 @@ const variantStyles = {
     "disabled:bg-interaction-disable disabled:text-label-disable",
 } as const;
 
-// 높이는 44px 을 지킨다 — Figma 는 40px 이지만 모바일 터치 타겟 권장이 44px 이다.
-// 색·라운드·여백은 Figma 그대로.
+// 기본(md)은 48px — 인증 화면 Figma(37594:83755)의 버튼 높이다.
+// 어느 크기든 44px 아래로 내려가지 않는다(모바일 터치 타겟 권장).
 const sizeStyles = {
   sm: "px-3 text-sm min-h-[44px]",
-  md: "px-4 text-sm min-h-[44px]",
+  md: "px-4 text-sm min-h-[48px]",
   lg: "px-6 text-base min-h-[52px]",
 } as const;
 

@@ -143,14 +143,9 @@ export default function LoginPage() {
   return (
     <div className={cn("mx-auto w-full", FORM_WIDTH)}>
       <div>
-        {/* 랜딩과 같은 머리 구성 — 로고 + 핵심 가치 한 줄 */}
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <Link
-            href="/"
-            className="text-2xl font-bold text-label-neutral transition-opacity hover:opacity-70"
-          >
-            {APP.NAME}
-          </Link>
+        {/* Figma 37594:83755 — 화면 이름이 제목이고 그 아래 핵심 가치 한 줄 */}
+        <div className="mb-8 flex flex-col items-center gap-2 text-center">
+          <h1 className="text-3xl font-bold text-label-neutral">login</h1>
           <p className="text-base text-label-neutral">{APP.TAGLINE}</p>
         </div>
 
@@ -210,9 +205,9 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="text-sm text-label-alt text-center mt-6">
+        <p className="mt-6 text-center text-sm text-label-alt">
           아직 계정이 없으신가요?{" "}
-          <Link href="/signup" className="text-label-normal font-medium hover:underline">
+          <Link href="/signup" className="font-bold text-label-normal hover:underline">
             회원가입
           </Link>
         </p>

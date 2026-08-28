@@ -54,16 +54,10 @@ export default function SignUpPage() {
   return (
     <div className={cn("mx-auto w-full", FORM_WIDTH)}>
       <div>
-        {/* 랜딩과 같은 머리 구성 — 로고 + 핵심 가치 한 줄 */}
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <Link
-            href="/"
-            className="text-2xl font-bold text-label-neutral transition-opacity hover:opacity-70"
-          >
-            {APP.NAME}
-          </Link>
+        {/* 로그인(Figma 37594:83755)과 같은 구성 — 화면 이름 + 핵심 가치 한 줄 */}
+        <div className="mb-8 flex flex-col items-center gap-2 text-center">
+          <h1 className="text-3xl font-bold text-label-neutral">signup</h1>
           <p className="text-base text-label-neutral">{APP.TAGLINE}</p>
-          <h2 className="mt-2 text-lg font-bold text-label-normal">회원가입</h2>
         </div>
 
         <DemoDataBanner />
@@ -111,9 +105,9 @@ export default function SignUpPage() {
           </Button>
         </form>
 
-        <p className="text-sm text-label-alt text-center mt-6">
+        <p className="mt-6 text-center text-sm text-label-alt">
           이미 계정이 있으신가요?{" "}
-          <Link href="/login" className="text-label-normal font-medium hover:underline">
+          <Link href="/login" className="font-bold text-label-normal hover:underline">
             로그인
           </Link>
         </p>
