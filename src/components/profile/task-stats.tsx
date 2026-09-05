@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { ChevronDownIcon } from "@/components/ui/icons";
 import { FEATURE_NAMES } from "@/lib/constants";
 import type { TaskStats } from "@/types";
 
@@ -36,6 +38,21 @@ export function TaskStatsSection({ stats }: TaskStatsSectionProps) {
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-base font-bold">나의 통계</h2>
+
+      {/* 완료한 버킷 — 이 앱은 하나에 집중하는 앱이라 "끝낸 개수"가 곧 성취 기록이다.
+          0개면 걸지 않는다: 갈 곳 없는 링크가 되고, 아직 아무것도 못 끝냈다는 인상만 준다. */}
+      {stats.completedBuckets > 0 && (
+        <Link
+          href="/buckets/completed"
+          className="flex items-center gap-2 rounded-xl border border-line-alt bg-background-elevated px-4 py-3 transition-colors hover:bg-fill-alt"
+        >
+          <span className="min-w-0 flex-1 text-sm text-label-neutral">
+            완료한 {FEATURE_NAMES.BUCKET}{" "}
+            <span className="font-bold">{stats.completedBuckets}개</span>
+          </span>
+          <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 -rotate-90 text-label-alt" strokeWidth={2} />
+        </Link>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Card>

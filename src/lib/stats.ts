@@ -119,7 +119,8 @@ export async function getTaskStats(
   const weekStart = getCurrentWeekStartDate();
 
   // Phase B: 통합 todos — 반복 없음=구 투두, 반복 있음=구 루틴 의미로 집계
-  const [todosResult, completionsResult, actionLogsResult] = await Promise.all([
+  const [todosResult, completionsResult, actionLogsResult, completedBucketsResult] =
+    await Promise.all([
     supabase
       .from("todos")
       .select("id, repeat_type, is_active")
@@ -132,11 +133,17 @@ export async function getTaskStats(
       .from("action_logs")
       .select("completed_at")
       .eq("user_id", userId),
+    supabase
+      .from("buckets")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "completed"),
   ]);
 
   if (todosResult.error) throw new Error(todosResult.error.message);
   if (completionsResult.error) throw new Error(completionsResult.error.message);
   if (actionLogsResult.error) throw new Error(actionLogsResult.error.message);
+  if (completedBucketsResult.error) throw new Error(completedBucketsResult.error.message);
 
   const todos =
     (todosResult.data as Array<{
@@ -161,6 +168,7 @@ export async function getTaskStats(
   }).length;
 
   return {
+    completedBuckets: completedBucketsResult.count ?? 0,
     totalDailyTodos: onceTodos.length,
     completedDailyTodos: onceTodos.filter((t) => completedOnceIds.has(t.id)).length,
     totalRoutines: todos.filter((t) => t.repeat_type && t.is_active).length,

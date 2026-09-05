@@ -23,6 +23,7 @@ export interface ProfileViewData {
 }
 
 const FALLBACK_STATS: TaskStats = {
+  completedBuckets: 0,
   totalDailyTodos: 0,
   completedDailyTodos: 0,
   totalRoutines: 0,
