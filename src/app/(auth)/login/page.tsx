@@ -5,6 +5,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signInAction } from "@/app/(auth)/actions";
+import { AuthBackLink } from "@/components/auth/auth-back-link";
 import Link from "next/link";
 import { APP } from "@/lib/constants/brand";
 import { Suspense, useEffect, useState, useMemo } from "react";
@@ -142,6 +143,7 @@ export default function LoginPage() {
 
   return (
     <div className={cn("mx-auto w-full", FORM_WIDTH)}>
+      <AuthBackLink />
       <div>
         {/* Figma 37594:83755 — 화면 이름이 제목이고 그 아래 핵심 가치 한 줄 */}
         <div className="mb-8 flex flex-col items-center gap-2 text-center">

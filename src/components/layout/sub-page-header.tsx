@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { BackIcon } from "@/components/ui/icons";
 import { CONTENT_WIDTH } from "@/lib/constants/layout";
 
 interface SubPageHeaderProps {
@@ -28,20 +29,6 @@ interface SubPageHeaderProps {
 const BACK_BUTTON_CLASS =
   "inline-flex h-9 w-9 items-center justify-center rounded-lg text-label-normal transition-colors hover:bg-fill-alt";
 
-function BackIcon() {
-  return (
-    <svg
-      className="h-5 w-5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.5}
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-    </svg>
-  );
-}
-
 export function SubPageHeader({ title, actions, backHref, onBack, hideBack }: SubPageHeaderProps) {
   const router = useRouter();
 
@@ -58,7 +45,7 @@ export function SubPageHeader({ title, actions, backHref, onBack, hideBack }: Su
           {!hideBack &&
             (backHref ? (
               <Link href={backHref} aria-label="뒤로" className={BACK_BUTTON_CLASS}>
-                <BackIcon />
+                <BackIcon className="h-5 w-5" />
               </Link>
             ) : (
               <button
@@ -67,7 +54,7 @@ export function SubPageHeader({ title, actions, backHref, onBack, hideBack }: Su
                 onClick={onBack ?? (() => router.back())}
                 className={BACK_BUTTON_CLASS}
               >
-                <BackIcon />
+                <BackIcon className="h-5 w-5" />
               </button>
             ))}
           {title != null && (

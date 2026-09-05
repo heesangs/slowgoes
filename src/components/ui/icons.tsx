@@ -81,6 +81,15 @@ export function ChevronDownIcon({ className, strokeWidth = 2 }: IconProps & { st
   );
 }
 
+/** 뒤로(‹) — 서브페이지 헤더와 인증 화면이 공유한다 */
+export function BackIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+    </svg>
+  );
+}
+
 /** 겹꺾쇠(≫) — "다음 목표"처럼 한 단계 넘어가는 행동 (피그마 37849:43934) */
 export function DoubleChevronRightIcon({ className }: IconProps) {
   return (
