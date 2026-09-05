@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AiSuggestionsSheet } from "@/components/dashboard/ai-suggestions-sheet";
 import { BucketBar } from "@/components/dashboard/bucket-bar";
 import { CalendarSection } from "@/components/dashboard/calendar-section";
-import { DirectionSheet } from "@/components/dashboard/direction-sheet";
+import { PlanDropdown } from "@/components/dashboard/plan-dropdown";
 import { ExploreNewSceneSheet } from "@/components/dashboard/explore-new-scene-sheet";
 import { RepeatOptionsSheet } from "@/components/dashboard/repeat-options-sheet";
 import {
@@ -85,8 +85,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   >(null);
   // R1: 새 버킷 추가 시트 (구 BucketSwitcher + 칩에서 버킷 카드 시트로 이동)
   const [exploreOpen, setExploreOpen] = useState(false);
-  // R3: 지향점 시트 (구 DirectionSection → 캘린더 헤더 ▼로 진입)
-  const [directionOpen, setDirectionOpen] = useState(false);
   // R2: AI 추천 3개 선택 시트
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [aiSheetOpen, setAiSheetOpen] = useState(false);
@@ -218,12 +216,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     setInputMode({ type: "edit", stride: item });
     // 클릭 제스처 안에서 동기 focus → iOS 소프트 키보드 즉시 오픈
     inputHandleRef.current?.focus();
-  }
-
-  // R3: 지향점 시트 카드 탭 → 시트 닫고 키보드 입력창으로 수정
-  function handleEditStrideFromSheet(item: StrideItem) {
-    setDirectionOpen(false);
-    handleEditOpen(item);
   }
 
   // 시트 편집 모드 [수정] → 키보드 입력창으로 해당 버킷 타이틀 수정 (임의 버킷 대상)
@@ -505,10 +497,16 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       />
 
       {data.stridePlan && (
-        /* R3: 지향점은 캘린더 헤더 ▼로 흡수 (DirectionSection 제거) */
+        /* 계획(언젠가·올해안·해당 달)은 캘린더 위 드롭다운으로 (구 지향점 시트 흡수) */
         <CalendarSection
-          thisMonthStride={thisMonthStride}
-          onOpenDirection={() => setDirectionOpen(true)}
+          plan={
+            <PlanDropdown
+              directionItems={strideGroups.direction}
+              monthStride={thisMonthStride}
+              monthLabel={monthLabel}
+              onEditStride={handleEditOpen}
+            />
+          }
           age={data.profile.life_clock_age}
           userName={data.profile.display_name}
           todos={todos}
@@ -628,16 +626,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             </KaiIconButton>
           ) : undefined
         }
-      />
-
-      {/* R3: 지향점 시트 — 캘린더 헤더 ▼로 진입, 카드 탭 = 바로 수정 */}
-      <DirectionSheet
-        open={directionOpen}
-        onClose={() => setDirectionOpen(false)}
-        directionItems={strideGroups.direction}
-        monthStride={thisMonthStride}
-        monthLabel={monthLabel}
-        onEditStride={handleEditStrideFromSheet}
       />
 
       {/* R2: AI 추천 3개 선택 시트 — 등록 시 캐시 append (입력창 위에 오버레이) */}
