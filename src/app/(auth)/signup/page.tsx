@@ -5,6 +5,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signUpAction } from "@/app/(auth)/actions";
+import { AuthBackLink } from "@/components/auth/auth-back-link";
 import Link from "next/link";
 import { APP } from "@/lib/constants/brand";
 import { useState } from "react";
@@ -53,6 +54,7 @@ export default function SignUpPage() {
 
   return (
     <div className={cn("mx-auto w-full", FORM_WIDTH)}>
+      <AuthBackLink />
       <div>
         {/* 로그인(Figma 37594:83755)과 같은 구성 — 화면 이름 + 핵심 가치 한 줄 */}
         <div className="mb-8 flex flex-col items-center gap-2 text-center">
