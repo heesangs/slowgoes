@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Bucket,
+  BucketSummary,
   BucketTodosData,
   StridePlan,
   LifeBalanceInsight,
@@ -69,11 +70,12 @@ export async function getProfile(
 export async function getUserBuckets(
   supabase: DashboardSupabase,
   userId: string
-): Promise<Array<Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at">>> {
+): Promise<BucketSummary[]> {
   try {
     const { data, error } = await supabase
       .from("buckets")
-      .select("id, title, stride_scope, status, created_at")
+      // completed_at: 완료한 버킷 목록이 "언제 끝냈는지"를 보여준다
+      .select("id, title, stride_scope, status, created_at, completed_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -81,10 +83,7 @@ export async function getUserBuckets(
       throw error;
     }
 
-    return (
-      (data as Array<Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at">> | null) ??
-      []
-    );
+    return (data as BucketSummary[] | null) ?? [];
   } catch (error) {
     throw toClientError(error, "버킷 정보를 불러오지 못했습니다.");
   }

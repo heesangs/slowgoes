@@ -24,6 +24,7 @@ import {
   addTodosAction,
   completeBucketAction,
   deleteBucketAction,
+  restoreBucketAction,
   deleteTodoAction,
   generateTodoSuggestionsAction,
   toggleTodoCompletionAction,
@@ -42,7 +43,7 @@ import { useBucketTodos } from "@/hooks/use-todos";
 import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { josa } from "@/lib/utils";
-import { daysLeftInYear } from "@/lib/utils/period";
+import { daysLeftInYear, daysSince } from "@/lib/utils/period";
 import {
   deriveTodosForDate,
   formatRepeatInputLabel,
@@ -218,12 +219,37 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         return;
       }
       setCompleteOpen(false);
-      toast(`'${bucket.title}'을 완료했어요. 수고했어요 🎉`, "success");
+      toast(`'${bucket.title}' 완료. 수고했어요.`, "success");
       // 목록에서 빠지므로 대시보드 캐시 전체 무효화 후 남은 버킷으로 이동
       await invalidateDashboard();
       const nextBucket = data.buckets.find((b) => b.id !== bucket.id);
       router.replace(nextBucket ? `/dashboard?bucket=${nextBucket.id}` : "/dashboard");
     });
+  }
+
+  // 버킷 다시 시작하기 — 버킷 시트 "완료한 버킷" 목록.
+  // 파괴적이지 않아 확인 단계를 두지 않는다(실수해도 다시 완료하면 그만).
+  //
+  // useTransition이 아니라 직접 상태를 드는 이유: 성공 여부를 **돌려줘야** 시트가
+  // 스스로 닫힌다. 실패(이름 겹침)일 땐 시트가 열린 채로 남아야 이어서 손볼 수 있다.
+  const [isRestoringBucket, setIsRestoringBucket] = useState(false);
+  async function handleRestoreBucket(bucket: { id: string; title: string }): Promise<boolean> {
+    if (isRestoringBucket) return false;
+    setIsRestoringBucket(true);
+    try {
+      const result = await restoreBucketAction(bucket.id);
+      if (!result.success) {
+        toast(result.error ?? `${FEATURE_NAMES.BUCKET}을 다시 시작하지 못했어요.`, "error");
+        return false;
+      }
+      toast(`'${bucket.title}'${josa(bucket.title, "을", "를")} 다시 시작해요.`, "success");
+      await invalidateDashboard();
+      // 되살린 버킷을 바로 보여준다
+      router.replace(`/dashboard?bucket=${bucket.id}`);
+      return true;
+    } finally {
+      setIsRestoringBucket(false);
+    }
   }
 
   useEffect(() => {
@@ -536,6 +562,40 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   // R3: 지향점 시트의 this_month 카드 라벨은 "이번 달" 대신 해당 달(예: "7월")
   const monthLabel = `${parseDateString(getTodayDateString()).getMonth() + 1}월`;
 
+  // 완료 확인 시트에 얹을 한 줄 — "3월 12일에 시작해서 178일째예요. 완료한 할 일 42개, …"
+  //
+  // 새 쿼리 없이 이미 클라이언트에 있는 bucketTodos 로 센다.
+  //   완료한 할 일 = completion 행 수. 반복 할 일은 날마다 한 번씩 해낸 것이므로 날수로 센다.
+  //   남은 일 = 1회성(repeat_type null) 중 아직 한 번도 완료되지 않은 것.
+  //             반복 할 일은 "끝나는" 개념이 없어 남은 일에 넣지 않는다.
+  const completionSummary = useMemo(() => {
+    const bucket = data.selectedBucket;
+    if (!bucket) return null;
+
+    const parts: string[] = [];
+    if (bucket.created_at) {
+      const start = new Date(bucket.created_at);
+      parts.push(
+        `${start.getMonth() + 1}월 ${start.getDate()}일에 시작해서 ${daysSince(bucket.created_at)}일째예요.`
+      );
+    }
+
+    if (bucketTodos) {
+      const doneIds = new Set(bucketTodos.completions.map((c) => c.todo_id));
+      const remaining = bucketTodos.todos.filter(
+        (t) => !t.repeat_type && !doneIds.has(t.id)
+      ).length;
+      const done = bucketTodos.completions.length;
+      parts.push(
+        remaining > 0
+          ? `완료한 할 일 ${done}개, 아직 남은 일 ${remaining}개.`
+          : `완료한 할 일 ${done}개.`
+      );
+    }
+
+    return parts.length > 0 ? parts.join(" ") : null;
+  }, [data.selectedBucket, bucketTodos]);
+
   // PR 34: 전체 발걸음 재생성 삭제. Phase A: 수정 시 AI 재생성도 제거(텍스트 수정만).
 
   // 계획 카드 우측 슬롯 — 레벨마다 다르다 (피그마 37847:42846 조립 화면).
@@ -590,6 +650,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         onDelete={handleDeleteBucket}
         isDeleting={isDeletingBucket}
         onAddBucket={() => setExploreOpen(true)}
+        completedBuckets={data.completedBuckets}
+        onRestore={handleRestoreBucket}
+        isRestoring={isRestoringBucket}
       />
 
       {data.stridePlan && (
@@ -739,9 +802,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         />
       )}
 
-      {/* 버킷 완료 확인 — 되돌리는 UI가 없어서 한 단계 물어본다.
-          window.confirm 이 아닌 시트인 이유: 모바일 앱 톤이고, 무엇이 남고 무엇이
-          사라지는지를 두 줄로 설명해야 오해가 없다. */}
+      {/* 버킷 완료 확인 — window.confirm 이 아닌 시트인 이유: 모바일 앱 톤이고,
+          여기서 걸어온 기간과 남은 일을 보여줘야 "정말 끝났는지"를 스스로 판단할 수 있다.
+          되돌릴 수 있다는 사실도 누르기 전에 알려야 한 방향 문으로 읽히지 않는다. */}
       <BottomSheet
         open={completeOpen}
         onClose={() => setCompleteOpen(false)}
@@ -753,8 +816,11 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
               &apos;{data.selectedBucket?.title}&apos;
               {josa(data.selectedBucket?.title ?? "", "을", "를")} 완료할까요?
             </p>
+            {completionSummary && (
+              <p className="text-sm leading-relaxed text-label-alt">{completionSummary}</p>
+            )}
             <p className="text-sm leading-relaxed text-label-alt">
-              대시보드에서는 사라지지만 지금까지의 할 일과 기록은 그대로 남아요.
+              대시보드에서는 사라지지만 기록은 그대로 남고, 언제든 다시 시작할 수 있어요.
             </p>
           </div>
           <div className="flex gap-2">

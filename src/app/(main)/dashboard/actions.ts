@@ -93,10 +93,15 @@ export async function fetchDashboardDataAction(
   // 온보딩 미완 → null (로더가 /onboarding으로 보냄)
   if (!profile) return null;
 
-  // 완료한 버킷은 대시보드에서 뺀다 — 기록은 DB에 그대로 남는다(completeBucketAction).
+  // 완료한 버킷은 대시보드 주 동선에서 빼되 **버리지는 않는다** — 버킷 시트 하단의
+  // "완료한 버킷 N"이 이걸 쓰고, 거기서 다시 시작할 수 있다(restoreBucketAction).
   // 걸러진 뒤에 선택을 해석하므로, ?bucket= 이 완료된 버킷을 가리켜도 자동으로
   // 남은 활성 버킷 중 첫 번째로 넘어간다.
   const buckets = allBuckets.filter((b) => b.status !== "completed");
+  const completedBuckets = allBuckets
+    .filter((b) => b.status === "completed")
+    // 최근에 끝낸 것이 위로. completed_at이 없는 예전 행은 맨 뒤로 민다.
+    .sort((a, b) => (b.completed_at ?? "").localeCompare(a.completed_at ?? ""));
 
   // 선택 해석: 요청 버킷이 유효하면 그것, 아니면 buckets[0]
   const selectedBucketId =
@@ -116,7 +121,7 @@ export async function fetchDashboardDataAction(
     getBucketTodos(supabase, user.id, selectedBucketId),
   ]);
 
-  return { profile, buckets, selectedBucket, stridePlan, bucketTodos };
+  return { profile, buckets, completedBuckets, selectedBucket, stridePlan, bucketTodos };
 }
 
 // 버킷 단위 todos 캐시 (React Query queryFn — 키: ['todos', bucketId]).
@@ -579,6 +584,101 @@ export async function completeBucketAction(
     return {
       success: false,
       error: toClientErrorMessage(error, BUCKET_ERRORS.COMPLETE_ERROR),
+    };
+  }
+}
+
+/**
+ * 버킷 되돌리기 — 버킷 시트 "완료한 버킷" 목록의 [다시 시작하기].
+ *
+ * completeBucketAction의 역방향. status를 in_progress로 되돌리고 completed_at을 지운다.
+ * 새 버킷을 save_onboarding_journey가 in_progress로 넣으므로 그게 곧 "원래 상태"다 —
+ * 완료 직전 상태를 따로 기억해 둘 컬럼이 필요 없다.
+ *
+ * completed_at을 NULL로 지우는 이유: 남겨두면 "완료 안 했는데 완료일이 있는" 행이 생겨
+ * 목록 쿼리가 지저분해진다. 완료↔복구 이력이 필요해지면 별도 테이블로 간다.
+ *
+ * 투두·발걸음·완료 기록은 애초에 지운 적이 없으므로 그대로 살아난다.
+ */
+export async function restoreBucketAction(
+  bucketId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const trimmed = bucketId?.trim();
+    if (!trimmed) {
+      return { success: false, error: BUCKET_ERRORS.NOT_FOUND_OR_ACCESS_DENIED };
+    }
+
+    const { data: target, error: loadError } = await supabase
+      .from("buckets")
+      .select("id, life_area_id, title, status")
+      .eq("id", trimmed)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (loadError) throw loadError;
+    if (!target) {
+      return { success: false, error: BUCKET_ERRORS.NOT_FOUND_OR_ACCESS_DENIED };
+    }
+
+    const bucket = target as {
+      id: string;
+      life_area_id: string | null;
+      title: string;
+      status: string;
+    };
+
+    // 이미 활성이면 할 일이 없다 (목록이 잠깐 낡았을 때)
+    if (bucket.status !== "completed") {
+      revalidatePath("/dashboard");
+      return { success: true };
+    }
+
+    // 활성 중복 사전 검사 —
+    // buckets_user_lifearea_title_active_unique 는 (user_id, life_area_id, title) 에
+    // status NOT IN ('completed','paused') 조건으로 걸려 있다. 즉 완료한 뒤 같은 이름으로
+    // 새 버킷을 만들 수 있고, 그 상태에서 복구하면 활성이 둘이 되어 반드시 실패한다.
+    // DB 에러를 그대로 보여주는 대신 여기서 먼저 사람이 읽는 말로 막는다.
+    let duplicateQuery = supabase
+      .from("buckets")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("title", bucket.title)
+      .not("status", "in", "(completed,paused)")
+      .limit(1);
+    duplicateQuery = bucket.life_area_id
+      ? duplicateQuery.eq("life_area_id", bucket.life_area_id)
+      : duplicateQuery.is("life_area_id", null);
+
+    const { data: duplicate, error: duplicateError } = await duplicateQuery.maybeSingle();
+    if (duplicateError) throw duplicateError;
+    if (duplicate) {
+      return { success: false, error: BUCKET_ERRORS.RESTORE_TITLE_TAKEN };
+    }
+
+    const { error } = await supabase
+      .from("buckets")
+      .update({ status: "in_progress", completed_at: null })
+      .eq("id", trimmed)
+      .eq("user_id", userId);
+
+    // 사전 검사와 UPDATE 사이에 같은 이름의 버킷이 생겼다면(경합) 인덱스가 막는다.
+    // 사용자에겐 같은 이야기이므로 같은 문구로 바꿔 준다.
+    if (error) {
+      if ((error as { code?: string }).code === "23505") {
+        return { success: false, error: BUCKET_ERRORS.RESTORE_TITLE_TAKEN };
+      }
+      throw error;
+    }
+
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, BUCKET_ERRORS.RESTORE_ERROR),
     };
   }
 }

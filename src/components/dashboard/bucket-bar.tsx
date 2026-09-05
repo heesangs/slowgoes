@@ -9,15 +9,27 @@
 // 편집 모드: 시트 헤더의 "닫기" 대신 "편집" 토글 —
 //   켜면 각 행에 [수정]·[삭제]가 노출된다 (구 카드 ⋯ 메뉴를 시트로 이동).
 //   닫기는 배경 탭/ESC로 가능.
+//
+// 완료한 버킷: 같은 시트 안에서 뷰만 바꾼다(중첩 시트 금지 — 바텀시트 위에 바텀시트를
+//   얹으면 닫기 동선이 꼬인다). "내 버킷이 어디 있나"의 심상이 이미 이 시트에 있어
+//   새 자리를 만들지 않고 여기 하단에 붙였다.
 
 import { useState } from "react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import type { Bucket } from "@/types";
-import { CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
+import type { BucketSummary, Bucket } from "@/types";
+import { BackIcon, CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
 
 type BucketItem = Pick<Bucket, "id" | "title">;
+
+/** "2026-03-12T…" → "3월 12일" */
+function formatCompletedAt(iso: string | null): string {
+  if (!iso) return "완료";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "완료";
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 완료`;
+}
 
 interface BucketBarProps {
   buckets: BucketItem[];
@@ -29,6 +41,15 @@ interface BucketBarProps {
   isDeleting?: boolean;
   /** "+ 버킷 추가" → ExploreNewSceneSheet */
   onAddBucket: () => void;
+  /** 완료한 버킷 (최근 완료순). 비어 있으면 진입점 자체를 숨긴다 */
+  completedBuckets?: BucketSummary[];
+  /**
+   * [다시 시작하기] → restoreBucketAction.
+   * 성공(true)이면 시트를 닫는다. 실패면 열어 둔다 — 이름이 겹쳐 막힌 경우
+   * 사용자가 이어서 이름을 고쳐야 하기 때문.
+   */
+  onRestore?: (bucket: BucketSummary) => Promise<boolean>;
+  isRestoring?: boolean;
 }
 
 export function BucketBar({
@@ -38,9 +59,15 @@ export function BucketBar({
   onDelete,
   isDeleting = false,
   onAddBucket,
+  completedBuckets = [],
+  onRestore,
+  isRestoring = false,
 }: BucketBarProps) {
   const [listOpen, setListOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  // 한 시트 안의 두 화면 — 진행 중 목록 ↔ 완료한 버킷
+  const [view, setView] = useState<"active" | "completed">("active");
+  const showCompleted = view === "completed";
 
   // 버킷 전환 — shallow routing (?bucket=만 교체 → RSC 왕복 없이 즉시 전환)
   function selectBucket(bucketId: string) {
@@ -51,6 +78,7 @@ export function BucketBar({
   function closeSheet() {
     setListOpen(false);
     setEditMode(false); // 다음 오픈은 항상 일반 모드부터
+    setView("active"); // 다음 오픈은 항상 진행 중 목록부터
   }
 
   return (
@@ -78,23 +106,60 @@ export function BucketBar({
       <BottomSheet
         open={listOpen}
         onClose={closeSheet}
-        title={`나의 ${FEATURE_NAMES.BUCKET}`}
+        title={showCompleted ? `완료한 ${FEATURE_NAMES.BUCKET}` : `나의 ${FEATURE_NAMES.BUCKET}`}
         headerAction={
-          <button
-            type="button"
-            onClick={() => setEditMode((prev) => !prev)}
-            aria-pressed={editMode}
-            className={cn(
-              "inline-flex min-h-[36px] items-center rounded-md border px-2.5 text-xs transition-colors",
-              editMode
-                ? "border-inverse-background bg-inverse-background text-inverse-label"
-                : "border-line-normal hover:bg-fill-alt"
-            )}
-          >
-            {editMode ? "완료" : "편집"}
-          </button>
+          showCompleted ? (
+            <button
+              type="button"
+              onClick={() => setView("active")}
+              className="inline-flex min-h-[36px] items-center gap-1 rounded-md border border-line-normal pl-1.5 pr-2.5 text-xs transition-colors hover:bg-fill-alt"
+            >
+              <BackIcon className="h-3.5 w-3.5" />
+              목록
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditMode((prev) => !prev)}
+              aria-pressed={editMode}
+              className={cn(
+                "inline-flex min-h-[36px] items-center rounded-md border px-2.5 text-xs transition-colors",
+                editMode
+                  ? "border-inverse-background bg-inverse-background text-inverse-label"
+                  : "border-line-normal hover:bg-fill-alt"
+              )}
+            >
+              {editMode ? "완료" : "편집"}
+            </button>
+          )
         }
       >
+        {showCompleted ? (
+          /* 완료한 버킷 — 제목 · 완료일 · [다시 시작하기].
+             기록은 그대로 남아 있으므로 되돌리면 투두·계획이 전부 살아난다. */
+          <ul className="flex flex-col divide-y divide-line-alt border-y border-line-alt">
+            {completedBuckets.map((bucket) => (
+              <li key={bucket.id} className="flex items-center gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm">{bucket.title}</p>
+                  <p className="mt-0.5 text-xs text-label-assistive">
+                    {formatCompletedAt(bucket.completed_at)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (await onRestore?.(bucket)) closeSheet();
+                  }}
+                  disabled={isRestoring}
+                  className="shrink-0 rounded-md border border-line-normal px-2.5 py-1.5 text-xs transition-colors hover:bg-fill-alt disabled:opacity-50"
+                >
+                  다시 시작하기
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
         <ul className="flex flex-col gap-1">
           {buckets.map((bucket) => {
             const isCurrent = bucket.id === selectedBucket?.id;
@@ -171,7 +236,25 @@ export function BucketBar({
               </button>
             </li>
           )}
+
+          {/* 완료한 버킷 진입점 — 없으면 아예 숨긴다("완료한 버킷 0"은 잡음).
+              편집 모드에서도 숨긴다: 그 모드는 활성 버킷을 손보는 자리다. */}
+          {!editMode && completedBuckets.length > 0 && (
+            <li className="mt-2 border-t border-line-alt pt-2">
+              <button
+                type="button"
+                onClick={() => setView("completed")}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-sm text-label-alt transition-colors hover:bg-fill-alt hover:text-label-normal"
+              >
+                <span className="min-w-0 flex-1">
+                  완료한 {FEATURE_NAMES.BUCKET} {completedBuckets.length}
+                </span>
+                <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 -rotate-90" strokeWidth={2} />
+              </button>
+            </li>
+          )}
         </ul>
+        )}
       </BottomSheet>
     </>
   );
