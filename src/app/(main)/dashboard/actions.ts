@@ -84,13 +84,18 @@ export async function fetchDashboardDataAction(
 
   const supabase = await createClient();
 
-  const [profile, buckets] = await Promise.all([
+  const [profile, allBuckets] = await Promise.all([
     getProfileForRequest(user.id),
     getUserBucketsForRequest(user.id),
   ]);
 
   // 온보딩 미완 → null (로더가 /onboarding으로 보냄)
   if (!profile) return null;
+
+  // 완료한 버킷은 대시보드에서 뺀다 — 기록은 DB에 그대로 남는다(completeBucketAction).
+  // 걸러진 뒤에 선택을 해석하므로, ?bucket= 이 완료된 버킷을 가리켜도 자동으로
+  // 남은 활성 버킷 중 첫 번째로 넘어간다.
+  const buckets = allBuckets.filter((b) => b.status !== "completed");
 
   // 선택 해석: 요청 버킷이 유효하면 그것, 아니면 buckets[0]
   const selectedBucketId =
@@ -536,6 +541,43 @@ export async function deleteBucketAction(
     return {
       success: false,
       error: toClientErrorMessage(error, BUCKET_ERRORS.DELETE_ERROR),
+    };
+  }
+}
+
+/**
+ * 버킷 완료 — 계획 드롭다운의 "언젠가" 카드 우측 [버킷 완료] 버튼.
+ *
+ * 삭제가 아니라 **상태 변경**이다. 투두·발걸음·완료 기록은 그대로 남고,
+ * 대시보드 목록에서만 빠진다(getUserBuckets 소비처가 status로 거른다).
+ * 이 앱은 여러 버킷을 병렬로 굴리는 게 아니라 하나에 집중하는 앱이라,
+ * "끝났다"를 선언하는 자리가 필요하다.
+ */
+export async function completeBucketAction(
+  bucketId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const trimmed = bucketId?.trim();
+    if (!trimmed) {
+      return { success: false, error: BUCKET_ERRORS.NOT_FOUND_OR_ACCESS_DENIED };
+    }
+
+    const { error } = await supabase
+      .from("buckets")
+      .update({ status: "completed", completed_at: new Date().toISOString() })
+      .eq("id", trimmed)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, BUCKET_ERRORS.COMPLETE_ERROR),
     };
   }
 }

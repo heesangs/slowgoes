@@ -49,3 +49,17 @@ export function getDaysLeftLabel(level: DailyTodoStrideLevel, now: Date = new Da
   const daysLeft = Math.max(0, Math.ceil(msLeft / DAY_MS));
   return `${daysLeft}일 남음`;
 }
+
+/**
+ * 올해가 며칠 남았는지 — "올해안" 발걸음의 D-day (피그마 37847:43643).
+ *
+ * 12월 31일이면 0, 1월 1일이면 364(윤년 365). **매년 1월 1일에 저절로 리셋된다** —
+ * 기준이 "그 해 12월 31일"이라 따로 저장하거나 갱신할 상태가 없다.
+ *
+ * 날짜만 보고 계산한다(시각 무시) — 같은 날 오전/오후에 값이 달라지면 안 되므로.
+ */
+export function daysLeftInYear(now: Date = new Date()): number {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const lastDay = new Date(now.getFullYear(), 11, 31);
+  return Math.max(0, Math.round((lastDay.getTime() - today.getTime()) / DAY_MS));
+}
