@@ -24,6 +24,11 @@ const FULL_WIDTH_PATHS = ["/dashboard", "/diary"];
 // 선이 하나 있다 → 버킷 바가 있는 곳에선 그 선을 버킷 바가 갖고, 헤더는 선을 비운다.
 const HAS_BUCKET_BAR_PATHS = ["/dashboard"];
 
+// 하단 탭은 **대시보드의 캘린더 뷰(1주/1년/1생) 전환 도구**다. 대시보드가 아닌
+// 화면에서는 어느 탭도 활성이 아니라 자리만 차지한다.
+// (헤더는 남는다 — 포커스 라우트처럼 크롬을 통째로 걷어내는 것과 다르다)
+const NO_BOTTOM_NAV_PATHS = ["/diary"];
+
 interface MainShellProps {
   children: ReactNode;
 }
@@ -38,18 +43,20 @@ function isFocusRoute(pathname: string | null): boolean {
 export function MainShell({ children }: MainShellProps) {
   const pathname = usePathname();
   const focus = isFocusRoute(pathname);
+  // 네비가 없는 화면 = 포커스 라우트(크롬 전체 제거) + 하단 탭만 뺀 화면(/diary)
+  const noBottomNav = focus || NO_BOTTOM_NAV_PATHS.some((p) => pathname === p);
 
-  // 포커스 라우트에는 바텀 네비가 없다 → --bottom-nav-h를 0으로 덮는다.
+  // 바텀 네비가 없는 라우트에서는 --bottom-nav-h를 0으로 덮는다.
   // 이 변수를 토스트·FAB·본문 하단 여백이 함께 참조하므로, 안 덮으면 없는 네비
   // 높이(56px)만큼 붕 떠서 뜬다("코멘트를 달았어요" 토스트 위치가 이상했던 이유).
   useEffect(() => {
     const el = document.documentElement;
-    if (focus) el.style.setProperty("--bottom-nav-h", "0px");
+    if (noBottomNav) el.style.setProperty("--bottom-nav-h", "0px");
     else el.style.removeProperty("--bottom-nav-h");
     return () => {
       el.style.removeProperty("--bottom-nav-h");
     };
-  }, [focus]);
+  }, [noBottomNav]);
 
   if (focus) {
     // 포커스 라우트: 글로벌 헤더/네비 없이 페이지가 상단을 관리.
@@ -75,7 +82,7 @@ export function MainShell({ children }: MainShellProps) {
       >
         <div className="mx-auto max-w-2xl">{children}</div>
       </main>
-      <BottomNavBar />
+      {!noBottomNav && <BottomNavBar />}
     </div>
   );
 }

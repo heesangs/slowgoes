@@ -7,7 +7,6 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { FEATURE_NAMES } from "@/lib/constants";
 import { ErrorBox } from "@/components/ui/error-box";
 import { groupDiariesByMonth } from "@/lib/diary/format";
 import { getDiaryDrafts, clearDiaryDraft } from "@/lib/diary/draft";
@@ -61,10 +60,12 @@ export function DiaryListContent() {
     };
   }, [queryClient]);
 
+  // "일기" h1 은 뺐다 — MainHeader 가 이미 상단을 쓰고 있고 아래 월/주 그룹 헤딩이
+  // 구조를 잡아 준다. 그 자리는 목록에 내준다.
+  // 하단 여백도 MainShell 이 --bottom-nav-h 로 일괄 관리한다(구 pb-24 제거 — 이 화면엔
+  // 바텀 네비가 없어 0이 되고, 셸의 여백만 남는다).
   return (
-    <div className="relative mx-auto min-h-[70vh] max-w-2xl px-3 py-5 pb-24">
-      <h1 className="mb-4 text-2xl font-bold text-label-normal">{FEATURE_NAMES.DIARY}</h1>
-
+    <div className="relative mx-auto min-h-[70vh] max-w-2xl px-3 pb-4 pt-4">
       {isError && (
         <ErrorBox className="mb-4">
           일기를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
