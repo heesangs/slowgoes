@@ -219,7 +219,9 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         return;
       }
       setCompleteOpen(false);
-      toast(`'${bucket.title}' 완료. 수고했어요.`, "success");
+      toast(`'${bucket.title}' 완료. 수고했어요.`, "success", {
+        action: { label: "실행취소", onClick: () => void handleUndoComplete(bucket) },
+      });
       // 목록에서 빠지므로 대시보드 캐시 전체 무효화 후 남은 버킷으로 이동
       await invalidateDashboard();
       const nextBucket = data.buckets.find((b) => b.id !== bucket.id);
@@ -227,29 +229,18 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
     });
   }
 
-  // 버킷 다시 시작하기 — 버킷 시트 "완료한 버킷" 목록.
-  // 파괴적이지 않아 확인 단계를 두지 않는다(실수해도 다시 완료하면 그만).
-  //
-  // useTransition이 아니라 직접 상태를 드는 이유: 성공 여부를 **돌려줘야** 시트가
-  // 스스로 닫힌다. 실패(이름 겹침)일 땐 시트가 열린 채로 남아야 이어서 손볼 수 있다.
-  const [isRestoringBucket, setIsRestoringBucket] = useState(false);
-  async function handleRestoreBucket(bucket: { id: string; title: string }): Promise<boolean> {
-    if (isRestoringBucket) return false;
-    setIsRestoringBucket(true);
-    try {
-      const result = await restoreBucketAction(bucket.id);
-      if (!result.success) {
-        toast(result.error ?? `${FEATURE_NAMES.BUCKET}을 다시 시작하지 못했어요.`, "error");
-        return false;
-      }
-      toast(`'${bucket.title}'${josa(bucket.title, "을", "를")} 다시 시작해요.`, "success");
-      await invalidateDashboard();
-      // 되살린 버킷을 바로 보여준다
-      router.replace(`/dashboard?bucket=${bucket.id}`);
-      return true;
-    } finally {
-      setIsRestoringBucket(false);
+  // 완료 토스트의 [실행취소] — 방금 완료한 것을 그 자리에서 되돌린다.
+  // 목록까지 찾아 들어가지 않고 오조작을 바로 무를 수 있는 자리가 필요하다.
+  // 파괴적이지 않아 확인 단계는 두지 않는다(실수해도 다시 완료하면 그만).
+  async function handleUndoComplete(bucket: { id: string; title: string }) {
+    const result = await restoreBucketAction(bucket.id);
+    if (!result.success) {
+      toast(result.error ?? `${FEATURE_NAMES.BUCKET}을 다시 시작하지 못했어요.`, "error");
+      return;
     }
+    toast(`'${bucket.title}'${josa(bucket.title, "을", "를")} 다시 시작해요.`, "success");
+    await invalidateDashboard();
+    router.replace(`/dashboard?bucket=${bucket.id}`);
   }
 
   useEffect(() => {
@@ -651,8 +642,6 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         isDeleting={isDeletingBucket}
         onAddBucket={() => setExploreOpen(true)}
         completedBuckets={data.completedBuckets}
-        onRestore={handleRestoreBucket}
-        isRestoring={isRestoringBucket}
       />
 
       {data.stridePlan && (

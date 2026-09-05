@@ -26,6 +26,8 @@ import {
   STRIDE_ERRORS,
 } from "@/lib/constants";
 import type {
+  BucketSummary,
+  CompletedBucketSummary,
   DashboardV2Data,
   ItemSource,
   StrideItem,
@@ -586,6 +588,61 @@ export async function completeBucketAction(
       error: toClientErrorMessage(error, BUCKET_ERRORS.COMPLETE_ERROR),
     };
   }
+}
+
+/**
+ * 완료한 버킷 목록 (/buckets/completed).
+ *
+ * 대시보드 응답의 completedBuckets 와 달리 **완료한 할 일 수까지** 붙인다.
+ * 목록 화면에서만 필요한 집계라 대시보드 첫 로드를 무겁게 하지 않으려고 분리했다.
+ */
+export async function fetchCompletedBucketsAction(): Promise<CompletedBucketSummary[]> {
+  const { supabase, userId } = await getAuthContext();
+
+  const { data, error } = await supabase
+    .from("buckets")
+    .select("id, title, stride_scope, status, created_at, completed_at")
+    .eq("user_id", userId)
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false, nullsFirst: false });
+
+  if (error) throw new Error(BUCKET_ERRORS.LIST_ERROR);
+
+  const buckets = (data as BucketSummary[] | null) ?? [];
+  if (buckets.length === 0) return [];
+
+  // 완료 횟수는 todo_completions ⋈ todos 로 센다. 버킷마다 쿼리를 돌리지 않고
+  // 한 번에 받아 클라이언트 쪽(서버 액션 안)에서 묶는다.
+  //
+  // is_active=true 로 거르는 이유: 완료 확인 시트가 쓰는 getBucketTodos 가 같은 조건이라,
+  // 안 맞추면 **같은 "완료한 할 일"이 두 화면에서 다른 숫자로 나온다**(실측 12 vs 23 —
+  // 삭제된 반복 할 일의 완료 기록 때문). 앱 전체가 "이 버킷의 할 일 = 살아 있는 할 일"로
+  // 정의하고 있으므로 그쪽에 맞춘다.
+  const bucketIds = buckets.map((b) => b.id);
+  const { data: completions, error: completionsError } = await supabase
+    .from("todo_completions")
+    .select("todo_id, todos!inner(bucket_id, is_active)")
+    .eq("user_id", userId)
+    .eq("todos.is_active", true)
+    .in("todos.bucket_id", bucketIds);
+
+  if (completionsError) throw new Error(BUCKET_ERRORS.LIST_ERROR);
+
+  const countByBucket = new Map<string, number>();
+  for (const row of (completions as Array<{
+    todos:
+      | { bucket_id: string | null; is_active: boolean }
+      | Array<{ bucket_id: string | null; is_active: boolean }>;
+  }> | null) ?? []) {
+    const bucketId = Array.isArray(row.todos) ? row.todos[0]?.bucket_id : row.todos?.bucket_id;
+    if (!bucketId) continue;
+    countByBucket.set(bucketId, (countByBucket.get(bucketId) ?? 0) + 1);
+  }
+
+  return buckets.map((bucket) => ({
+    ...bucket,
+    completedTodoCount: countByBucket.get(bucket.id) ?? 0,
+  }));
 }
 
 /**

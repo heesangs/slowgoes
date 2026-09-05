@@ -35,9 +35,10 @@ interface MainShellProps {
 
 // 서브페이지(포커스) 라우트 판별.
 // "/diary/" prefix → /diary/new, /diary/[id] 매칭 (목록 "/diary"는 제외).
+// "/buckets/" → 완료한 버킷 목록·상세. 자체 SubPageHeader로 상단을 관리한다.
 function isFocusRoute(pathname: string | null): boolean {
   if (!pathname) return false;
-  return pathname.startsWith("/diary/");
+  return pathname.startsWith("/diary/") || pathname.startsWith("/buckets/");
 }
 
 export function MainShell({ children }: MainShellProps) {

@@ -177,6 +177,8 @@ export interface TaskWithSubtasks extends Task {
 
 // 과제 통계 타입
 export interface TaskStats {
+  /** 완료한 버킷 수 — 프로필에서 /buckets/completed 로 가는 진입점이 쓴다 */
+  completedBuckets: number;
   totalDailyTodos: number;
   completedDailyTodos: number;
   totalRoutines: number;
@@ -522,6 +524,12 @@ export type BucketSummary = Pick<
   Bucket,
   "id" | "title" | "stride_scope" | "status" | "created_at" | "completed_at"
 >;
+
+/** 완료한 버킷 목록의 한 줄 — 무엇을 얼마나 했는지가 한눈에 보여야 한다 */
+export interface CompletedBucketSummary extends BucketSummary {
+  /** 이 버킷에서 완료한 할 일 횟수 (반복 할 일은 완료한 날수만큼) */
+  completedTodoCount: number;
+}
 
 export interface DashboardV2Data {
   profile: Profile;
