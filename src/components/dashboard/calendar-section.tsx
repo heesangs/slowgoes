@@ -11,7 +11,7 @@
 //
 // 선택 날짜만 흑색 하이라이트(달성 도트 없음 — 기록은 하단 리스트로 확인).
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   clamp01,
   LifeCalendar,
@@ -20,7 +20,6 @@ import {
   type LifePhase,
 } from "@/components/dashboard/life-calendar";
 import { WeekSheet } from "@/components/dashboard/week-sheet";
-import { FEATURE_NAMES } from "@/lib/constants";
 import { getWeekStart } from "@/lib/date/week";
 import type { CalendarView } from "@/lib/dashboard/calendar-view";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
@@ -34,7 +33,7 @@ import {
   parseDateString,
   WEEKDAY_SHORT_LABELS,
 } from "@/lib/todos/repeat";
-import type { StrideItem, TodoWithCompletion } from "@/types";
+import type { TodoWithCompletion } from "@/types";
 
 // "HH:MM:SS" → "HH:MM"
 function formatTime(time: string | null): string | null {
@@ -76,10 +75,12 @@ function buildMonthDates(selected: string): string[] {
 }
 
 interface CalendarSectionProps {
-  /** 이번달 발걸음 (헤더 타이틀). 없으면 타이틀 영역 비움 */
-  thisMonthStride: StrideItem | null;
-  /** R3: 헤더 우측 ▼ → 지향점 시트 열기 (수정은 시트 내 카드 탭) */
-  onOpenDirection: () => void;
+  /**
+   * 주 캘린더 페이지 상단에 얹는 계획 드롭다운(PlanDropdown).
+   * 발걸음 데이터를 여기서 알 필요가 없어 슬롯으로 받는다.
+   * 일생/시계 페이지에서는 대신 페이지 타이틀이 나온다.
+   */
+  plan?: ReactNode;
   /** R4: 일생 캘린더용 나이 (life_clock_age). 없으면 토글 숨김 */
   age?: number | null;
   /** 인생시계 문구의 호칭 (display_name) */
@@ -110,8 +111,7 @@ interface CalendarSectionProps {
 }
 
 export function CalendarSection({
-  thisMonthStride,
-  onOpenDirection,
+  plan,
   age,
   userName = null,
   todos,
@@ -481,8 +481,6 @@ export function CalendarSection({
   const dateLabel = isToday
     ? "오늘"
     : `${selected.getMonth() + 1}월 ${selected.getDate()}일`;
-  // 헤더 라벨: 항상 선택 날짜의 월을 그대로 — "이번달"은 몇 월인지 바로 안 읽힌다
-  const headerLabel = `${selected.getMonth() + 1}월`;
 
   // 올해 경과 주차(0~51) → 일생 그리드의 현재 주 열 (착지 위치 정정)
   const weekOfYear = (() => {
@@ -491,13 +489,10 @@ export function CalendarSection({
     return Math.max(0, Math.min(51, Math.floor((t.getTime() - jan1.getTime()) / (7 * 86400000))));
   })();
 
-  // 페이지별 타이틀 — 1페이지 "캘린더" / 2페이지 "1년 52주" / 3페이지 "100년/24시"
-  const pageTitle =
-    view === "life"
-      ? lifePhase === "toClock" || lifePhase === "clock"
-        ? "100년/24시"
-        : "1년 52주"
-      : FEATURE_NAMES.CALENDAR;
+  // 일생 페이지 타이틀 — 2페이지 "1년 52주" / 3페이지 "100년/24시".
+  // 1페이지(주 캘린더)에는 타이틀 대신 계획 드롭다운이 들어간다(피그마 37847:42703).
+  const lifePageTitle =
+    lifePhase === "toClock" || lifePhase === "clock" ? "100년/24시" : "1년 52주";
 
   // 스크럽 진행도 → 인라인 스타일 값 (피그마 34265:41826 순방향 / 34266:42703 역방향)
   //   ① 날짜가 오른쪽(토)부터 stagger로 소멸
@@ -526,10 +521,14 @@ export function CalendarSection({
       onPointerUp={handleZonePointerEnd}
       onPointerCancel={handleZonePointerEnd}
     >
-      {/* 섹션 타이틀 행 — 우측: 페이지네이션 점 3개 (주 → 일생 → 시계) */}
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-label-alt">{pageTitle}</p>
-      </div>
+      {/* 섹션 상단 — 주 캘린더는 계획 드롭다운, 일생/시계는 페이지 타이틀 */}
+      {view === "life" ? (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium text-label-alt">{lifePageTitle}</p>
+        </div>
+      ) : (
+        plan
+      )}
 
       {/* 일생 뷰에선 이번달 발걸음/날짜 그리드 대신 5200주 조망만 */}
       {view === "life" ? (
@@ -552,35 +551,9 @@ export function CalendarSection({
         />
       ) : (
       <>
-      {/* 헤더: 주/월 라벨 + 이번달 발걸음(왼쪽 정렬) + 우측 ▼ → 지향점 시트
-          — 달력을 펼치면(월 뷰) 말줄임 없이 전체 표시 */}
-      <div
-        className={cn(
-          "mt-3 flex gap-2 border-b border-line-alt pb-2",
-          expanded ? "items-start" : "items-center"
-        )}
-      >
-        <p className="shrink-0 text-sm font-bold">{headerLabel}</p>
-        <p
-          className={cn(
-            "min-w-0 flex-1 text-xs leading-relaxed text-label-alt",
-            !expanded && "truncate"
-          )}
-        >
-          {thisMonthStride?.action ?? ""}
-        </p>
-        {/* ▼ 지향점 시트 열기 — 작은 아래꺽쇠 (피그마) */}
-        <button
-          type="button"
-          onClick={onOpenDirection}
-          aria-label={`${FEATURE_NAMES.DIRECTION} 열기`}
-          className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-label-alt transition-colors hover:bg-fill-alt hover:text-label-neutral"
-        >
-          <ChevronDownIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
-        </button>
-      </div>
-
-      {/* 달력 그리드 — 스와이프 스크럽은 섹션 전체가 담당(투두 행 제외) */}
+      {/* 달력 그리드 — 스와이프 스크럽은 섹션 전체가 담당(투두 행 제외).
+          구 헤더 행(M월 + 이번달 발걸음 한 줄 + ▼)은 계획 드롭다운이 같은 정보를
+          더 잘 보여줘서 제거했다 (피그마 37847:42703). */}
       <div>
         {/* 요일 행 (일~토) */}
         <div className="mt-2 grid grid-cols-7 text-center">
