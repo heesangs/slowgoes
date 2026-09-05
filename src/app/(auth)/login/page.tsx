@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signInAction } from "@/app/(auth)/actions";
 import Link from "next/link";
+import { APP } from "@/lib/constants/brand";
 import { Suspense, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { FORM_WIDTH } from "@/lib/constants/layout";
@@ -142,11 +143,10 @@ export default function LoginPage() {
   return (
     <div className={cn("mx-auto w-full", FORM_WIDTH)}>
       <div>
-        <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold mb-2 inline-block hover:opacity-70 transition-opacity">slowgoes</Link>
-          <p className="text-sm text-label-alt">
-            나의 속도로, 천천히 확실하게
-          </p>
+        {/* Figma 37594:83755 — 화면 이름이 제목이고 그 아래 핵심 가치 한 줄 */}
+        <div className="mb-8 flex flex-col items-center gap-2 text-center">
+          <h1 className="text-3xl font-bold text-label-neutral">login</h1>
+          <p className="text-base text-label-neutral">{APP.TAGLINE}</p>
         </div>
 
         <Suspense>
@@ -205,9 +205,9 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="text-sm text-label-alt text-center mt-6">
+        <p className="mt-6 text-center text-sm text-label-alt">
           아직 계정이 없으신가요?{" "}
-          <Link href="/signup" className="text-label-normal font-medium hover:underline">
+          <Link href="/signup" className="font-bold text-label-normal hover:underline">
             회원가입
           </Link>
         </p>

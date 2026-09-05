@@ -22,6 +22,12 @@
   --label-alt: #00000094;
   --label-assistive: #00000061;
   --label-disable: #37383c29;
+  /* 글자·아이콘용 Primary. 면(--primary-normal)과 달리 **테마별로 다른 단계**를 쓴다.
+     Green 램프에 양쪽을 다 만족하는 단계가 없기 때문이다 —
+       Green/30 #067644  라이트 5.70 ✅ / 다크 2.99 ❌
+       Green/40 #05b273  라이트 2.76 ❌ / 다크 6.19 ✅
+     그래서 danger·warning 과 같은 방식으로 나눈다(라이트=진한 쪽 / 다크=밝은 쪽). */
+  --label-primary: #067644;
 
   /* ── Background — Normal(바탕)과 Elevated(카드·시트) 두 층.
         라이트에서는 두 층이 같은 흰색이고, 다크에서만 갈린다. */
@@ -34,7 +40,14 @@
         Semantic의 Line/Solid 4단계는 이 앱이 한 번도 쓰지 않아 뺐다.
           alt     카드 테두리·구분선
           normal  컨트롤 테두리(버튼·인풋·세그먼트)
-          strong  선택 상태 강조·핸들 */
+          strong  선택 상태 강조·핸들
+
+        ⚠️ line-normal 은 WCAG 1.4.11(UI 경계 3:1)을 못 넘는다 — 라이트 1.45 / 다크 2.92.
+           **의도적으로 유지하는 값이다.** 후보를 다 재봤지만 전부 미달이었고
+           (Figma Semantic 1.32 / Figma line-solid-strong 2.17 / 실제 화면 1.45),
+           3:1 을 맞추려면 테두리가 #8a8a8a 수준이 되어 앱 인상이 통째로 바뀐다.
+           인풋은 플레이스홀더·라벨·배경으로도 식별되므로 테두리만으로 판단하지 않는다.
+           다시 재보기 전에 이 주석을 먼저 읽을 것. */
   --line-alt: #00000012;
   --line-normal: #00000029;
   --line-strong: #0000004d;
@@ -44,20 +57,25 @@
   --fill-strong: #70737c29;
   --fill-alt: #70737c0d;
 
-  /* ── Primary — 강조색 */
-  --primary-normal: #0066ff;
-  --primary-strong: #005eeb;
-  --primary-heavy: #0054d1;
+  /* ── Primary — 강조색. Figma에서 그린 계열로 바뀌었다(Green/50·45·40).
+        밝은 민트라 **면으로만** 쓴다 — 흰 배경 위 글자로 쓰면 1.74:1 밖에 안 나온다.
+        버튼 배경으로 쓸 때 라벨은 테마와 무관하게 검정(static-black)이어야 한다. */
+  --primary-normal: #06e182;
+  --primary-strong: #06cd77;
+  --primary-heavy: #05b273;
 
   /* ── Status */
-  --status-positive: #00bf40;
+  --status-positive: #1a75ff;
   --status-cautionary: #ff9200;
   --status-negative: #ff4242;
 
-  /* ── Inverse — 바탕과 글자를 뒤집은 짝(선택 상태·기본 버튼) */
+  /* ── Inverse — 바탕과 글자를 뒤집은 짝.
+        **선택 상태(날짜·칩·세그먼트 21곳)는 의도적으로 흑백이다.** Primary 그린은
+        기본 버튼에만 쓴다 — "강조는 하나"라는 위계를 지키기 위해서다.
+        선택까지 그린으로 칠하면 화면에 초록이 너무 많아진다. */
   --inverse-background: #1b1c1e;
   --inverse-label: #f7f7f8;
-  --inverse-primary: #3385ff;
+  --inverse-primary: #14f387;
 
   /* ── Interaction — 비활성 */
   --interaction-inactive: #989ba2;
@@ -103,6 +121,7 @@
   --label-alt: #ffffff94;
   --label-assistive: #ffffff61;
   --label-disable: #989ba229;
+  --label-primary: #05b273;
 
   --background: #1b1c1e;
   --background-alt: #0f0f10;
@@ -117,17 +136,17 @@
   --fill-strong: #70737c47;
   --fill-alt: #70737c1f;
 
-  --primary-normal: #3385ff;
-  --primary-strong: #1a75ff;
-  --primary-heavy: #0066ff;
+  --primary-normal: #14f387;
+  --primary-strong: #06e182;
+  --primary-heavy: #05b273;
 
-  --status-positive: #1ed45a;
+  --status-positive: #69a5ff;
   --status-cautionary: #ffa938;
   --status-negative: #ff6363;
 
   --inverse-background: #ffffff;
   --inverse-label: #171719;
-  --inverse-primary: #0066ff;
+  --inverse-primary: #06e182;
 
   --interaction-inactive: #5a5c63;
   --interaction-disable: #2e2f33;
@@ -170,6 +189,7 @@
   --color-label-alt: var(--label-alt);
   --color-label-assistive: var(--label-assistive);
   --color-label-disable: var(--label-disable);
+  --color-label-primary: var(--label-primary);
 
   --color-background: var(--background);
   --color-background-alt: var(--background-alt);
@@ -223,8 +243,44 @@
   --color-warning: var(--warning);
   --color-success: var(--success);
 
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-gmarket-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* 글자 스케일 — Figma 텍스트 스타일이 정본. 이름은 Tailwind 것을 그대로 쓴다.
+     Figma 이름(text-label-1 등)을 쓰면 색 토큰 text-label-alt 와 나란히 놓여
+     크기인지 색인지 구분이 안 되기 때문. 어느 계열인지는 아래 주석으로 남긴다.
+     자간은 Figma의 % 를 그대로 em 으로 옮긴 것(둘 다 글자 크기 기준). */
+  --text-2xs: 11px;                      /* Caption 2 */
+  --text-2xs--line-height: 14px;
+  --text-2xs--letter-spacing: 0.0311em;
+
+  --text-xs: 12px;                       /* Caption 1 */
+  --text-xs--line-height: 16px;
+  --text-xs--letter-spacing: 0.0252em;
+
+  --text-sm: 14px;                       /* Label 1 */
+  --text-sm--line-height: 20px;
+  --text-sm--letter-spacing: 0.0145em;
+
+  --text-base: 16px;                     /* Body 1 */
+  --text-base--line-height: 24px;
+  --text-base--letter-spacing: 0.0057em;
+
+  --text-lg: 18px;                       /* Headline 1 */
+  --text-lg--line-height: 26px;
+  --text-lg--letter-spacing: -0.0002em;
+
+  --text-xl: 20px;                       /* Heading 2 */
+  --text-xl--line-height: 28px;
+  --text-xl--letter-spacing: -0.012em;
+
+  --text-2xl: 24px;                      /* Title 3 */
+  --text-2xl--line-height: 32px;
+  --text-2xl--letter-spacing: -0.023em;
+
+  --text-3xl: 28px;                      /* Title 2 — Figma 램프에 30px 단계가 없다 */
+  --text-3xl--line-height: 38px;
+  --text-3xl--letter-spacing: -0.0236em;
 }
 
 /* OS 다크 추종 — 단, 사용자가 라이트/다크를 명시 선택하면 그 값을 우선 */
@@ -236,6 +292,7 @@
     --label-alt: #ffffff94;
     --label-assistive: #ffffff61;
     --label-disable: #989ba229;
+    --label-primary: #05b273;
 
     --background: #1b1c1e;
     --background-alt: #0f0f10;
@@ -250,17 +307,17 @@
     --fill-strong: #70737c47;
     --fill-alt: #70737c1f;
 
-    --primary-normal: #3385ff;
-    --primary-strong: #1a75ff;
-    --primary-heavy: #0066ff;
+    --primary-normal: #14f387;
+    --primary-strong: #06e182;
+    --primary-heavy: #05b273;
 
-    --status-positive: #1ed45a;
+    --status-positive: #69a5ff;
     --status-cautionary: #ffa938;
     --status-negative: #ff6363;
 
     --inverse-background: #ffffff;
     --inverse-label: #171719;
-    --inverse-primary: #0066ff;
+    --inverse-primary: #06e182;
 
     --interaction-inactive: #5a5c63;
     --interaction-disable: #2e2f33;

@@ -199,7 +199,7 @@ export function BottomSheet({ open, onClose, title, children, footer, size = "de
         </div>
         {!hideHeader && (
           <div data-sheet-grab className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-base font-semibold">{title ?? "상세"}</h3>
+            <h3 className="text-base font-bold">{title ?? "상세"}</h3>
             {headerAction ?? (
               <button
                 type="button"

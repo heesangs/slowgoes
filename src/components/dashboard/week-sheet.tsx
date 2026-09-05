@@ -150,7 +150,7 @@ export function WeekSheet({
             aria-expanded={listOpen}
             className="inline-flex min-w-0 items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-fill-alt"
           >
-            <span className="truncate text-base font-semibold">{formatWeekLabel(weekStart)}</span>
+            <span className="truncate text-base font-bold">{formatWeekLabel(weekStart)}</span>
             <ChevronIcon className={cn("h-3.5 w-3.5 shrink-0 -rotate-90 text-label-alt", listOpen && "rotate-90")} />
           </button>
 
@@ -191,10 +191,10 @@ export function WeekSheet({
                   w === weekStart && "bg-fill-normal"
                 )}
               >
-                <span className={cn("text-sm", w === weekStart ? "font-semibold" : "text-label-alt")}>
+                <span className={cn("text-sm", w === weekStart ? "font-bold" : "text-label-alt")}>
                   {formatWeekLabel(w)}
                 </span>
-                <span className="shrink-0 text-[11px] text-label-alt">{formatWeekRange(w)}</span>
+                <span className="shrink-0 text-2xs text-label-alt">{formatWeekRange(w)}</span>
               </button>
             </li>
           ))}
@@ -209,24 +209,24 @@ export function WeekSheet({
             className="flex flex-col gap-1 rounded-lg border border-line-strong bg-fill-alt px-3 py-3"
           >
             <span className="flex items-baseline justify-between gap-2">
-              <span className="text-[11px] font-medium text-label-alt">
+              <span className="text-2xs font-medium text-label-alt">
                 주간 목표{bucketTitle ? ` · #${bucketTitle}` : ""}
               </span>
               {goal && goal.total > 0 && (
-                <span className="shrink-0 text-[11px] font-medium text-label-alt">
+                <span className="shrink-0 text-2xs font-medium text-label-alt">
                   {goal.done}/{goal.total} 완료
                 </span>
               )}
             </span>
             {goal ? (
               <>
-                <span className="truncate text-sm font-semibold text-label-normal">{goal.title}</span>
+                <span className="truncate text-sm font-bold text-label-normal">{goal.title}</span>
                 {goal.preview && (
                   <span className="truncate text-xs text-label-alt">{goal.preview}</span>
                 )}
               </>
             ) : (
-              <span className="text-sm font-semibold text-label-normal">
+              <span className="text-sm font-bold text-label-normal">
                 {isLoading ? "불러오는 중…" : "이번 주에 할 일을 정해보기"}
               </span>
             )}
@@ -251,10 +251,10 @@ export function WeekSheet({
               )}
             >
               <div className="w-8 shrink-0 text-center">
-                <div className="text-[11px] text-label-alt">{WEEKDAY_SHORT_LABELS[i]}</div>
+                <div className="text-2xs text-label-alt">{WEEKDAY_SHORT_LABELS[i]}</div>
                 <div
                   className={cn(
-                    "text-base font-semibold leading-tight",
+                    "text-base font-bold leading-tight",
                     isToday ? "text-label-normal" : "text-label-alt"
                   )}
                 >
@@ -324,12 +324,12 @@ export function WeekSheet({
             href={reviewHref}
             className="flex flex-col gap-1 rounded-lg border border-line-strong bg-fill-alt px-3 py-3"
           >
-            <span className="text-[11px] font-medium text-label-alt">
+            <span className="text-2xs font-medium text-label-alt">
               주간 회고{bucketTitle ? ` · #${bucketTitle}` : ""}
             </span>
             {weekly ? (
               <>
-                <span className="truncate text-sm font-semibold text-label-normal">
+                <span className="truncate text-sm font-bold text-label-normal">
                   {weekly.title}
                 </span>
                 {weekly.preview && (
@@ -337,7 +337,7 @@ export function WeekSheet({
                 )}
               </>
             ) : (
-              <span className="text-sm font-semibold text-label-normal">
+              <span className="text-sm font-bold text-label-normal">
                 {isLoading ? "불러오는 중…" : "이 주를 돌아보며 기록하기"}
               </span>
             )}

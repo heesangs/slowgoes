@@ -7,6 +7,8 @@
 
 export const APP = {
   NAME: "slowgoes",
+  /** 핵심 가치 한 줄. 랜딩·로그인·회원가입·브라우저 탭·PWA 이름이 모두 이걸 쓴다. */
+  TAGLINE: "Your values, your pace",
   DEFAULT_USER_NAME: "slowgoes 사용자",
 } as const;
 

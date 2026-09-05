@@ -136,7 +136,7 @@ export function DemoDataMigrator({ children }: DemoDataMigratorProps) {
             체험 데이터를 자동으로 옮기지 못했어요.
           </p>
           <p className="mt-1 text-xs text-danger/90">{error}</p>
-          <Button type="button" variant="secondary" className="mt-3 w-full" onClick={handleRetry}>
+          <Button type="button" variant="line" className="mt-3 w-full" onClick={handleRetry}>
             다시 시도
           </Button>
         </ErrorBox>

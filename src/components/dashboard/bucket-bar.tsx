@@ -70,7 +70,7 @@ export function BucketBar({
         )}
       >
         <span className="shrink-0 text-xs text-label-alt">{FEATURE_NAMES.BUCKET}</span>
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+        <span className="min-w-0 flex-1 truncate text-sm font-bold">
           {selectedBucket?.title ?? `선택된 ${FEATURE_NAMES.BUCKET}이 없어요`}
         </span>
         <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 text-label-alt" strokeWidth={2} />
@@ -145,7 +145,7 @@ export function BucketBar({
                   className={cn(
                     "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-3 text-left text-sm transition-colors",
                     isCurrent
-                      ? "bg-inverse-background font-semibold text-inverse-label"
+                      ? "bg-inverse-background font-bold text-inverse-label"
                       : "hover:bg-fill-alt"
                   )}
                 >

@@ -29,8 +29,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             id={id}
             value={value}
             className={cn(
-              "w-full rounded-lg border bg-transparent px-4 py-3 text-base min-h-[44px] transition-colors",
-              "placeholder:text-label-disable",
+              "w-full rounded border bg-transparent px-4 py-3 text-sm min-h-[48px] transition-colors",
+              "placeholder:text-label-assistive",
               "focus:outline-none focus:ring-2 focus:ring-label-normal/20",
               error
                 ? "border-danger focus:ring-danger/20"

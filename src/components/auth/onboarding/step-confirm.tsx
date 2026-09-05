@@ -44,7 +44,7 @@ export function StepConfirm({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="mb-1 text-base font-semibold">선택한 한 걸음</h2>
+        <h2 className="mb-1 text-base font-bold">선택한 한 걸음</h2>
         <p className="text-sm text-label-alt">확정하면 대시보드에 오늘의 한 걸음으로 연결돼요</p>
       </div>
 
@@ -56,7 +56,7 @@ export function StepConfirm({
             <p className="text-xs font-medium text-label-alt">{personalityType}</p>
           )}
         </div>
-        <p className="mt-0.5 text-base font-semibold">
+        <p className="mt-0.5 text-base font-bold">
           {lifeClock ? `${lifeClock.meridiem} ${lifeClock.hour12}시 ${String(lifeClock.minute).padStart(2, "0")}분` : "-"}
         </p>
 
@@ -67,11 +67,11 @@ export function StepConfirm({
             성향을 더 알려주시면 다음 추천이 정확해져요 <span className="text-label-alt">(선택)</span>
           </p>
           <div className="flex flex-col gap-1">
-            <p className="text-[11px] text-label-alt">정보 수집 방식</p>
+            <p className="text-2xs text-label-alt">정보 수집 방식</p>
             <SegmentControl options={MBTI_SENSE_OPTIONS} value={senseType} onChange={onSenseSelect} />
           </div>
           <div className="flex flex-col gap-1">
-            <p className="text-[11px] text-label-alt">생활 방식</p>
+            <p className="text-2xs text-label-alt">생활 방식</p>
             <SegmentControl options={MBTI_LIFESTYLE_OPTIONS} value={lifestyleType} onChange={onLifestyleSelect} />
           </div>
         </div>
@@ -97,7 +97,7 @@ export function StepConfirm({
       {error && <p className="text-center text-sm text-danger">{error}</p>}
 
       <div className="flex gap-2">
-        <Button type="button" variant="secondary" onClick={onBack} className="flex-1">
+        <Button type="button" variant="line" onClick={onBack} className="flex-1">
           이전
         </Button>
         <Button type="button" onClick={onSubmit} isLoading={isLoading} className="flex-1" disabled={isLoading}>

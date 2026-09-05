@@ -147,7 +147,7 @@ function OptionRow({
       onClick={onClick}
       className={cn(
         "flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition-colors hover:bg-fill-alt",
-        active && "font-semibold"
+        active && "font-bold"
       )}
     >
       {label}

@@ -20,7 +20,7 @@ export function SignOutButton() {
 
   return (
     <Button
-      variant="ghost"
+      variant="text"
       size="sm"
       isLoading={isLoading}
       onClick={handleSignOut}

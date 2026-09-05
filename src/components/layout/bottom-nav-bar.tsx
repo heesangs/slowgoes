@@ -59,7 +59,7 @@ export function BottomNavBar() {
               >
                 {/* 활성은 면(fill), 비활성은 라인(stroke) */}
                 <Icon className="h-5 w-5" active={active} />
-                <span className={cn("text-[11px]", active && "font-medium")}>{label}</span>
+                <span className={cn("text-2xs", active && "font-medium")}>{label}</span>
               </Link>
             </li>
           );

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signUpAction } from "@/app/(auth)/actions";
 import Link from "next/link";
+import { APP } from "@/lib/constants/brand";
 import { useState } from "react";
 import { DemoDataBanner } from "@/components/auth/demo-data-banner";
 import { FORM_WIDTH } from "@/lib/constants/layout";
@@ -53,12 +54,10 @@ export default function SignUpPage() {
   return (
     <div className={cn("mx-auto w-full", FORM_WIDTH)}>
       <div>
-        <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold mb-2 inline-block hover:opacity-70 transition-opacity">slowgoes</Link>
-          <h2 className="text-lg font-semibold mb-2">회원가입</h2>
-          <p className="text-sm text-label-alt">
-            나만의 속도로 공부를 시작해보세요
-          </p>
+        {/* 로그인(Figma 37594:83755)과 같은 구성 — 화면 이름 + 핵심 가치 한 줄 */}
+        <div className="mb-8 flex flex-col items-center gap-2 text-center">
+          <h1 className="text-3xl font-bold text-label-neutral">signup</h1>
+          <p className="text-base text-label-neutral">{APP.TAGLINE}</p>
         </div>
 
         <DemoDataBanner />
@@ -106,9 +105,9 @@ export default function SignUpPage() {
           </Button>
         </form>
 
-        <p className="text-sm text-label-alt text-center mt-6">
+        <p className="mt-6 text-center text-sm text-label-alt">
           이미 계정이 있으신가요?{" "}
-          <Link href="/login" className="text-label-normal font-medium hover:underline">
+          <Link href="/login" className="font-bold text-label-normal hover:underline">
             로그인
           </Link>
         </p>

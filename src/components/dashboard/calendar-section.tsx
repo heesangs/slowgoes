@@ -560,7 +560,7 @@ export function CalendarSection({
           expanded ? "items-start" : "items-center"
         )}
       >
-        <p className="shrink-0 text-sm font-semibold">{headerLabel}</p>
+        <p className="shrink-0 text-sm font-bold">{headerLabel}</p>
         <p
           className={cn(
             "min-w-0 flex-1 text-xs leading-relaxed text-label-alt",
@@ -649,11 +649,11 @@ export function CalendarSection({
                   className={cn(
                     "inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors",
                     isSelected
-                      ? "bg-inverse-background font-semibold text-inverse-label"
+                      ? "bg-inverse-background font-bold text-inverse-label"
                       : cn(
                           "hover:bg-fill-alt",
                           // 오늘 날짜는 테두리로 강조(선택 날짜는 fill 우선)
-                          isTodayCell && "border border-inverse-background font-semibold",
+                          isTodayCell && "border border-inverse-background font-bold",
                           expanded && !inMonth ? "text-label-disable" : "text-label-normal"
                         )
                   )}
@@ -959,7 +959,7 @@ function TodoRow({
           </button>
 
           {(time || repeatLabel) && (
-            <span className="flex h-5 shrink-0 items-center gap-1 text-[10px] text-label-alt">
+            <span className="flex h-5 shrink-0 items-center gap-1 text-2xs text-label-alt">
               {time && <span>{time}</span>}
               {repeatLabel && (
                 <>

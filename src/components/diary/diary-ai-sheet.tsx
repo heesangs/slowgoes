@@ -110,7 +110,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
     <BottomSheet open={open} onClose={onClose} size="large" hideHeader>
       {selectionPreview && (
         <div className="mb-3 rounded-lg border border-line-alt bg-fill-alt px-3 py-2">
-          <p className="text-[11px] font-medium text-label-alt">선택한 부분</p>
+          <p className="text-2xs font-medium text-label-alt">선택한 부분</p>
           <p className="mt-0.5 line-clamp-2 text-xs text-label-alt">“{selectionPreview}”</p>
         </div>
       )}
@@ -147,7 +147,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
           className="w-full resize-none rounded-lg border border-line-normal bg-transparent px-3 py-2 text-sm text-label-normal outline-none placeholder:text-label-disable focus:border-line-strong"
         />
         <Button
-          variant="secondary"
+          variant="line"
           onClick={() => run({ question: trimmedQuestion, title: trimmedQuestion.slice(0, 60) })}
           disabled={loading || trimmedQuestion.length === 0}
           className="w-full"
@@ -164,10 +164,10 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
       )}
       {error && !loading && (
         <ErrorBox as="div" className="mt-4">
-          <p className="text-[11px] font-medium">생성하지 못했어요</p>
+          <p className="text-2xs font-medium">생성하지 못했어요</p>
           <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-label-neutral">{error}</p>
           {lastRun && (
-            <Button variant="secondary" onClick={() => run(lastRun)} className="mt-3 w-full">
+            <Button variant="line" onClick={() => run(lastRun)} className="mt-3 w-full">
               다시 시도
             </Button>
           )}
@@ -175,7 +175,7 @@ export function DiaryAiSheet({ open, onClose, content, selection, onAddComment }
       )}
       {result && !loading && (
         <div className="mt-4 rounded-lg border border-line-alt bg-fill-alt px-4 py-3">
-          <p className="text-[11px] font-medium text-label-alt">{resultTitle}</p>
+          <p className="text-2xs font-medium text-label-alt">{resultTitle}</p>
           <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-label-neutral">{result}</p>
           <Button
             onClick={handleComment}
