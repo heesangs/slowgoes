@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { DemoStartLink } from "@/components/auth/demo-start-link";
+import { Logo } from "@/components/ui/logo";
 import { APP } from "@/lib/constants/brand";
 
 // 첫 화면 — Figma 36902:44831.
@@ -14,7 +15,10 @@ export default function LandingPage() {
           위 여백 19% · 로고 16% · 사이 30% · 행동 17% · 아래 18%.
           사이 간격이 가장 크므로 justify-between 으로 남는 높이를 그쪽에 준다. */}
       <div className="flex flex-col items-center gap-10">
-        <h1 className="text-3xl font-bold text-label-neutral">{APP.NAME}</h1>
+        {/* 로고 — Figma logo_slogan(37833:45006). h1 은 남기되 글자 대신 마크가 들어간다 */}
+        <h1 className="text-label-strong">
+          <Logo className="h-10 w-auto" />
+        </h1>
         <p className="text-base text-label-neutral">{APP.TAGLINE}</p>
       </div>
 

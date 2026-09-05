@@ -13,7 +13,6 @@
 import { useState } from "react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { FEATURE_NAMES } from "@/lib/constants";
-import { SURFACE_SHADOW } from "@/lib/constants/ui";
 import { cn } from "@/lib/utils";
 import type { Bucket } from "@/types";
 import { CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
@@ -65,8 +64,7 @@ export function BucketBar({
         aria-label={`${FEATURE_NAMES.BUCKET} 목록 열기`}
         className={cn(
           "sticky top-[calc(var(--top-header-h)+env(safe-area-inset-top))] z-20",
-          "flex w-full items-center gap-2 border-b border-line-alt bg-background px-4 py-2.5 text-left transition-colors hover:bg-fill-alt",
-          SURFACE_SHADOW
+          "flex w-full items-center gap-2 border-b border-line-normal bg-background px-4 py-2.5 text-left transition-colors hover:bg-fill-alt"
         )}
       >
         <span className="shrink-0 text-xs text-label-alt">{FEATURE_NAMES.BUCKET}</span>

@@ -9,8 +9,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DiaryIcon, ProfileIcon, ReviewIcon } from "@/components/ui/icons";
+import { Logo } from "@/components/ui/logo";
 import { APP, FEATURE_NAMES } from "@/lib/constants";
-import { SURFACE_SHADOW } from "@/lib/constants/ui";
 import { cn } from "@/lib/utils";
 
 // 우측 아이콘 — 일기 · 회고 · 프로필(설정)
@@ -20,7 +20,15 @@ const RIGHT_LINKS = [
   { href: "/profile", label: FEATURE_NAMES.PROFILE, Icon: ProfileIcon },
 ] as const;
 
-export function MainHeader() {
+interface MainHeaderProps {
+  /**
+   * 헤더 아래 선을 그릴지. 대시보드처럼 버킷 상단바가 바로 밑에 붙는 라우트에서는
+   * 그 바가 선을 갖는다 — 피그마(37847:43833)는 두 행을 묶어 **아래에만** 선 하나다.
+   */
+  bordered?: boolean;
+}
+
+export function MainHeader({ bordered = true }: MainHeaderProps) {
   const pathname = usePathname();
 
   return (
@@ -29,15 +37,18 @@ export function MainHeader() {
       // 칠해진다**(safe-area 패딩이 헤더 안쪽에 있으므로). 배경이 없던 시절엔 상태바
       // 아래를 칠할 주체가 없어, 오버레이가 지나간 뒤 그 자리가 어둡게 남았다.
       // z-30: 바텀 네비와 같은 층. 시트/입력창(50)보다는 아래.
+      //
+      // 그림자 없음 — 피그마 상단 네비는 선 하나로만 층을 나눈다.
       className={cn(
-        "sticky top-0 z-30 border-b border-line-alt bg-background px-4",
+        "sticky top-0 z-30 bg-background px-4",
         "pt-[env(safe-area-inset-top)]",
-        SURFACE_SHADOW
+        bordered && "border-b border-line-normal"
       )}
     >
       <div className="mx-auto flex h-[var(--top-header-h)] max-w-2xl items-center justify-between">
-        <Link href="/dashboard" className="text-lg font-bold">
-          {APP.NAME}
+        {/* 로고 — 피그마 네비의 123.28 × 28.54 ≈ h-7 */}
+        <Link href="/dashboard" aria-label={APP.NAME} className="text-label-strong">
+          <Logo className="h-7 w-auto" />
         </Link>
         <nav aria-label="보조 메뉴" className="flex items-center">
           {RIGHT_LINKS.map(({ href, label, Icon }) => {
