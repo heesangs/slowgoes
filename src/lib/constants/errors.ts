@@ -85,6 +85,10 @@ export const BUCKET_ERRORS = {
   UPDATE_ERROR: "버킷 수정 중 오류가 발생했습니다.",
   DELETE_ERROR: "버킷 삭제 중 오류가 발생했습니다.",
   COMPLETE_ERROR: "버킷 완료 처리 중 오류가 발생했습니다.",
+  RESTORE_ERROR: "버킷을 다시 시작하는 중 오류가 발생했습니다.",
+  /** 완료 후 같은 이름으로 새 버킷을 만든 경우 — 활성 버킷 unique 인덱스에 걸린다 */
+  RESTORE_TITLE_TAKEN:
+    "같은 이름의 버킷이 이미 진행 중이에요. 이름을 바꾼 뒤 다시 시작할 수 있어요.",
   LIST_ERROR: "버킷 목록을 불러오지 못했습니다.",
   INFO_NOT_FOUND: "버킷 정보를 찾을 수 없습니다.",
   STRIDE_PLAN_REQUIRED: "AI 추천 정보를 먼저 생성해주세요.",

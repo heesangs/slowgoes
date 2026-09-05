@@ -58,6 +58,18 @@ export function getDaysLeftLabel(level: DailyTodoStrideLevel, now: Date = new Da
  *
  * 날짜만 보고 계산한다(시각 무시) — 같은 날 오전/오후에 값이 달라지면 안 되므로.
  */
+/**
+ * 그날부터 오늘까지 며칠째인지 — 버킷을 "시작한 지 178일째"처럼 쓴다.
+ * 시작 당일이 1일째다(0일째라고 하지 않는다). 시각은 버리고 날짜만 본다.
+ */
+export function daysSince(iso: string, now: Date = new Date()): number {
+  const start = new Date(iso);
+  if (Number.isNaN(start.getTime())) return 0;
+  const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.round((today.getTime() - startDay.getTime()) / DAY_MS)) + 1;
+}
+
 export function daysLeftInYear(now: Date = new Date()): number {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const lastDay = new Date(now.getFullYear(), 11, 31);

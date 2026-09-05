@@ -514,12 +514,24 @@ export interface WeeklyGoalItem extends DiaryListItem {
   total: number;
 }
 
+/**
+ * 목록·상단바가 쓰는 버킷 요약. 본문(life_area_id 등)은 필요할 때 따로 읽는다.
+ * completed_at은 "완료한 버킷" 목록이 언제 끝냈는지 보여주는 데 쓴다.
+ */
+export type BucketSummary = Pick<
+  Bucket,
+  "id" | "title" | "stride_scope" | "status" | "created_at" | "completed_at"
+>;
+
 export interface DashboardV2Data {
   profile: Profile;
-  buckets: Array<Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at">>;
+  /** 진행 중인 버킷만. 완료한 것은 completedBuckets로 간다 */
+  buckets: BucketSummary[];
+  /** 완료한 버킷 — 최근 완료순. 버킷 시트 하단 "완료한 버킷 N"이 쓴다 */
+  completedBuckets: BucketSummary[];
   // PR 27: selectedBucket은 buckets에서 추출 가능 (별도 RTT 절약).
   // 컴포넌트가 id/title만 쓰므로 Pick으로 충분.
-  selectedBucket: Pick<Bucket, "id" | "title" | "stride_scope" | "status" | "created_at"> | null;
+  selectedBucket: BucketSummary | null;
   // todos는 ['todos', bucketId] 캐시가 소유한다. 여기 실리는 건 **첫 진입 시드**로,
   // useBucketTodos의 initialData가 되어 첫 프레임부터 목록이 채워진다(워터폴 제거).
   bucketTodos?: BucketTodosData;
