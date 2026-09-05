@@ -19,6 +19,11 @@ import { cn } from "@/lib/utils";
 // 그 외(회고/프로필)는 공통 px-4 유지.
 const FULL_WIDTH_PATHS = ["/dashboard", "/diary"];
 
+// 헤더 바로 아래에 버킷 상단바(BucketBar)가 flush로 붙는 라우트.
+// 피그마 상단 네비(37847:43833)는 로고 행과 버킷 행 사이에 선이 없고 **묶음 아래에만**
+// 선이 하나 있다 → 버킷 바가 있는 곳에선 그 선을 버킷 바가 갖고, 헤더는 선을 비운다.
+const HAS_BUCKET_BAR_PATHS = ["/dashboard"];
+
 interface MainShellProps {
   children: ReactNode;
 }
@@ -55,10 +60,11 @@ export function MainShell({ children }: MainShellProps) {
 
   // 대시보드/일기 목록은 좌우 여백 0(full-width) + 상단 flush, 그 외는 px-4/py-6
   const fullWidth = FULL_WIDTH_PATHS.some((p) => pathname === p);
+  const hasBucketBar = HAS_BUCKET_BAR_PATHS.some((p) => pathname === p);
 
   return (
     <div className="min-h-dvh flex flex-col">
-      <MainHeader />
+      <MainHeader bordered={!hasBucketBar} />
       {/* 하단 여백 = 네비 높이 + safe-area + 여유. 페이지별로 흩어놓지 않고 여기서 일괄 —
           하단 패딩이 없던 /review·/profile도 마지막 카드가 네비에 가리지 않는다. */}
       <main
