@@ -81,6 +81,15 @@ export function ChevronDownIcon({ className, strokeWidth = 2 }: IconProps & { st
   );
 }
 
+/** 겹꺾쇠(≫) — "다음 목표"처럼 한 단계 넘어가는 행동 (피그마 37849:43934) */
+export function DoubleChevronRightIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 6l6 6-6 6M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
 /** 일기 — 펼친 책 */
 export function DiaryIcon({ className }: IconProps) {
   return (

@@ -84,6 +84,7 @@ export const BUCKET_ERRORS = {
   UPDATE_FAILED: "버킷 수정에 실패했습니다.",
   UPDATE_ERROR: "버킷 수정 중 오류가 발생했습니다.",
   DELETE_ERROR: "버킷 삭제 중 오류가 발생했습니다.",
+  COMPLETE_ERROR: "버킷 완료 처리 중 오류가 발생했습니다.",
   LIST_ERROR: "버킷 목록을 불러오지 못했습니다.",
   INFO_NOT_FOUND: "버킷 정보를 찾을 수 없습니다.",
   STRIDE_PLAN_REQUIRED: "AI 추천 정보를 먼저 생성해주세요.",
@@ -130,6 +131,8 @@ export const STRIDE_ERRORS = {
   // PR 34: REGENERATE_ALL_FAILED 제거 — 전체 재생성 기능 폐지
   REGENERATE_SINGLE_FAILED: "발걸음 재생성에 실패했습니다.",
   REGENERATE_RESULT_EMPTY: "발걸음 재생성 결과가 비어 있습니다.",
+  NEXT_GOAL_SAME_AS_CURRENT:
+    "지금 목표와 같은 제안이 돌아왔어요. 다시 시도하거나 직접 목표를 적어보세요.",
   PROFILE_NOT_FOUND: "프로필 정보가 없습니다.",
   LIFE_AREA_EMPTY: "삶의 영역이 비어 있습니다.",
   ITEM_TITLE_EMPTY: "항목 제목이 비어 있습니다.",

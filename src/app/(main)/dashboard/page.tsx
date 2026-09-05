@@ -5,6 +5,11 @@ import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { DashboardLoader } from "@/components/dashboard/dashboard-loader";
 
+// 이 라우트의 서버 액션 중 Gemini를 부르는 것들(투두 추천·주간 목표·다음 목표)이
+// 이 함수를 탄다. 기본 실행 한도로는 긴 응답이 잘려 "이유 없는 실패"가 된다 —
+// /diary/new·/diary/[id]가 같은 이유로 이미 60초를 쓰고 있다.
+export const maxDuration = 60;
+
 export default async function DashboardPage() {
   const user = await getAuthUser();
   if (!user) {

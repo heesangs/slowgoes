@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AiSuggestionsSheet } from "@/components/dashboard/ai-suggestions-sheet";
 import { BucketBar } from "@/components/dashboard/bucket-bar";
 import { CalendarSection } from "@/components/dashboard/calendar-section";
+import { NextGoalSheet } from "@/components/dashboard/next-goal-sheet";
 import { PlanDropdown } from "@/components/dashboard/plan-dropdown";
 import { ExploreNewSceneSheet } from "@/components/dashboard/explore-new-scene-sheet";
 import { RepeatOptionsSheet } from "@/components/dashboard/repeat-options-sheet";
@@ -14,15 +15,19 @@ import {
   KeyboardAccessoryInput,
   type KeyboardAccessoryInputHandle,
 } from "@/components/ui/keyboard-accessory-input";
-import { AiIcon, DetailIcon, RepeatIcon } from "@/components/ui/icons";
+import { AiIcon, DetailIcon, DoubleChevronRightIcon, RepeatIcon } from "@/components/ui/icons";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import {
   addTodoAction,
   addTodosAction,
+  completeBucketAction,
   deleteBucketAction,
   deleteTodoAction,
   generateTodoSuggestionsAction,
   toggleTodoCompletionAction,
+  suggestNextStrideAction,
   updateBucketTitleAction,
   updateStrideItemAction,
   updateTodoAction,
@@ -36,6 +41,8 @@ import {
 import { useBucketTodos } from "@/hooks/use-todos";
 import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { FEATURE_NAMES } from "@/lib/constants";
+import { josa } from "@/lib/utils";
+import { daysLeftInYear } from "@/lib/utils/period";
 import {
   deriveTodosForDate,
   formatRepeatInputLabel,
@@ -168,6 +175,54 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         const nextBucket = data.buckets.find((b) => b.id !== bucket.id);
         router.replace(nextBucket ? `/dashboard?bucket=${nextBucket.id}` : "/dashboard");
       }
+    });
+  }
+
+  // 다음 목표 — 계획 드롭다운 이번 달 카드의 [다음 목표 ≫].
+  // AI는 초안만 만들고, 확정은 기존 수정 입력창에서 사용자가 한다.
+  const [nextGoalOpen, setNextGoalOpen] = useState(false);
+  const [nextGoalError, setNextGoalError] = useState<string | null>(null);
+  const [isSuggestingGoal, startSuggestGoal] = useTransition();
+  function handleSuggestNextGoal() {
+    const bucketId = data.selectedBucket?.id;
+    if (!bucketId || !thisMonthStride || isSuggestingGoal) return;
+
+    setNextGoalError(null);
+    startSuggestGoal(async () => {
+      const result = await suggestNextStrideAction(bucketId, thisMonthStride.level);
+      if (!result.success || !result.draft) {
+        setNextGoalError(result.error ?? "새 목표를 만들지 못했어요.");
+        return;
+      }
+      // 시트를 닫고 초안을 채운 입력창으로 — 저장은 사용자가 누른다.
+      // (그때 updateStrideItemAction이 이전 목표를 title_history로 넘긴다)
+      setNextGoalOpen(false);
+      setInputValue(result.draft);
+      setInputMode({ type: "edit", stride: thisMonthStride });
+      inputHandleRef.current?.focus();
+    });
+  }
+
+  // 버킷 완료 — 계획 드롭다운 "언젠가" 카드의 [버킷 완료].
+  // 되돌리는 UI가 아직 없으므로 확인 시트를 한 단계 둔다.
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [isCompletingBucket, startCompleteBucket] = useTransition();
+  function handleCompleteBucket() {
+    const bucket = data.selectedBucket;
+    if (!bucket || isCompletingBucket) return;
+
+    startCompleteBucket(async () => {
+      const result = await completeBucketAction(bucket.id);
+      if (!result.success) {
+        toast(result.error ?? `${FEATURE_NAMES.BUCKET} 완료에 실패했어요.`, "error");
+        return;
+      }
+      setCompleteOpen(false);
+      toast(`'${bucket.title}'을 완료했어요. 수고했어요 🎉`, "success");
+      // 목록에서 빠지므로 대시보드 캐시 전체 무효화 후 남은 버킷으로 이동
+      await invalidateDashboard();
+      const nextBucket = data.buckets.find((b) => b.id !== bucket.id);
+      router.replace(nextBucket ? `/dashboard?bucket=${nextBucket.id}` : "/dashboard");
     });
   }
 
@@ -483,6 +538,47 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
 
   // PR 34: 전체 발걸음 재생성 삭제. Phase A: 수정 시 AI 재생성도 제거(텍스트 수정만).
 
+  // 계획 카드 우측 슬롯 — 레벨마다 다르다 (피그마 37847:42846 조립 화면).
+  //   언젠가  → [버킷 완료]   이 지평이 끝나면 버킷 자체가 끝난다
+  //   올해안  → D-{n}         그 해 12/31 까지. 1월 1일에 저절로 리셋
+  //   이번 달 → 다음 목표 ≫    (다음 PR)
+  function renderPlanRightSlot(item: StrideItem) {
+    if (item.level === "someday") {
+      return (
+        <button
+          type="button"
+          onClick={() => setCompleteOpen(true)}
+          className="rounded px-1.5 py-0.5 text-[13px] text-label-assistive transition-colors hover:bg-fill-alt hover:text-label-neutral"
+        >
+          {FEATURE_NAMES.BUCKET} 완료
+        </button>
+      );
+    }
+    if (item.level === "this_year") {
+      return (
+        <span className="text-[13px] tabular-nums text-label-assistive">
+          D-{daysLeftInYear()}
+        </span>
+      );
+    }
+    if (item.level === "this_month") {
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            setNextGoalError(null);
+            setNextGoalOpen(true);
+          }}
+          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[13px] text-label-assistive transition-colors hover:bg-fill-alt hover:text-label-neutral"
+        >
+          다음 목표
+          <DoubleChevronRightIcon className="h-3.5 w-3.5" />
+        </button>
+      );
+    }
+    return null;
+  }
+
   return (
     <div className="flex flex-col gap-4 pb-24">
       {/* 버킷 상단바 — 구 '나의 시간' 바 자리(헤더 바로 아래 flush). 피그마 32821:19432.
@@ -505,6 +601,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
               monthStride={thisMonthStride}
               monthLabel={monthLabel}
               onEditStride={handleEditOpen}
+              renderRightSlot={renderPlanRightSlot}
             />
           }
           age={data.profile.life_clock_age}
@@ -627,6 +724,59 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           ) : undefined
         }
       />
+
+      {/* 다음 목표 — AI 초안 제안 + 지난 목표 목록(title_history) */}
+      {thisMonthStride && (
+        <NextGoalSheet
+          open={nextGoalOpen}
+          onClose={() => setNextGoalOpen(false)}
+          targetLabel={monthLabel}
+          currentAction={thisMonthStride.action}
+          history={data.stridePlan?.title_history?.[thisMonthStride.level] ?? []}
+          onSuggest={handleSuggestNextGoal}
+          isSuggesting={isSuggestingGoal}
+          error={nextGoalError}
+        />
+      )}
+
+      {/* 버킷 완료 확인 — 되돌리는 UI가 없어서 한 단계 물어본다.
+          window.confirm 이 아닌 시트인 이유: 모바일 앱 톤이고, 무엇이 남고 무엇이
+          사라지는지를 두 줄로 설명해야 오해가 없다. */}
+      <BottomSheet
+        open={completeOpen}
+        onClose={() => setCompleteOpen(false)}
+        title={`${FEATURE_NAMES.BUCKET} 완료`}
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <p className="text-base font-bold">
+              &apos;{data.selectedBucket?.title}&apos;
+              {josa(data.selectedBucket?.title ?? "", "을", "를")} 완료할까요?
+            </p>
+            <p className="text-sm leading-relaxed text-label-alt">
+              대시보드에서는 사라지지만 지금까지의 할 일과 기록은 그대로 남아요.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="line"
+              className="flex-1"
+              onClick={() => setCompleteOpen(false)}
+              disabled={isCompletingBucket}
+            >
+              취소
+            </Button>
+            <Button
+              variant="fill"
+              className="flex-1"
+              onClick={handleCompleteBucket}
+              isLoading={isCompletingBucket}
+            >
+              완료하기
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
 
       {/* R2: AI 추천 3개 선택 시트 — 등록 시 캐시 append (입력창 위에 오버레이) */}
       <AiSuggestionsSheet
