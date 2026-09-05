@@ -10,6 +10,7 @@ import {
   getStridePlan,
 } from "@/lib/dashboard";
 import {
+  COMPLETED_TODOS_FOR_PROMPT,
   generateTodoSuggestions,
   generateWeeklyGoals,
   regenerateSingleStride,
@@ -704,6 +705,82 @@ export async function regenerateStrideItemAction(
 
     revalidatePath("/dashboard");
     return { success: true, item: newItem };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, STRIDE_ERRORS.REGENERATE_SINGLE_FAILED),
+    };
+  }
+}
+
+/**
+ * "다음 목표" — 지금까지 완료한 할 일을 근거로 다음 발걸음 **초안만** 만든다.
+ *
+ * regenerateStrideItemAction과의 차이는 두 가지다.
+ *   1) 완료한 투두 제목을 프롬프트에 실어 "이미 한 것 다음"을 제안하게 한다.
+ *   2) **DB에 쓰지 않는다.** 초안을 입력창에 채워 주고 확정은 사용자가 한다
+ *      (CLAUDE.md "AI는 제안만 하고 유저가 결정하고 실행한다").
+ *      저장은 기존 updateStrideItemAction이 맡고, 그때 이전 목표가
+ *      title_history로 자동으로 넘어간다.
+ */
+export async function suggestNextStrideAction(
+  bucketId: string,
+  targetLevel: StrideLevel
+): Promise<{ success: boolean; draft?: string; error?: string }> {
+  try {
+    if (!STRIDE_ORDER.includes(targetLevel)) {
+      throw new Error(STRIDE_ERRORS.LEVEL_INVALID_ALT);
+    }
+
+    const ctx = await loadNextStepContext(bucketId);
+
+    // 이 버킷에서 완료한 할 일 제목 (최근순).
+    // 완료는 todo_completions 단일 경로(Phase B)라 거기서 날짜를 얻고 todos에서 제목을 얻는다.
+    const { data: completions, error: completionsError } = await ctx.supabase
+      .from("todo_completions")
+      .select("completion_date, todos!inner(title, bucket_id)")
+      .eq("user_id", ctx.userId)
+      .eq("todos.bucket_id", bucketId)
+      .order("completion_date", { ascending: false })
+      .limit(COMPLETED_TODOS_FOR_PROMPT);
+
+    if (completionsError) throw completionsError;
+
+    // 반복 할 일은 여러 날 완료되어 같은 제목이 반복된다 → 중복 제거(최근순 유지)
+    const completedTodoTitles = [
+      ...new Set(
+        ((completions as Array<{ todos: { title: string } | { title: string }[] }> | null) ?? [])
+          .map((row) => (Array.isArray(row.todos) ? row.todos[0]?.title : row.todos?.title))
+          .filter((title): title is string => Boolean(title))
+      ),
+    ];
+
+    // gemini-2.0-flash는 "중복 금지"를 써 놔도 지금 값을 그대로 되돌려줄 때가 있다.
+    // 같은 문장을 입력창에 채워 주면 사용자 눈에는 "아무 일도 안 일어난" 것이라
+    // 한 번 다시 물어보고, 그래도 같으면 실패로 알린다.
+    const currentAction =
+      ctx.strides.find((item) => item.level === targetLevel)?.action ?? "";
+    const squash = (text: string) => text.replace(/\s+/g, " ").trim();
+
+    let draft = "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const item = await regenerateSingleStride({
+        bucketTitle: ctx.bucket.title,
+        lifeArea: ctx.lifeArea,
+        existingStrides: ctx.strides,
+        targetLevel,
+        completedTodoTitles,
+      });
+      draft = item.action;
+      if (squash(draft) !== squash(currentAction)) break;
+      draft = "";
+    }
+
+    if (!draft) {
+      return { success: false, error: STRIDE_ERRORS.NEXT_GOAL_SAME_AS_CURRENT };
+    }
+
+    return { success: true, draft };
   } catch (error) {
     return {
       success: false,

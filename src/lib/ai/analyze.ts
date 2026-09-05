@@ -25,6 +25,12 @@ import type {
 
 const LIFE_AREA_OPTIONS = ["건강", "관계", "성장", "경험", "일", "돈", "내면"] as const;
 
+/**
+ * "다음 목표" 프롬프트에 실을 완료 할 일 개수 상한.
+ * 다음 한 단계를 정하는 데는 최근 흐름이면 충분하고, 늘릴수록 토큰만 는다.
+ */
+export const COMPLETED_TODOS_FOR_PROMPT = 30;
+
 // 나의 발걸음(stride) — 짧은 → 긴 순서
 export const STRIDE_LABELS: Record<StrideLevel, string> = {
   today: "오늘",
@@ -541,6 +547,12 @@ interface RegenerateSingleStrideInput {
   lifeArea: string;
   existingStrides: StrideItem[];
   targetLevel: StrideLevel;
+  /**
+   * 사용자가 실제로 완료한 할 일 제목들 (최근순).
+   * "다음 목표" 흐름에서 넘긴다 — 지금까지의 실행을 근거로 다음 단계를 세우기 위해.
+   * 비어 있으면 프롬프트에서 통째로 빠진다(기존 재생성 동작 그대로).
+   */
+  completedTodoTitles?: string[];
 }
 
 interface GenerateWeeklyItemsResult {
@@ -1030,6 +1042,35 @@ export async function regenerateSingleStride(
       (a, b) => STRIDE_ORDER.indexOf(a.level) - STRIDE_ORDER.indexOf(b.level)
     )[0].level === targetLevel;
 
+  // "다음 목표" 흐름에서만 채워진다. 없으면 블록째 빠져 기존 프롬프트와 동일하다.
+  const doneTitles = (input.completedTodoTitles ?? [])
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, COMPLETED_TODOS_FOR_PROMPT);
+
+  // 교체 대상 문장을 따로 못박는다. "기존 발걸음" 목록 안에만 있으면 모델이 그걸
+  // 정답으로 읽고 그대로 되돌려준다 — 실제로 gemini-2.0-flash 가 그랬다.
+  const currentAction =
+    input.existingStrides.find((item) => item.level === targetLevel)?.action ?? "";
+
+  const doneBlock = doneTitles.length
+    ? `
+- 사용자가 지금까지 실제로 해낸 일 (최근순):
+${doneTitles.map((t) => `  - ${t}`).join("\n")}${
+        currentAction
+          ? `
+- 이번에 교체할 현재 ${targetLabel} 목표: "${currentAction}"`
+          : ""
+      }`
+    : "";
+
+  const doneRules = doneTitles.length
+    ? `
+- 해낸 일 목록은 이미 지나간 단계다. 그 **다음 단계**를 제안할 것 — 되풀이 금지
+- "이번에 교체할 현재 ${targetLabel} 목표"와 같거나 거의 같은 문장을 내면 실패다.
+  낱말만 바꾼 재구성도 안 된다. 행동의 내용 자체가 한 걸음 나아가야 한다`
+    : "";
+
   const prompt = `당신은 slowgoes 앱의 실행 코치입니다.
 사용자가 특정 "나의 발걸음(stride)" 단계의 행동만 새로 추천받고 싶어합니다.
 
@@ -1038,12 +1079,12 @@ export async function regenerateSingleStride(
 - 삶의 영역: ${lifeArea || "미정"}
 - 기존 발걸음:
 ${existingSummary || "- 정보 없음"}
-- 재생성 대상 레벨: ${targetLevel} (${targetLabel})
+- 재생성 대상 레벨: ${targetLevel} (${targetLabel})${doneBlock}
 
 규칙:
 - 다른 단계는 건드리지 말고, 대상 레벨 1개의 action만 새로 제안
 - 한국어 1문장
-- 기존 action과 중복 금지
+- 기존 action과 중복 금지${doneRules}
 
 어조 가이드 (PR 17, 대상 레벨에 따라):
 - someday: "~한 사람이 되어 있다" / "~을 즐기는 사람" / "~의 길을 걸어가고 있다" (정체성 진술)

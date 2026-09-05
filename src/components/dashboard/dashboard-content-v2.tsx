@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AiSuggestionsSheet } from "@/components/dashboard/ai-suggestions-sheet";
 import { BucketBar } from "@/components/dashboard/bucket-bar";
 import { CalendarSection } from "@/components/dashboard/calendar-section";
+import { NextGoalSheet } from "@/components/dashboard/next-goal-sheet";
 import { PlanDropdown } from "@/components/dashboard/plan-dropdown";
 import { ExploreNewSceneSheet } from "@/components/dashboard/explore-new-scene-sheet";
 import { RepeatOptionsSheet } from "@/components/dashboard/repeat-options-sheet";
@@ -14,7 +15,7 @@ import {
   KeyboardAccessoryInput,
   type KeyboardAccessoryInputHandle,
 } from "@/components/ui/keyboard-accessory-input";
-import { AiIcon, DetailIcon, RepeatIcon } from "@/components/ui/icons";
+import { AiIcon, DetailIcon, DoubleChevronRightIcon, RepeatIcon } from "@/components/ui/icons";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -26,6 +27,7 @@ import {
   deleteTodoAction,
   generateTodoSuggestionsAction,
   toggleTodoCompletionAction,
+  suggestNextStrideAction,
   updateBucketTitleAction,
   updateStrideItemAction,
   updateTodoAction,
@@ -173,6 +175,31 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         const nextBucket = data.buckets.find((b) => b.id !== bucket.id);
         router.replace(nextBucket ? `/dashboard?bucket=${nextBucket.id}` : "/dashboard");
       }
+    });
+  }
+
+  // 다음 목표 — 계획 드롭다운 이번 달 카드의 [다음 목표 ≫].
+  // AI는 초안만 만들고, 확정은 기존 수정 입력창에서 사용자가 한다.
+  const [nextGoalOpen, setNextGoalOpen] = useState(false);
+  const [nextGoalError, setNextGoalError] = useState<string | null>(null);
+  const [isSuggestingGoal, startSuggestGoal] = useTransition();
+  function handleSuggestNextGoal() {
+    const bucketId = data.selectedBucket?.id;
+    if (!bucketId || !thisMonthStride || isSuggestingGoal) return;
+
+    setNextGoalError(null);
+    startSuggestGoal(async () => {
+      const result = await suggestNextStrideAction(bucketId, thisMonthStride.level);
+      if (!result.success || !result.draft) {
+        setNextGoalError(result.error ?? "새 목표를 만들지 못했어요.");
+        return;
+      }
+      // 시트를 닫고 초안을 채운 입력창으로 — 저장은 사용자가 누른다.
+      // (그때 updateStrideItemAction이 이전 목표를 title_history로 넘긴다)
+      setNextGoalOpen(false);
+      setInputValue(result.draft);
+      setInputMode({ type: "edit", stride: thisMonthStride });
+      inputHandleRef.current?.focus();
     });
   }
 
@@ -534,6 +561,21 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         </span>
       );
     }
+    if (item.level === "this_month") {
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            setNextGoalError(null);
+            setNextGoalOpen(true);
+          }}
+          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[13px] text-label-assistive transition-colors hover:bg-fill-alt hover:text-label-neutral"
+        >
+          다음 목표
+          <DoubleChevronRightIcon className="h-3.5 w-3.5" />
+        </button>
+      );
+    }
     return null;
   }
 
@@ -682,6 +724,20 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
           ) : undefined
         }
       />
+
+      {/* 다음 목표 — AI 초안 제안 + 지난 목표 목록(title_history) */}
+      {thisMonthStride && (
+        <NextGoalSheet
+          open={nextGoalOpen}
+          onClose={() => setNextGoalOpen(false)}
+          targetLabel={monthLabel}
+          currentAction={thisMonthStride.action}
+          history={data.stridePlan?.title_history?.[thisMonthStride.level] ?? []}
+          onSuggest={handleSuggestNextGoal}
+          isSuggesting={isSuggestingGoal}
+          error={nextGoalError}
+        />
+      )}
 
       {/* 버킷 완료 확인 — 되돌리는 UI가 없어서 한 단계 물어본다.
           window.confirm 이 아닌 시트인 이유: 모바일 앱 톤이고, 무엇이 남고 무엇이
