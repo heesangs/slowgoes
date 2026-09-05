@@ -7,6 +7,7 @@
 // 목록 결은 일기(divide-y + 좌측 시점 컬럼)를 따른다 — 같은 "지나간 기록"이라서.
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { SubPageHeader } from "@/components/layout/sub-page-header";
@@ -112,7 +113,12 @@ export function CompletedBucketsContent() {
               const span = formatSpan(bucket);
               return (
                 <li key={bucket.id} className="flex items-center gap-3 py-4">
-                  <div className="min-w-0 flex-1">
+                  {/* 본문 탭 → 완료 리포트. [다시 시작하기]는 형제로 둔다 —
+                      링크 안에 버튼을 넣으면 유효하지 않은 마크업이 된다. */}
+                  <Link
+                    href={`/buckets/${bucket.id}`}
+                    className="-mx-2 min-w-0 flex-1 rounded px-2 py-1 transition-colors hover:bg-fill-alt"
+                  >
                     <p className="break-words text-sm font-bold text-label-normal">
                       {bucket.title}
                     </p>
@@ -123,7 +129,7 @@ export function CompletedBucketsContent() {
                         ? `완료한 할 일 ${bucket.completedTodoCount}개`
                         : ""}
                     </p>
-                  </div>
+                  </Link>
                   <Button
                     variant="line"
                     size="sm"
