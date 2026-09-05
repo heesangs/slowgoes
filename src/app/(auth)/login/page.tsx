@@ -84,10 +84,11 @@ function VerifyBanner() {
 }
 
 export default function LoginPage() {
-  const [email, setEmail] = useState(() => {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem(SAVED_EMAIL_KEY) ?? "";
-  });
+  // 저장해 둔 이메일은 **브라우저에만** 있다. 첫 렌더에서 읽으면 서버가 그린 HTML(빈 값)과
+  // 어긋나는데, 값이 있으면 Input이 ✕ 지움 버튼까지 그리므로 속성이 아니라 **DOM 트리**가
+  // 달라진다 → React가 "Hydration failed"로 끊고 그 트리를 통째로 다시 그린다.
+  // 그래서 빈 값으로 시작하고 마운트 뒤에 채운다(아래 useEffect).
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +107,14 @@ export default function LoginPage() {
       setEmailError(null);
     }
   }
+
+  // 마운트 뒤 1회 — 저장해 둔 이메일 복원.
+  // 하이드레이션이 끝난 다음이라 서버 HTML과 어긋날 일이 없다(위 useState 주석 참고).
+  // 회원가입 쪽 DemoDataBanner도 같은 이유로 같은 방식을 쓴다.
+  useEffect(() => {
+    const saved = localStorage.getItem(SAVED_EMAIL_KEY);
+    if (saved) setEmail(saved);
+  }, []);
 
   // 이메일 변경 시 localStorage에 저장
   useEffect(() => {
