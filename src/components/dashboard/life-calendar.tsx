@@ -215,11 +215,28 @@ function parseHex(hex: string): [number, number, number] | null {
   return n.some(Number.isNaN) ? null : [n[0], n[1], n[2]];
 }
 
+/** 상대 휘도 근사 0~1 */
+function luminance([r, g, b]: [number, number, number]): number {
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+// 겹침이 깊어져도 넘지 않는 선.
+//
+// multiply 는 색을 곱하므로 넷이 겹치면 #591701(휘도 0.16) — 거의 검정이 되어
+// **가장 최근이자 가장 활발했던 구간이 오히려 안 읽힌다.** screen 은 반대로 흰색에 붙는다.
+// 균일하게 alpha 를 낮추는 방법도 있었지만 그러면 겹침이 하나일 때조차 원색이 흐려진다
+// (테라코타가 연분홍이 된다) — 사용자가 고른 색이 안 보이는 쪽이 더 나쁘다.
+// 그래서 곱셈은 그대로 두고 **뭉개지는 구간만** 배경 쪽에서 끌어올린다.
+// 겹침 1~2개는 이 선을 넘지 않아 손대지 않은 것과 같다.
+const BLEND_FLOOR = 0.3; // 라이트: 이보다 어두워지지 않는다
+const BLEND_CEIL = 0.8; // 다크: 이보다 밝아지지 않는다
+
 /**
- * 진행 중인 버킷이 여럿이면 색을 하나로 섞는다 — 구간 레이어와 같은 방식
- * (라이트 multiply / 다크 screen)이라 맥박 색이 그 자리 구간 색과 어긋나지 않는다.
+ * 버킷 색 여러 개를 하나로 섞는다 — 라이트 multiply / 다크 screen.
+ *
+ * 구간 레이어와 맥박이 **같은 함수**를 쓴다. 안 그러면 맥박 색이 그 자리 구간 색과 어긋난다.
  */
-function blendColors(hexes: string[], dark: boolean): string | null {
+function blendBucketColors(hexes: string[], dark: boolean): string | null {
   let acc: [number, number, number] | null = null;
   for (const hex of hexes) {
     const c = parseHex(hex);
@@ -233,6 +250,18 @@ function blendColors(hexes: string[], dark: boolean): string | null {
     ) as [number, number, number];
   }
   if (!acc) return null;
+
+  // 뭉갬 방지 — 하한/상한을 넘어간 만큼만 흰(검은)쪽으로 되돌린다.
+  // 색상(hue)은 유지되고 밝기만 올라간다.
+  const lum = luminance(acc);
+  if (!dark && lum < BLEND_FLOOR && lum > 0) {
+    const t = (BLEND_FLOOR - lum) / (1 - lum); // 흰색으로 섞을 비율
+    acc = acc.map((v) => v + (255 - v) * t) as [number, number, number];
+  } else if (dark && lum > BLEND_CEIL && lum < 1) {
+    const t = (lum - BLEND_CEIL) / lum; // 검은색으로 섞을 비율
+    acc = acc.map((v) => v * (1 - t)) as [number, number, number];
+  }
+
   return "#" + acc.map((n) => Math.round(n).toString(16).padStart(2, "0")).join("");
 }
 
@@ -465,18 +494,38 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
     const spansLayer = makeLayer();
     if (spansLayer.x && spans && spans.length > 0) {
       const sx = spansLayer.x;
-      sx.globalCompositeOperation = isDark ? "screen" : "multiply";
+      // 칸마다 덮고 있는 버킷을 모은 뒤 **한 번만** 칠한다.
+      // 캔버스 globalCompositeOperation 대신 JS 로 섞는 이유: 뭉갬 방지 하한을
+      // 걸려면 합성 결과를 알아야 하는데, 캔버스에 맡기면 그 값을 꺼내 볼 수 없다.
+      // 결과 색은 같고(같은 multiply/screen 식), 칸당 한 번만 칠해 더 싸다.
+      const byCell = new Map<number, number[]>();
       for (const span of spans) {
-        sx.fillStyle = colors.bucket[span.colorIndex] ?? fg;
         const from = Math.max(0, span.from);
         const to = Math.min(COLS * ROWS - 1, span.to);
         for (let i = from; i <= to; i++) {
-          const { x, y } = cellXY(i);
-          roundRectPath(sx, x, y, L.cell, L.cellH, CELL_R);
-          sx.fill();
+          const list = byCell.get(i);
+          if (list) list.push(span.colorIndex);
+          else byCell.set(i, [span.colorIndex]);
         }
       }
-      sx.globalCompositeOperation = "source-over";
+      // 같은 색 조합은 결과가 같으므로 조합 단위로 캐시한다
+      const cache = new Map<string, string>();
+      for (const [i, indexes] of byCell) {
+        const key = indexes.join(",");
+        let fill = cache.get(key);
+        if (!fill) {
+          fill =
+            blendBucketColors(
+              indexes.map((n) => colors.bucket[n] ?? fg),
+              isDark
+            ) ?? fg;
+          cache.set(key, fill);
+        }
+        sx.fillStyle = fill;
+        const { x, y } = cellXY(i);
+        roundRectPath(sx, x, y, L.cell, L.cellH, CELL_R);
+        sx.fill();
+      }
     }
 
     // 레이어 4: 현재 주 강조 링 — 구간 색보다 위에 그려야 묻히지 않는다.
@@ -845,7 +894,7 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
     const styles = getComputedStyle(document.documentElement);
     const bg = styles.getPropertyValue("--background").trim() || "#ffffff";
     const dark = isDarkColor(bg);
-    const color = blendColors(
+    const color = blendBucketColors(
       ongoingColors.map((i: number) => styles.getPropertyValue(bucketColorVar(i as 1)).trim()),
       dark
     );
