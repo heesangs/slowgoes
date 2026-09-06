@@ -45,7 +45,8 @@ import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { josa } from "@/lib/utils";
 import { daysLeftInYear, daysSince } from "@/lib/utils/period";
-import type { BucketColorIndex } from "@/lib/buckets/color";
+import { resolveBucketColors, type BucketColorIndex } from "@/lib/buckets/color";
+import { buildLifeSpans } from "@/lib/dashboard/life-grid";
 import {
   deriveTodosForDate,
   formatRepeatInputLabel,
@@ -566,6 +567,17 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
   // R3: 지향점 시트의 this_month 카드 라벨은 "이번 달" 대신 해당 달(예: "7월")
   const monthLabel = `${parseDateString(getTodayDateString()).getMonth() + 1}월`;
 
+  // 일생 캘린더에 칠할 버킷 색 구간 — 시작~완료(진행 중이면 오늘)까지.
+  //
+  // useMemo 는 필수다. 이 값의 identity 가 바뀌면 캔버스가 5,200칸을 통째로 다시 그린다.
+  // 색은 완료한 버킷까지 포함해 등록 순서로 푼다(시트와 같은 규칙 — resolveBucketColors).
+  const lifeSpans = useMemo(() => {
+    const age = data.profile.life_clock_age;
+    if (typeof age !== "number" || age <= 0) return [];
+    const all = [...data.buckets, ...data.completedBuckets];
+    return buildLifeSpans(all, resolveBucketColors(all), age);
+  }, [data.buckets, data.completedBuckets, data.profile.life_clock_age]);
+
   // 완료 확인 시트에 얹을 한 줄 — "3월 12일에 시작해서 178일째예요. 완료한 할 일 42개, …"
   //
   // 새 쿼리 없이 이미 클라이언트에 있는 bucketTodos 로 센다.
@@ -671,6 +683,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
             />
           }
           age={data.profile.life_clock_age}
+          lifeSpans={lifeSpans}
           userName={data.profile.display_name}
           todos={todos}
           isLoadingTodos={isLoadingTodos}

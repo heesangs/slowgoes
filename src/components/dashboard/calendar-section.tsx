@@ -22,6 +22,7 @@ import {
 import { WeekSheet } from "@/components/dashboard/week-sheet";
 import { getWeekStart } from "@/lib/date/week";
 import type { CalendarView } from "@/lib/dashboard/calendar-view";
+import type { LifeSpan } from "@/lib/dashboard/life-grid";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
 import { ChevronDownIcon, RepeatIcon } from "@/components/ui/icons";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -83,6 +84,8 @@ interface CalendarSectionProps {
   plan?: ReactNode;
   /** R4: 일생 캘린더용 나이 (life_clock_age). 없으면 토글 숨김 */
   age?: number | null;
+  /** 일생 캘린더에 칠할 버킷 색 구간 (부모에서 useMemo — 5,200칸 프리렌더가 걸려 있다) */
+  lifeSpans?: LifeSpan[];
   /** 인생시계 문구의 호칭 (display_name) */
   userName?: string | null;
   /** 선택 날짜의 할 일 (useTodos 결과) */
@@ -113,6 +116,7 @@ interface CalendarSectionProps {
 export function CalendarSection({
   plan,
   age,
+  lifeSpans,
   userName = null,
   todos,
   isLoadingTodos = false,
@@ -536,6 +540,7 @@ export function CalendarSection({
           ref={lifeRef}
           age={age as number}
           userName={userName}
+          spans={lifeSpans}
           weekOfYear={weekOfYear}
           animate
           // 제스처 데드존 제거: 섹션 상단(타이틀 행·py-4)을 음수 마진으로 덮고 같은 양의
