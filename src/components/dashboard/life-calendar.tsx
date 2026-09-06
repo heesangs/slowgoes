@@ -19,7 +19,7 @@
 // 진행도는 ref + rAF(리액트 상태는 phase 전환점만). 5200칸은 오프스크린 프리렌더.
 // prefers-reduced-motion이면 즉시 전환.
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, useMemo } from "react";
 import { computeLifeClock } from "@/components/auth/onboarding/utils";
 import { cn } from "@/lib/utils";
 import type { LifeSpan } from "@/lib/dashboard/life-grid";
@@ -188,6 +188,52 @@ function isDarkColor(css: string): boolean {
   }
   // 상대 휘도 근사 — 정확한 WCAG 식까지 갈 필요 없이 방향만 가리면 된다
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+}
+
+/**
+ * 심장박동 포락선 — 0~1 주기 안에서 "쿵-쿵 … 쉼".
+ *
+ * 사인파 하나로는 숨쉬기처럼 보이고 살아 있다는 느낌이 안 난다.
+ * 강한 박동 뒤 짧은 간격을 두고 약한 박동, 그리고 긴 휴지 — 실제 심박의 lub-dub 이다.
+ */
+function heartbeat(t: number): number {
+  const pulse = (center: number, half: number, amp: number) => {
+    const d = (t - center) / half;
+    if (d <= -1 || d >= 1) return 0;
+    return amp * Math.cos((d * Math.PI) / 2) ** 2;
+  };
+  // 주기 경계에서 첫 박동이 잘리지 않게 t=1 쪽에도 같은 박동을 둔다
+  return Math.min(1, pulse(0, 0.09, 1) + pulse(1, 0.09, 1) + pulse(0.19, 0.08, 0.55));
+}
+
+/** #rrggbb → [r,g,b] */
+function parseHex(hex: string): [number, number, number] | null {
+  const h = hex.trim().replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  if (full.length < 6) return null;
+  const n = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+  return n.some(Number.isNaN) ? null : [n[0], n[1], n[2]];
+}
+
+/**
+ * 진행 중인 버킷이 여럿이면 색을 하나로 섞는다 — 구간 레이어와 같은 방식
+ * (라이트 multiply / 다크 screen)이라 맥박 색이 그 자리 구간 색과 어긋나지 않는다.
+ */
+function blendColors(hexes: string[], dark: boolean): string | null {
+  let acc: [number, number, number] | null = null;
+  for (const hex of hexes) {
+    const c = parseHex(hex);
+    if (!c) continue;
+    if (!acc) {
+      acc = c;
+      continue;
+    }
+    acc = acc.map((d, i) =>
+      dark ? 255 - ((255 - d) * (255 - c[i])) / 255 : (d * c[i]) / 255
+    ) as [number, number, number];
+  }
+  if (!acc) return null;
+  return "#" + acc.map((n) => Math.round(n).toString(16).padStart(2, "0")).join("");
 }
 
 function easeInOutCubic(u: number): number {
@@ -771,6 +817,106 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
       if (entryTimer != null) clearTimeout(entryTimer);
     };
   }, [age, animate, weeksLived, currentIndex, onReady, readColors, width, entryDelayMs, spans, themeTick]);
+
+  // ── 진행 중 버킷의 맥박 ──
+  //
+  // "지금 붙들고 있는 것"이 현재 주 칸에서 심장박동처럼 뛴다.
+  // 그리드는 원래 정적이라(전환 때만 그림) 여기서만 상시 rAF 를 돈다.
+  // 그래서 세 가지를 지킨다:
+  //   1) 그리드 상태일 때만 — 시계로 넘어가면 멈춘다
+  //   2) prefers-reduced-motion 이면 아예 안 뛴다. 구간 색과 강조 링은 이미 그려져 있어
+  //      "지금 여기"는 정지 상태로도 읽힌다
+  //   3) 탭이 백그라운드면 멈춘다 — 안 보이는 화면에 배터리를 쓸 이유가 없다
+  const beatRafRef = useRef<number | null>(null);
+  const ongoingColors = useMemo(
+    () => (spans ?? []).filter((s) => s.ongoing).map((s) => s.colorIndex),
+    [spans]
+  );
+
+  useEffect(() => {
+    if (ongoingColors.length === 0) return;
+    if (phase !== "grid") return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const styles = getComputedStyle(document.documentElement);
+    const bg = styles.getPropertyValue("--background").trim() || "#ffffff";
+    const dark = isDarkColor(bg);
+    const color = blendColors(
+      ongoingColors.map((i: number) => styles.getPropertyValue(bucketColorVar(i as 1)).trim()),
+      dark
+    );
+    if (!color) return;
+
+    const PERIOD = 1500; // ms — 분당 40회. 재촉이 아니라 "살아 있다" 정도의 속도
+    let start = 0;
+
+    const frame = (now: number) => {
+      const geom = geomRef.current;
+      const draw = drawRef.current;
+      if (!geom || !draw) {
+        beatRafRef.current = requestAnimationFrame(frame);
+        return;
+      }
+      if (!start) start = now;
+      const beat = heartbeat((((now - start) % PERIOD) + PERIOD) % PERIOD / PERIOD);
+
+      // 캐시된 레이어 4장을 다시 합성한 뒤 그 위에 맥박만 얹는다 —
+      // 5,200칸 프리렌더는 건드리지 않는다
+      draw(0);
+
+      // 강조 링(칸에서 3px 밖) 바깥으로 번져 나가는 고리
+      const grow = 3 + beat * 5;
+      ctx.save();
+      ctx.globalCompositeOperation = dark ? "screen" : "multiply";
+      ctx.globalAlpha = 0.9 * (1 - beat * 0.85);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      roundRectPath(
+        ctx,
+        geom.curX - grow,
+        geom.curY - grow,
+        geom.cell + grow * 2,
+        geom.cellH + grow * 2,
+        CELL_R + grow
+      );
+      ctx.stroke();
+      ctx.restore();
+
+      beatRafRef.current = requestAnimationFrame(frame);
+    };
+
+    const stop = () => {
+      if (beatRafRef.current != null) cancelAnimationFrame(beatRafRef.current);
+      beatRafRef.current = null;
+    };
+    const startLoop = () => {
+      if (beatRafRef.current == null) {
+        start = 0;
+        beatRafRef.current = requestAnimationFrame(frame);
+      }
+    };
+    const onVisibility = () => {
+      if (document.hidden) {
+        stop();
+        drawRef.current?.(0); // 맥박 잔상 없이 정적 상태로 남긴다
+      } else {
+        startLoop();
+      }
+    };
+
+    if (!document.hidden) startLoop();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      stop();
+      // 언마운트가 아니라 의존성 변경일 수 있으므로 정적 그리드로 복구해 둔다
+      drawRef.current?.(0);
+    };
+  }, [ongoingColors, phase, themeTick, width]);
 
   // ── 재생기: 그리드(0) ↔ 시계(1) ──
   const play = useCallback((target: 0 | 1) => {
