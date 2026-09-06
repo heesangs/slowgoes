@@ -25,6 +25,7 @@ import {
   completeBucketAction,
   deleteBucketAction,
   restoreBucketAction,
+  updateBucketColorAction,
   deleteTodoAction,
   generateTodoSuggestionsAction,
   toggleTodoCompletionAction,
@@ -44,6 +45,7 @@ import { splitStridesByGroup } from "@/lib/ai/analyze";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { josa } from "@/lib/utils";
 import { daysLeftInYear, daysSince } from "@/lib/utils/period";
+import type { BucketColorIndex } from "@/lib/buckets/color";
 import {
   deriveTodosForDate,
   formatRepeatInputLabel,
@@ -227,6 +229,17 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
       const nextBucket = data.buckets.find((b) => b.id !== bucket.id);
       router.replace(nextBucket ? `/dashboard?bucket=${nextBucket.id}` : "/dashboard");
     });
+  }
+
+  // 버킷 색 지정 — 시트 편집 모드 팔레트.
+  // 일생 캘린더가 이 색으로 구간을 칠하므로 대시보드 캐시를 무효화해 즉시 반영한다.
+  async function handleChangeBucketColor(bucketId: string, colorIndex: BucketColorIndex) {
+    const result = await updateBucketColorAction(bucketId, colorIndex);
+    if (!result.success) {
+      toast(result.error ?? `${FEATURE_NAMES.BUCKET} 색을 바꾸지 못했어요.`, "error");
+      return;
+    }
+    await invalidateDashboard();
   }
 
   // 완료 토스트의 [실행취소] — 방금 완료한 것을 그 자리에서 되돌린다.
@@ -642,6 +655,7 @@ export function DashboardContentV2({ data, fetchError }: DashboardContentV2Props
         isDeleting={isDeletingBucket}
         onAddBucket={() => setExploreOpen(true)}
         completedBuckets={data.completedBuckets}
+        onChangeColor={handleChangeBucketColor}
       />
 
       {data.stridePlan && (

@@ -19,6 +19,7 @@ import {
 } from "@/lib/ai/analyze";
 import { getRecentDiaryExcerpts } from "@/lib/diary/queries";
 import { toDiaryListItem } from "@/lib/diary/format";
+import { BUCKET_COLOR_COUNT } from "@/lib/buckets/color";
 import {
   AUTH_ERRORS,
   AI_ERRORS,
@@ -606,7 +607,7 @@ export async function fetchCompletedBucketsAction(): Promise<CompletedBucketSumm
 
   const { data, error } = await supabase
     .from("buckets")
-    .select("id, title, stride_scope, status, created_at, completed_at")
+    .select("id, title, stride_scope, status, color_index, created_at, completed_at")
     .eq("user_id", userId)
     .eq("status", "completed")
     .order("completed_at", { ascending: false, nullsFirst: false });
@@ -667,7 +668,7 @@ export async function fetchBucketReportAction(bucketId: string): Promise<BucketR
 
   const { data: bucketRow, error: bucketError } = await supabase
     .from("buckets")
-    .select("id, title, stride_scope, status, created_at, completed_at")
+    .select("id, title, stride_scope, status, color_index, created_at, completed_at")
     .eq("id", trimmed)
     .eq("user_id", userId)
     .maybeSingle();
@@ -824,6 +825,49 @@ export async function restoreBucketAction(
     return {
       success: false,
       error: toClientErrorMessage(error, BUCKET_ERRORS.RESTORE_ERROR),
+    };
+  }
+}
+
+/**
+ * 버킷 색 지정 — 버킷 시트 편집 모드의 색 팔레트.
+ *
+ * 일생 캘린더가 이 색으로 "그 버킷을 붙들었던 구간"을 칠한다.
+ * 값은 1~7 (globals.css --bucket-N 과 같은 번호). DB CHECK 가 범위를 한 번 더 막는다.
+ */
+export async function updateBucketColorAction(
+  bucketId: string,
+  colorIndex: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, userId } = await getAuthContext();
+
+    const trimmed = bucketId?.trim();
+    if (!trimmed) {
+      return { success: false, error: BUCKET_ERRORS.NOT_FOUND_OR_ACCESS_DENIED };
+    }
+    if (
+      !Number.isInteger(colorIndex) ||
+      colorIndex < 1 ||
+      colorIndex > BUCKET_COLOR_COUNT
+    ) {
+      return { success: false, error: BUCKET_ERRORS.COLOR_INVALID };
+    }
+
+    const { error } = await supabase
+      .from("buckets")
+      .update({ color_index: colorIndex })
+      .eq("id", trimmed)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: toClientErrorMessage(error, BUCKET_ERRORS.COLOR_UPDATE_ERROR),
     };
   }
 }

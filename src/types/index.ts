@@ -228,6 +228,8 @@ export interface Bucket {
   title: string;
   stride_scope: StrideScope;
   status: BucketStatus;
+  /** 버킷 색 1~7 (Figma bucket_list_color). NULL이면 등록 순서에서 파생 */
+  color_index: number | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -522,7 +524,7 @@ export interface WeeklyGoalItem extends DiaryListItem {
  */
 export type BucketSummary = Pick<
   Bucket,
-  "id" | "title" | "stride_scope" | "status" | "created_at" | "completed_at"
+  "id" | "title" | "stride_scope" | "status" | "color_index" | "created_at" | "completed_at"
 >;
 
 /** 완료한 버킷 목록의 한 줄 — 무엇을 얼마나 했는지가 한눈에 보여야 한다 */
