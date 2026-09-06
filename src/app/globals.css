@@ -346,6 +346,14 @@ html {
   background: var(--background);
 }
 
+/* 글꼴 설정(프로필 → 글꼴) — 시스템 글꼴 선택 시 --font-sans 만 갈아끼운다.
+   body 와 Tailwind 의 font-sans 유틸이 둘 다 이 변수를 보므로 여기 한 곳이면 전역에 먹는다.
+   기기의 글자 크기·굵기 접근성 설정을 그대로 따르는 것이 시스템 글꼴을 고르는 이유다. */
+:root[data-font="system"] {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI",
+    "Malgun Gothic", Roboto, "Helvetica Neue", sans-serif;
+}
+
 body {
   background: var(--background);
   color: var(--label-normal);

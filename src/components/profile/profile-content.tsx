@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ErrorBox } from "@/components/ui/error-box";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -17,6 +18,7 @@ import {
 import { signOutAction } from "@/app/(auth)/actions";
 import { TaskStatsSection } from "@/components/profile/task-stats";
 import { ThemeSetting } from "@/components/profile/theme-setting";
+import { FontSetting } from "@/components/profile/font-setting";
 import { ACCOUNT_DELETE_CONFIRM_TEXT } from "@/lib/constants";
 import { useProfileView } from "@/hooks/use-profile-view";
 import { useDelayedFlag } from "@/hooks/use-delayed-flag";
@@ -238,6 +240,16 @@ export function ProfileContent() {
         </CardContent>
       </Card>
 
+      {/* Section: 글꼴 */}
+      <Card>
+        <CardHeader>
+          <h2 className="text-base font-bold">글꼴</h2>
+        </CardHeader>
+        <CardContent>
+          <FontSetting />
+        </CardContent>
+      </Card>
+
       {/* Section 2: 통계 */}
       <TaskStatsSection stats={stats} />
 
@@ -309,59 +321,75 @@ export function ProfileContent() {
             로그아웃
           </Button>
 
-          {/* 회원탈퇴 */}
-          <div className="rounded-lg border border-danger/30 bg-danger/5 p-4">
-            <div className="flex flex-col gap-1.5">
-              <p className="text-sm font-bold text-danger">회원탈퇴</p>
-              <p className="text-xs text-danger/90">
-                회원탈퇴 시 프로필, 할 일, 세부 단계 등 계정 데이터가 즉시 영구 삭제되며 복구할 수
-                없습니다.
-              </p>
-            </div>
-
+          {/* 회원탈퇴 — 로그아웃 바로 옆에서 빨간 박스로 소리치던 자리를 조용한 링크로 낮췄다.
+              빨간색이 오히려 로그아웃보다 눈에 띄어 "로그아웃하려다 탈퇴" 사고가 났다.
+              경고와 폼은 시트 안에만 둔다 — 일부러 들어간 사람만 보면 된다. */}
+          <div className="mt-2 border-t border-line-alt pt-4 text-center">
             <button
               type="button"
-              onClick={() => setShowDeleteForm((prev) => !prev)}
-              className="mt-3 w-full rounded-lg border border-danger/40 bg-background px-4 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/10 cursor-pointer"
+              onClick={() => setShowDeleteForm(true)}
+              className="rounded px-2 py-1 text-xs text-label-assistive underline underline-offset-2 transition-colors hover:text-label-alt cursor-pointer"
             >
-              {showDeleteForm ? "탈퇴 폼 닫기" : "회원탈퇴 진행"}
+              회원탈퇴
             </button>
-
-            {showDeleteForm && (
-              <div className="mt-3 flex flex-col gap-3 rounded-lg border border-danger/20 bg-background p-3">
-                <Input
-                  id="delete_password"
-                  label="비밀번호 재입력"
-                  type="password"
-                  value={deletePassword}
-                  onChange={(e) => setDeletePassword(e.target.value)}
-                  placeholder="현재 비밀번호 입력"
-                  autoComplete="current-password"
-                />
-                <Input
-                  id="delete_confirm_text"
-                  label={`확인 문구 (${ACCOUNT_DELETE_CONFIRM_TEXT})`}
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  placeholder={ACCOUNT_DELETE_CONFIRM_TEXT}
-                  autoComplete="off"
-                />
-                <Button
-                  onClick={handleDeleteAccount}
-                  isLoading={isDeletingAccount}
-                  disabled={
-                    !deletePassword ||
-                    deleteConfirmText !== ACCOUNT_DELETE_CONFIRM_TEXT
-                  }
-                  className="w-full bg-red-600 text-white hover:bg-red-700 active:bg-red-800"
-                >
-                  영구 삭제 후 탈퇴
-                </Button>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
+
+      {/* 회원탈퇴 시트 — 여기서만 위험을 빨간색으로 말한다 */}
+      <BottomSheet
+        open={showDeleteForm}
+        onClose={() => setShowDeleteForm(false)}
+        title="회원탈퇴"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="rounded-lg border border-danger/30 bg-danger/5 p-3">
+            <p className="text-sm leading-relaxed text-danger">
+              탈퇴하면 프로필·버킷·할 일·일기 등 계정 데이터가 <b>즉시 영구 삭제</b>되며
+              복구할 수 없습니다.
+            </p>
+          </div>
+
+          <Input
+            id="delete_password"
+            label="비밀번호 재입력"
+            type="password"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            placeholder="현재 비밀번호 입력"
+            autoComplete="current-password"
+          />
+          <Input
+            id="delete_confirm_text"
+            label={`확인 문구 (${ACCOUNT_DELETE_CONFIRM_TEXT})`}
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder={ACCOUNT_DELETE_CONFIRM_TEXT}
+            autoComplete="off"
+          />
+
+          <div className="flex gap-2">
+            <Button
+              variant="line"
+              className="flex-1"
+              onClick={() => setShowDeleteForm(false)}
+              disabled={isDeletingAccount}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleDeleteAccount}
+              isLoading={isDeletingAccount}
+              disabled={
+                !deletePassword || deleteConfirmText !== ACCOUNT_DELETE_CONFIRM_TEXT
+              }
+              className="flex-1 bg-red-600 text-white hover:bg-red-700 active:bg-red-800"
+            >
+              영구 삭제
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   );
 }
