@@ -22,6 +22,8 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { computeLifeClock } from "@/components/auth/onboarding/utils";
 import { cn } from "@/lib/utils";
+import type { LifeSpan } from "@/lib/dashboard/life-grid";
+import { bucketColorVar } from "@/lib/buckets/color";
 
 const COLS = 52; // 한 해의 주 수(근사) — 한 줄이 1년
 const ROWS = 100; // 100세
@@ -132,6 +134,13 @@ interface LifeCalendarProps {
   weekOfYear?: number;
   /** 진입 시 순차 채움 애니메이션 여부 */
   animate: boolean;
+  /**
+   * 버킷 색 구간 — "그 버킷을 붙들었던 기간"을 칠한다.
+   * 겹치는 구간은 블렌드 모드가 섞는다(라이트 multiply / 다크 screen).
+   *
+   * ⚠️ 5,200칸 프리렌더가 이 값의 identity 로 다시 도므로 **부모에서 useMemo 필수**.
+   */
+  spans?: LifeSpan[];
   /** 현재 주 칸의 화면 좌표 — 주→일생 오버레이 비행 타겟 (그리드 상태 레이아웃 후 1회) */
   onReady?: (rect: LifeCellRect) => void;
   /** 페이저 역방향 스크럽: grid 우드래그 진행 통지(캔버스 연출은 내부에서, dx>0) */
@@ -155,6 +164,30 @@ interface LifeCalendarProps {
    * 넘기면 그만큼 스와이프 가능한 영역이 넓어진다(래퍼 밖 마진은 히트 대상이 아니다).
    */
   className?: string;
+}
+
+/**
+ * 배경색이 어두운지 — 블렌드 방향(multiply/screen)을 정한다.
+ * data-theme 이 없는 "시스템 추종" 상태에서도 맞아야 하므로 속성이 아니라 실제 색으로 판단한다.
+ * #rgb / #rrggbb / rgb() 를 받는다.
+ */
+function isDarkColor(css: string): boolean {
+  let r = 255, g = 255, b = 255;
+  const hex = css.trim();
+  if (hex.startsWith("#")) {
+    const h = hex.slice(1);
+    const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+    if (full.length >= 6) {
+      r = parseInt(full.slice(0, 2), 16);
+      g = parseInt(full.slice(2, 4), 16);
+      b = parseInt(full.slice(4, 6), 16);
+    }
+  } else {
+    const m = hex.match(/(\d+(?:\.\d+)?)/g);
+    if (m && m.length >= 3) [r, g, b] = m.slice(0, 3).map(Number);
+  }
+  // 상대 휘도 근사 — 정확한 WCAG 식까지 갈 필요 없이 방향만 가리면 된다
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
 }
 
 function easeInOutCubic(u: number): number {
@@ -198,6 +231,7 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
     userName,
     weekOfYear = 0,
     animate,
+    spans,
     onReady,
     onReverseDrag,
     onReverseCommit,
@@ -256,7 +290,32 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
     const styles = getComputedStyle(document.documentElement);
     const fg = styles.getPropertyValue("--label-normal").trim() || "#171719";
     const bg = styles.getPropertyValue("--background").trim() || "#ffffff";
-    return { fg, bg };
+    // 버킷 색 1~7 — 구간 레이어가 쓴다
+    const bucket: string[] = [];
+    for (let i = 1; i <= 7; i++) {
+      bucket[i] = styles.getPropertyValue(bucketColorVar(i as 1)).trim() || fg;
+    }
+    return { fg, bg, bucket };
+  }, []);
+
+  // 테마가 바뀌면 캔버스를 다시 그린다.
+  //
+  // readColors 는 identity 가 고정이라 이것만으로는 셋업 이펙트가 다시 돌지 않았다 —
+  // 지금까지 테마를 바꿔도 캔버스가 이전 테마 색을 들고 있다가 리사이즈 때나 고쳐졌다.
+  // 구간 레이어의 블렌드 모드가 테마에 따라 갈리므로(multiply/screen) 더는 미룰 수 없다.
+  const [themeTick, setThemeTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setThemeTick((n) => n + 1);
+    // 앱 테마(data-theme) 변경
+    const mo = new MutationObserver(bump);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    // 시스템 테마 변경 (data-theme 이 없을 때 이게 정본)
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", bump);
+    return () => {
+      mo.disconnect();
+      mq.removeEventListener("change", bump);
+    };
   }, []);
 
   // ── 메인 셋업: 레이아웃/오프스크린 구성 + drawScene 정의 ──
@@ -269,7 +328,10 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
     const ctx = context; // 비-null 좁힘 (중첩 클로저용)
 
     const L: Layout = getLayout(width);
-    const { fg, bg } = readColors();
+    const colors = readColors();
+    const { fg, bg } = colors;
+    // 블렌드 방향은 배경 밝기로 정한다 — data-theme 이 없을 때(시스템 추종)도 맞아야 한다
+    const isDark = isDarkColor(bg);
     const dpr = window.devicePixelRatio || 1;
     canvas.width = L.cssWidth * dpr;
     canvas.height = L.cssHeight * dpr;
@@ -345,12 +407,41 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
       const cur = cellXY(currentIndex);
       roundRectPath(lived.x, cur.x, cur.y, L.cell, L.cellH, CELL_R);
       lived.x.fill();
-      // 현재 주 강조 링 — 셀에서 2px 간격 + 2px 라인.
-      // 칸보다 3px 바깥이므로 반경도 그만큼 키워 곡률을 맞춘다.
-      lived.x.strokeStyle = fg;
-      lived.x.lineWidth = 2;
-      roundRectPath(lived.x, cur.x - 3, cur.y - 3, L.cell + 6, L.cellH + 6, CELL_R + 3);
-      lived.x.stroke();
+    }
+
+    // 레이어 3: 버킷 색 구간 — "그 버킷을 붙들었던 기간".
+    //
+    // 겹치는 구간이 섞이는 게 이 기능의 핵심이라, **레이어 안에서** 블렌드한다.
+    // canvas 는 CSS mix-blend-mode 를 못 쓰므로 globalCompositeOperation 을 쓴다:
+    //   라이트 multiply(겹칠수록 진해짐) / 다크 screen(겹칠수록 밝아짐).
+    // 투명 캔버스에 처음 칠할 때는 블렌드 상대가 없어 원색 그대로 남고,
+    // 두 번째부터 겹친 자리에서만 섞인다 — 의도한 동작이다.
+    const spansLayer = makeLayer();
+    if (spansLayer.x && spans && spans.length > 0) {
+      const sx = spansLayer.x;
+      sx.globalCompositeOperation = isDark ? "screen" : "multiply";
+      for (const span of spans) {
+        sx.fillStyle = colors.bucket[span.colorIndex] ?? fg;
+        const from = Math.max(0, span.from);
+        const to = Math.min(COLS * ROWS - 1, span.to);
+        for (let i = from; i <= to; i++) {
+          const { x, y } = cellXY(i);
+          roundRectPath(sx, x, y, L.cell, L.cellH, CELL_R);
+          sx.fill();
+        }
+      }
+      sx.globalCompositeOperation = "source-over";
+    }
+
+    // 레이어 4: 현재 주 강조 링 — 구간 색보다 위에 그려야 묻히지 않는다.
+    // 셀에서 2px 간격 + 2px 라인. 칸보다 3px 바깥이므로 반경도 그만큼 키워 곡률을 맞춘다.
+    const ring = makeLayer();
+    if (ring.x) {
+      const cur = cellXY(currentIndex);
+      ring.x.strokeStyle = fg;
+      ring.x.lineWidth = 2;
+      roundRectPath(ring.x, cur.x - 3, cur.y - 3, L.cell + 6, L.cellH + 6, CELL_R + 3);
+      ring.x.stroke();
     }
 
     // 역방향 커밋용 지오메트리(현재 칸)
@@ -366,6 +457,17 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
       const clipH = Math.min(L.cssHeight, PAD_TOP + entryRows * L.pitchY);
       ctx.drawImage(
         lived.c,
+        0, 0, L.cssWidth * dpr, clipH * dpr,
+        0, 0, L.cssWidth, clipH
+      );
+      // 버킷 색 → 현재 주 링 순서. 링이 마지막이라 색에 묻히지 않는다.
+      ctx.drawImage(
+        spansLayer.c,
+        0, 0, L.cssWidth * dpr, clipH * dpr,
+        0, 0, L.cssWidth, clipH
+      );
+      ctx.drawImage(
+        ring.c,
         0, 0, L.cssWidth * dpr, clipH * dpr,
         0, 0, L.cssWidth, clipH
       );
@@ -668,7 +770,7 @@ export const LifeCalendar = forwardRef<LifeCalendarHandle, LifeCalendarProps>(fu
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       if (entryTimer != null) clearTimeout(entryTimer);
     };
-  }, [age, animate, weeksLived, currentIndex, onReady, readColors, width, entryDelayMs]);
+  }, [age, animate, weeksLived, currentIndex, onReady, readColors, width, entryDelayMs, spans, themeTick]);
 
   // ── 재생기: 그리드(0) ↔ 시계(1) ──
   const play = useCallback((target: 0 | 1) => {
