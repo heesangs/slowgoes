@@ -83,12 +83,15 @@ export default function RootLayout({
       <head>
         {/* 상태바 주변 색 — 아래 스크립트가 실제 테마로 즉시 보정한다(기본값은 라이트) */}
         <meta name="theme-color" content="#ffffff" />
-        {/* 페인트 전 테마 적용 — FOUC(테마 깜빡임) 방지 + theme-color 동기화 */}
+        {/* 페인트 전 테마·글꼴 적용 — FOUC 방지 + theme-color 동기화.
+            글꼴도 여기서 세워야 한다: 마운트 후에 세우면 첫 프레임이 브랜드 글꼴로 그려진 뒤
+            시스템 글꼴로 갈아엎히면서 본문 전체가 한 번 출렁인다. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
               "(function(){try{var t=localStorage.getItem('theme');" +
               "if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);" +
+              "if(localStorage.getItem('font')==='system')document.documentElement.setAttribute('data-font','system');" +
               "var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);" +
               "var m=document.querySelector('meta[name=\"theme-color\"]');" +
               "if(m)m.setAttribute('content',d?'#1b1c1e':'#ffffff');}catch(e){}})();",
