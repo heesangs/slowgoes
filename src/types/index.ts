@@ -531,6 +531,32 @@ export interface CompletedBucketSummary extends BucketSummary {
   completedTodoCount: number;
 }
 
+/** 완료 리포트의 "해낸 일" 한 줄 — 반복 할 일은 여러 날 해낸 것이라 날짜가 배열이다 */
+export interface BucketReportDoneTodo {
+  id: string;
+  title: string;
+  /** 완료한 날짜들 (YYYY-MM-DD, 최근순) */
+  dates: string[];
+}
+
+/** 완료한 버킷 한 개의 기록 전부 (/buckets/[id]) */
+export interface BucketReport {
+  bucket: BucketSummary;
+  /** stride_plans.life_area — 없으면 null */
+  lifeArea: string | null;
+  /** 마지막 계획 (언젠가·올해안·해당 달 …) */
+  strides: StrideItem[];
+  /** 계획을 고쳐 온 이력 */
+  titleHistory: StrideTitleHistory;
+  doneTodos: BucketReportDoneTodo[];
+  /** 1회성 중 한 번도 완료되지 않은 것 */
+  unfinishedTodos: Array<{ id: string; title: string }>;
+  /** 완료 횟수 총합 — 목록 화면의 completedTodoCount와 같은 정의 */
+  completionCount: number;
+  /** 그때 쓴 주간 목표·회고 (최신순) */
+  weeklyNotes: DiaryListItem[];
+}
+
 export interface DashboardV2Data {
   profile: Profile;
   /** 진행 중인 버킷만. 완료한 것은 completedBuckets로 간다 */

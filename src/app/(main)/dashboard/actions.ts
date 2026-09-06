@@ -18,16 +18,21 @@ import {
   STRIDE_LABELS,
 } from "@/lib/ai/analyze";
 import { getRecentDiaryExcerpts } from "@/lib/diary/queries";
+import { toDiaryListItem } from "@/lib/diary/format";
 import {
   AUTH_ERRORS,
   AI_ERRORS,
   BUCKET_ERRORS,
+  DIARY_ERRORS,
   TODO_ERRORS,
   STRIDE_ERRORS,
 } from "@/lib/constants";
 import type {
+  BucketReport,
+  BucketReportDoneTodo,
   BucketSummary,
   CompletedBucketSummary,
+  DiaryWeekKind,
   DashboardV2Data,
   ItemSource,
   StrideItem,
@@ -643,6 +648,89 @@ export async function fetchCompletedBucketsAction(): Promise<CompletedBucketSumm
     ...bucket,
     completedTodoCount: countByBucket.get(bucket.id) ?? 0,
   }));
+}
+
+/**
+ * 완료 리포트 (/buckets/[id]) — 그 버킷에서 무엇을 했는지 한 번에.
+ *
+ * 새 쿼리는 diaries 하나뿐이고 나머지는 기존 헬퍼를 그대로 쓴다.
+ * 특히 getBucketTodos 는 is_active=true 라, 목록 화면의 "완료한 할 일" 정의와
+ * 자동으로 맞는다 — 같은 말이 두 화면에서 다른 숫자가 되는 일을 막는다.
+ *
+ * null 반환 = 없거나 남의 버킷. 라우트가 notFound()로 바꾼다.
+ */
+export async function fetchBucketReportAction(bucketId: string): Promise<BucketReport | null> {
+  const { supabase, userId } = await getAuthContext();
+
+  const trimmed = bucketId?.trim();
+  if (!trimmed) return null;
+
+  const { data: bucketRow, error: bucketError } = await supabase
+    .from("buckets")
+    .select("id, title, stride_scope, status, created_at, completed_at")
+    .eq("id", trimmed)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (bucketError) throw new Error(BUCKET_ERRORS.INFO_NOT_FOUND);
+  if (!bucketRow) return null;
+
+  const bucket = bucketRow as BucketSummary;
+
+  const [stridePlan, bucketTodos, diariesResult] = await Promise.all([
+    getStridePlan(supabase, userId, trimmed),
+    getBucketTodos(supabase, userId, trimmed),
+    supabase
+      .from("diaries")
+      .select("id, plain_text, created_at, week_start, week_kind")
+      .eq("user_id", userId)
+      .eq("bucket_id", trimmed)
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
+
+  if (diariesResult.error) throw new Error(DIARY_ERRORS.LOAD_FAILED);
+
+  // 완료 날짜를 할 일별로 묶는다. 반복 할 일은 여러 날 해낸 것이라 날짜가 곧 기록이다.
+  const datesByTodo = new Map<string, string[]>();
+  for (const c of bucketTodos.completions) {
+    const list = datesByTodo.get(c.todo_id);
+    if (list) list.push(c.completion_date);
+    else datesByTodo.set(c.todo_id, [c.completion_date]);
+  }
+  for (const dates of datesByTodo.values()) dates.sort((a, b) => b.localeCompare(a));
+
+  const doneTodos: BucketReportDoneTodo[] = bucketTodos.todos
+    .filter((t) => datesByTodo.has(t.id))
+    .map((t) => ({ id: t.id, title: t.title, dates: datesByTodo.get(t.id) ?? [] }))
+    // 가장 최근에 해낸 것이 위로
+    .sort((a, b) => (b.dates[0] ?? "").localeCompare(a.dates[0] ?? ""));
+
+  // 반복 할 일은 "끝나는" 개념이 없어 남긴 일에 넣지 않는다(완료 확인 시트와 같은 규칙).
+  const unfinishedTodos = bucketTodos.todos
+    .filter((t) => !t.repeat_type && !datesByTodo.has(t.id))
+    .map((t) => ({ id: t.id, title: t.title }));
+
+  const weeklyNotes = (
+    (diariesResult.data as Array<{
+      id: string;
+      plain_text: string;
+      created_at: string;
+      week_start: string | null;
+      week_kind: DiaryWeekKind | null;
+    }> | null) ?? []
+  ).map((row) => toDiaryListItem({ ...row, bucket_title: bucket.title }));
+
+  return {
+    bucket,
+    lifeArea: stridePlan?.life_area ?? null,
+    strides: stridePlan?.strides ?? [],
+    titleHistory: stridePlan?.title_history ?? {},
+    doneTodos,
+    unfinishedTodos,
+    completionCount: bucketTodos.completions.length,
+    weeklyNotes,
+  };
 }
 
 /**
