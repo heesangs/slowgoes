@@ -75,7 +75,7 @@ export async function getUserBuckets(
     const { data, error } = await supabase
       .from("buckets")
       // completed_at: 완료한 버킷 목록이 "언제 끝냈는지"를 보여준다
-      .select("id, title, stride_scope, status, created_at, completed_at")
+      .select("id, title, stride_scope, status, color_index, created_at, completed_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 

@@ -85,6 +85,8 @@ export const BUCKET_ERRORS = {
   UPDATE_ERROR: "버킷 수정 중 오류가 발생했습니다.",
   DELETE_ERROR: "버킷 삭제 중 오류가 발생했습니다.",
   COMPLETE_ERROR: "버킷 완료 처리 중 오류가 발생했습니다.",
+  COLOR_INVALID: "버킷 색 값이 올바르지 않습니다.",
+  COLOR_UPDATE_ERROR: "버킷 색 변경 중 오류가 발생했습니다.",
   RESTORE_ERROR: "버킷을 다시 시작하는 중 오류가 발생했습니다.",
   /** 완료 후 같은 이름으로 새 버킷을 만든 경우 — 활성 버킷 unique 인덱스에 걸린다 */
   RESTORE_TITLE_TAKEN:

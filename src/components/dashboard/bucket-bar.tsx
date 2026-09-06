@@ -14,18 +14,25 @@
 //   "내 버킷이 어디 있나"의 심상이 이미 이 시트에 있어 새 자리를 만들지 않고 여기에 뒀다.
 //   목록 자체는 기간·완료한 할 일 수까지 보여줘야 해서 시트 밖 전용 화면이 맡는다.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { FEATURE_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { BucketSummary, Bucket } from "@/types";
+import {
+  BUCKET_COLOR_INDEXES,
+  BUCKET_COLOR_NAMES,
+  resolveBucketColors,
+  type BucketColorIndex,
+} from "@/lib/buckets/color";
 import { CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
 
 type BucketItem = Pick<Bucket, "id" | "title">;
 
 interface BucketBarProps {
-  buckets: BucketItem[];
+  /** 색을 그리려면 color_index·created_at 이 필요해 요약 타입을 그대로 받는다 */
+  buckets: BucketSummary[];
   selectedBucket: BucketItem | null;
   /** 편집 모드 [수정] → 키보드 입력창(해당 버킷 타이틀 프리필) */
   onEditTitle: (bucket: BucketItem) => void;
@@ -36,6 +43,8 @@ interface BucketBarProps {
   onAddBucket: () => void;
   /** 완료한 버킷 (최근 완료순). 비어 있으면 진입점 자체를 숨긴다 */
   completedBuckets?: BucketSummary[];
+  /** 편집 모드 색 팔레트 → updateBucketColorAction */
+  onChangeColor?: (bucketId: string, colorIndex: BucketColorIndex) => void;
 }
 
 export function BucketBar({
@@ -46,9 +55,19 @@ export function BucketBar({
   isDeleting = false,
   onAddBucket,
   completedBuckets = [],
+  onChangeColor,
 }: BucketBarProps) {
   const [listOpen, setListOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  // 팔레트를 펼친 버킷 (하나씩만) — 일곱 색을 모든 행에 항상 깔면 목록이 안 읽힌다
+  const [paletteFor, setPaletteFor] = useState<string | null>(null);
+
+  // 색은 완료한 것까지 포함해 등록 순서로 푼다 — 활성만 세면 하나를 완료했을 때
+  // 남은 버킷들의 색이 통째로 밀린다
+  const colorByBucket = useMemo(
+    () => resolveBucketColors([...buckets, ...completedBuckets]),
+    [buckets, completedBuckets]
+  );
   // 버킷 전환 — shallow routing (?bucket=만 교체 → RSC 왕복 없이 즉시 전환)
   function selectBucket(bucketId: string) {
     window.history.replaceState(null, "", `/dashboard?bucket=${bucketId}`);
@@ -58,6 +77,7 @@ export function BucketBar({
   function closeSheet() {
     setListOpen(false);
     setEditMode(false); // 다음 오픈은 항상 일반 모드부터
+    setPaletteFor(null);
   }
 
   return (
@@ -108,11 +128,28 @@ export function BucketBar({
 
             if (editMode) {
               // 편집 모드: 행 탭 없음 — [수정]·[삭제] 액션만
+              const color = colorByBucket.get(bucket.id) ?? 1;
+              const paletteOpen = paletteFor === bucket.id;
+
               return (
                 <li
                   key={bucket.id}
-                  className="flex items-center gap-2 rounded-lg border border-line-alt px-3 py-2.5"
+                  className="flex flex-col gap-2 rounded-lg border border-line-alt px-3 py-2.5"
                 >
+                  <div className="flex items-center gap-2">
+                  {/* 색 점 — 탭하면 팔레트가 이 행 아래 펼쳐진다.
+                      일생 캘린더에서 이 버킷의 구간이 이 색으로 칠해진다. */}
+                  <button
+                    type="button"
+                    onClick={() => setPaletteFor(paletteOpen ? null : bucket.id)}
+                    aria-label={`${bucket.title} 색 바꾸기 (현재 ${BUCKET_COLOR_NAMES[color]})`}
+                    aria-expanded={paletteOpen}
+                    className={cn(
+                      "h-6 w-6 shrink-0 rounded-full border transition-transform",
+                      paletteOpen ? "scale-110 border-label-normal" : "border-line-normal"
+                    )}
+                    style={{ backgroundColor: `var(--bucket-${color})` }}
+                  />
                   <span className="min-w-0 flex-1 break-words text-sm">
                     {bucket.title}
                   </span>
@@ -134,6 +171,32 @@ export function BucketBar({
                   >
                     삭제
                   </button>
+                  </div>
+
+                  {/* 색 팔레트 — 일곱 색을 모든 행에 항상 깔면 목록이 안 읽혀서 접어 둔다 */}
+                  {paletteOpen && (
+                    <div className="flex flex-wrap gap-2 border-t border-line-alt pt-2">
+                      {BUCKET_COLOR_INDEXES.map((index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => {
+                            onChangeColor?.(bucket.id, index);
+                            setPaletteFor(null);
+                          }}
+                          aria-label={BUCKET_COLOR_NAMES[index]}
+                          aria-pressed={index === color}
+                          className={cn(
+                            "h-8 w-8 rounded-full border-2 transition-transform hover:scale-110",
+                            index === color
+                              ? "border-label-normal"
+                              : "border-transparent"
+                          )}
+                          style={{ backgroundColor: `var(--bucket-${index})` }}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </li>
               );
             }
