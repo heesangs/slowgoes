@@ -269,7 +269,10 @@
   --color-warning: var(--warning);
   --color-success: var(--success);
 
-  --font-sans: var(--font-gmarket-sans);
+  /* 본문 글꼴 — 실제 값은 런타임 변수 --app-font 가 정한다(프로필 → 글꼴).
+     @theme inline 은 값을 쓰는 곳에 그대로 인라인하므로 여기에 글꼴을 직접 적으면
+     font-sans 유틸이 data-font 선택을 따라가지 못한다. 그래서 한 단계를 둔다. */
+  --font-sans: var(--app-font);
   --font-mono: var(--font-geist-mono);
 
   /* 글자 스케일 — Figma 텍스트 스타일이 정본. 이름은 Tailwind 것을 그대로 쓴다.
@@ -372,12 +375,17 @@ html {
   background: var(--background);
 }
 
-/* 글꼴 설정(프로필 → 글꼴) — 시스템 글꼴 선택 시 --font-sans 만 갈아끼운다.
-   body 와 Tailwind 의 font-sans 유틸이 둘 다 이 변수를 보므로 여기 한 곳이면 전역에 먹는다.
-   기기의 글자 크기·굵기 접근성 설정을 그대로 따르는 것이 시스템 글꼴을 고르는 이유다. */
-:root[data-font="system"] {
-  --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI",
+/* 글꼴 설정(프로필 → 글꼴) — 선택지 목록은 src/lib/constants/fonts.ts 가 정본.
+   기본은 시스템 글꼴이다(아래 :root). 다른 글꼴을 고르면 <html data-font="<id>"> 가 서고
+   --app-font 만 갈아끼운다. body 와 font-sans 유틸이 모두 이 변수를 보므로 여기면 전역에 먹는다.
+
+   글꼴을 추가할 때: fonts.ts 에 한 줄 + 여기에 :root[data-font="<id>"] 한 블록. */
+:root {
+  --app-font: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI",
     "Malgun Gothic", Roboto, "Helvetica Neue", sans-serif;
+}
+:root[data-font="gmarket-sans"] {
+  --app-font: var(--font-gmarket-sans);
 }
 
 body {
