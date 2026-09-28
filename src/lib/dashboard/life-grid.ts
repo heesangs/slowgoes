@@ -42,8 +42,6 @@ export interface LifeSpan {
   colorIndex: number;
   from: number;
   to: number;
-  /** 진행 중이면 true — 현재 주 칸이 심장박동처럼 뛴다(다음 PR) */
-  ongoing: boolean;
 }
 
 interface SpanInput {
@@ -90,7 +88,6 @@ export function buildLifeSpans(
       from: Math.min(from, to),
       // 진행 중이면 오늘 칸을 넘지 않게 — created_at 이 미래인 이상 데이터 방어
       to: Math.min(Math.max(from, to), todayIndex ?? Math.max(from, to)),
-      ongoing,
     });
   }
 
